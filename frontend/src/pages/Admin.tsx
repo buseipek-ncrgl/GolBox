@@ -5,7 +5,8 @@ import type { AdminAnalytics } from '../types';
 import { 
   ShieldCheck, Award, Activity, AlertCircle, CheckCircle, 
   Smartphone, Users, Coffee, Building2, Trash2, Settings, 
-  MapPin, Plus, ChevronRight, LogOut, Calendar, PlusCircle
+  MapPin, Plus, ChevronRight, LogOut, Calendar, PlusCircle,
+  ShoppingBag, Eye
 } from 'lucide-react';
 
 interface UserListItem {
@@ -54,15 +55,9 @@ interface ActivityListItem {
   location: string;
 }
 
-interface SettingItem {
-  key: string;
-  value: string;
-  description: string;
-}
-
 export const Admin: React.FC = () => {
   const { logout, user: currentUser } = useAuth();
-  const [activeMenu, setActiveMenu] = useState<'users' | 'cafes' | 'products' | 'rewards' | 'tasks' | 'activities' | 'settings' | 'pos' | 'reports'>('users');
+  const [activeMenu, setActiveMenu] = useState<'users' | 'cafes' | 'products' | 'rewards' | 'tasks' | 'activities' | 'settings' | 'pos' | 'reports' | 'orders'>('users');
   
   // Data lists
   const [usersList, setUsersList] = useState<UserListItem[]>([]);
@@ -72,6 +67,7 @@ export const Admin: React.FC = () => {
   const [rewardsList, setRewardsList] = useState<RewardListItem[]>([]);
   const [tasksList, setTasksList] = useState<TaskListItem[]>([]);
   const [activitiesList, setActivitiesList] = useState<ActivityListItem[]>([]);
+  const [ordersList, setOrdersList] = useState<any[]>([]);
   const [analytics, setAnalytics] = useState<AdminAnalytics | null>(null);
   
   // Settings values
@@ -92,6 +88,7 @@ export const Admin: React.FC = () => {
   const [productName, setProductName] = useState('');
   const [productDesc, setProductDesc] = useState('');
   const [productPrice, setProductPrice] = useState(45);
+  const [productImageUrl, setProductImageUrl] = useState('');
 
   // Forms - Reward Definition
   const [rewardTitle, setRewardTitle] = useState('');
@@ -145,6 +142,9 @@ export const Admin: React.FC = () => {
 
       const actsData = await api.getActivities();
       setActivitiesList(actsData);
+
+      const ordersData = await api.getOrders();
+      setOrdersList(ordersData);
 
       const analyticsData = await api.getAdminAnalytics();
       setAnalytics(analyticsData);
@@ -225,11 +225,13 @@ export const Admin: React.FC = () => {
       await api.createMenuItem(selectedCafeId, {
         name: productName,
         description: productDesc,
-        price: productPrice
+        price: productPrice,
+        imageUrl: productImageUrl || 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=500&auto=format&fit=crop&q=60'
       });
       setSuccess('Ürün başarıyla menüye eklendi.');
       setProductName('');
       setProductDesc('');
+      setProductImageUrl('');
       await fetchMenuItems(selectedCafeId);
     } catch (err: any) {
       setError(err.message || 'Ürün eklenemedi.');
@@ -412,6 +414,19 @@ export const Admin: React.FC = () => {
     }
   };
 
+  // Actions - Order status modification
+  const handleUpdateOrderStatus = async (id: string, status: string) => {
+    setError(null);
+    setSuccess(null);
+    try {
+      await api.updateOrderStatus(id, status);
+      setSuccess(`Sipariş durumu '${status}' olarak güncellendi.`);
+      await fetchData();
+    } catch (err: any) {
+      setError(err.message || 'Sipariş durumu güncellenemedi.');
+    }
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: 'var(--bg-primary)' }}>
       
@@ -482,6 +497,14 @@ export const Admin: React.FC = () => {
           >
             <Coffee size={18} />
             <span>Ismarlıyor Menüsü</span>
+          </button>
+
+          <button
+            onClick={() => { setActiveMenu('orders'); setError(null); setSuccess(null); }}
+            className={`sidebar-link ${activeMenu === 'orders' ? 'active' : ''}`}
+          >
+            <ShoppingBag size={18} />
+            <span>Ismarlıyor Siparişleri</span>
           </button>
 
           <button
@@ -781,7 +804,7 @@ export const Admin: React.FC = () => {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                     
                     {/* Add product form under selected cafe */}
-                    <form onSubmit={handleAddProduct} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '0.75rem', alignItems: 'end', background: 'var(--bg-tertiary)', padding: '1rem', borderRadius: '8px' }}>
+                    <form onSubmit={handleAddProduct} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 2fr 1fr', gap: '0.75rem', alignItems: 'end', background: 'var(--bg-tertiary)', padding: '1rem', borderRadius: '8px' }}>
                       <div className="form-group" style={{ marginBottom: 0 }}>
                         <label className="form-label">Yeni Ürün Adı</label>
                         <input
@@ -803,23 +826,62 @@ export const Admin: React.FC = () => {
                           onChange={(e) => setProductPrice(Number(e.target.value))}
                         />
                       </div>
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label className="form-label">Görsel URL'i (Unsplash vb.)</label>
+                        <input
+                          type="text"
+                          className="form-input"
+                          value={productImageUrl}
+                          onChange={(e) => setProductImageUrl(e.target.value)}
+                          placeholder="https://images.unsplash.com/..."
+                        />
+                      </div>
                       <button type="submit" className="btn btn-primary" style={{ padding: '0.65rem' }}>
-                        Ürün Ekle
+                        Ekle
                       </button>
                     </form>
 
                     {/* Products List */}
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                       {menuItemsList.length === 0 ? (
                         <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
                           Bu kafeye henüz herhangi bir menü ürünü eklenmemiş.
                         </div>
                       ) : (
                         menuItemsList.map((item) => (
-                          <div key={item.id} className="action-item">
-                            <div>
-                              <div style={{ fontWeight: 600 }}>{item.name}</div>
-                              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{item.description || 'Açıklama girilmemiş.'}</div>
+                          <div key={item.id} className="action-item" style={{ padding: '0.6rem 0.85rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+                              {item.imageUrl ? (
+                                <img
+                                  src={item.imageUrl}
+                                  alt={item.name}
+                                  style={{
+                                    width: '44px',
+                                    height: '44px',
+                                    objectFit: 'cover',
+                                    borderRadius: '6px',
+                                    border: '1px solid var(--border-color)'
+                                  }}
+                                />
+                              ) : (
+                                <div style={{
+                                  width: '44px',
+                                  height: '44px',
+                                  borderRadius: '6px',
+                                  background: 'var(--bg-tertiary)',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  color: 'var(--text-muted)',
+                                  border: '1px solid var(--border-color)'
+                                }}>
+                                  <Coffee size={18} />
+                                </div>
+                              )}
+                              <div>
+                                <div style={{ fontWeight: 600 }}>{item.name}</div>
+                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{item.description || 'Açıklama girilmemiş.'}</div>
+                              </div>
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
                               <strong style={{ color: 'var(--text-primary)' }}>{item.price} TL</strong>
@@ -842,7 +904,139 @@ export const Admin: React.FC = () => {
             </div>
           )}
 
-          {/* 4. İkram Tanımlama (Rewards) */}
+          {/* 4. Ismarlıyor Siparişleri (Orders) */}
+          {activeMenu === 'orders' && (
+            <div className="glass-card" style={{ textAlign: 'left' }}>
+              <h3 style={{ fontSize: '1.15rem', marginBottom: '0.25rem' }}>Ön Sipariş Takip Paneli (Ismarlıyor)</h3>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '1.5rem' }}>
+                Kitap Kafelerden verilen anlık veya aktif ön sipariş listesi ve hazırlık süreçleri.
+              </p>
+
+              <div style={{ overflowX: 'auto' }}>
+                <table className="premium-table">
+                  <thead>
+                    <tr>
+                      <th>Sipariş Kodu</th>
+                      <th>Alıcı (Kim)</th>
+                      <th>Şube</th>
+                      <th>İçerik (Ne Ismarlıyor)</th>
+                      <th>Tutar (Ne Kadar)</th>
+                      <th>Durum</th>
+                      <th style={{ textAlign: 'right' }}>İşlem</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ordersList.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
+                          Herhangi bir ön sipariş bulunmuyor.
+                        </td>
+                      </tr>
+                    ) : (
+                      ordersList.map((o) => (
+                        <tr key={o.id}>
+                          <td style={{ fontWeight: 700, color: 'var(--accent-primary)' }}>{o.collectionCode}</td>
+                          <td>
+                            <div style={{ fontWeight: 600 }}>{o.userFullName}</div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{o.userEmail}</div>
+                          </td>
+                          <td>{o.cafeName}</td>
+                          <td>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                              {o.items.map((item: any, idx: number) => (
+                                <div key={idx} style={{ fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                  {item.menuItemImageUrl && (
+                                    <img
+                                      src={item.menuItemImageUrl}
+                                      alt={item.menuItemName}
+                                      style={{ width: '20px', height: '20px', objectFit: 'cover', borderRadius: '4px' }}
+                                    />
+                                  )}
+                                  <span>{item.menuItemName} <strong style={{ color: 'var(--text-secondary)' }}>x{item.quantity}</strong></span>
+                                </div>
+                              ))}
+                            </div>
+                          </td>
+                          <td>
+                            <div style={{ fontWeight: 700 }}>{o.totalAmount} TL</div>
+                            <div style={{ fontSize: '0.75rem', color: o.paidWithPoints ? 'var(--success)' : 'var(--text-muted)' }}>
+                              {o.paidWithPoints ? `🪙 ${o.pointsUsed} Puan` : '💳 Nakit/Kart'}
+                            </div>
+                          </td>
+                          <td>
+                            <span style={{
+                              padding: '0.2rem 0.5rem',
+                              borderRadius: '4px',
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
+                              textTransform: 'uppercase',
+                              background: 
+                                o.status === 'Completed' ? 'rgba(16, 185, 129, 0.1)' :
+                                o.status === 'Ready' ? 'rgba(37, 99, 235, 0.1)' :
+                                o.status === 'Preparing' ? 'rgba(245, 158, 11, 0.1)' :
+                                o.status === 'Cancelled' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(107, 114, 128, 0.1)',
+                              color:
+                                o.status === 'Completed' ? 'var(--success)' :
+                                o.status === 'Ready' ? 'var(--accent-primary)' :
+                                o.status === 'Preparing' ? '#d97706' :
+                                o.status === 'Cancelled' ? 'var(--error)' : 'var(--text-muted)'
+                            }}>
+                              {o.status === 'Pending' ? 'Bekliyor' :
+                               o.status === 'Preparing' ? 'Hazırlanıyor' :
+                               o.status === 'Ready' ? 'Hazır' :
+                               o.status === 'Completed' ? 'Teslim Edildi' : 'İptal Edildi'}
+                            </span>
+                          </td>
+                          <td style={{ textAlign: 'right' }}>
+                            <div style={{ display: 'flex', gap: '0.35rem', justifyContent: 'flex-end' }}>
+                              {o.status === 'Pending' && (
+                                <button
+                                  onClick={() => handleUpdateOrderStatus(o.id, 'Preparing')}
+                                  className="btn btn-primary"
+                                  style={{ padding: '0.3rem 0.5rem', fontSize: '0.75rem', background: '#f59e0b', borderColor: '#f59e0b' }}
+                                >
+                                  Hazırla
+                                </button>
+                              )}
+                              {o.status === 'Preparing' && (
+                                <button
+                                  onClick={() => handleUpdateOrderStatus(o.id, 'Ready')}
+                                  className="btn btn-primary"
+                                  style={{ padding: '0.3rem 0.5rem', fontSize: '0.75rem' }}
+                                >
+                                  Hazır Et
+                                </button>
+                              )}
+                              {o.status === 'Ready' && (
+                                <button
+                                  onClick={() => handleUpdateOrderStatus(o.id, 'Completed')}
+                                  className="btn btn-primary"
+                                  style={{ padding: '0.3rem 0.5rem', fontSize: '0.75rem', background: 'var(--success)', borderColor: 'var(--success)' }}
+                                >
+                                  Teslim Et
+                                </button>
+                              )}
+                              {o.status !== 'Completed' && o.status !== 'Cancelled' && (
+                                <button
+                                  onClick={() => handleUpdateOrderStatus(o.id, 'Cancelled')}
+                                  className="btn btn-secondary"
+                                  style={{ padding: '0.3rem 0.5rem', fontSize: '0.75rem', color: 'var(--error)', borderColor: 'rgba(239, 68, 68, 0.2)' }}
+                                >
+                                  İptal
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* 5. İkram Tanımlama (Rewards) */}
           {activeMenu === 'rewards' && (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '1.5rem' }}>
               
@@ -915,7 +1109,7 @@ export const Admin: React.FC = () => {
             </div>
           )}
 
-          {/* 5. Görev Tanımlama (Tasks) */}
+          {/* 6. Görev Tanımlama (Tasks) */}
           {activeMenu === 'tasks' && (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '1.5rem' }}>
               
@@ -988,7 +1182,7 @@ export const Admin: React.FC = () => {
             </div>
           )}
 
-          {/* 6. Etkinlik Tanımlama (Activities) */}
+          {/* 7. Etkinlik Tanımlama (Activities) */}
           {activeMenu === 'activities' && (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '1.5rem' }}>
               
@@ -1076,7 +1270,7 @@ export const Admin: React.FC = () => {
             </div>
           )}
 
-          {/* 7. Sistem Limitleri (Settings) */}
+          {/* 8. Sistem Limitleri (Settings) */}
           {activeMenu === 'settings' && (
             <div className="glass-card" style={{ textAlign: 'left', maxWidth: '650px', margin: '0 auto' }}>
               <h3 style={{ fontSize: '1.15rem', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
@@ -1189,7 +1383,7 @@ export const Admin: React.FC = () => {
             </div>
           )}
 
-          {/* 8. POS Simülasyonu */}
+          {/* 9. POS Simülasyonu */}
           {activeMenu === 'pos' && (
             <div className="glass-card" style={{ textAlign: 'left', maxWidth: '750px', margin: '0 auto' }}>
               <h3 style={{ marginBottom: '0.5rem', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -1294,7 +1488,7 @@ export const Admin: React.FC = () => {
             </div>
           )}
 
-          {/* 9. Genel Analitik (Reports) */}
+          {/* 10. Genel Analitik (Reports) */}
           {activeMenu === 'reports' && analytics && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
               

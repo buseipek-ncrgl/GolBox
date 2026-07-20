@@ -22,6 +22,8 @@ public interface IAppDbContext
     DbSet<Activity> Activities { get; }
     DbSet<UserActivity> UserActivities { get; }
     DbSet<MenuItem> MenuItems { get; }
+    DbSet<Order> Orders { get; }
+    DbSet<OrderItem> OrderItems { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

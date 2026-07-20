@@ -217,5 +217,130 @@ public static class DbInitializer
             );
             await context.SaveChangesAsync();
         }
+
+        // 8. Seed Menu Items
+        if (!await context.MenuItems.AnyAsync())
+        {
+            context.MenuItems.AddRange(
+                new MenuItem
+                {
+                    Id = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+                    CafeId = Guid.Parse("33333333-3333-3333-3333-333333333333"), // Merkez
+                    Name = "Türk Kahvesi",
+                    Description = "Geleneksel közde pişirilmiş Türk kahvesi.",
+                    Price = 40.00m,
+                    ImageUrl = "https://images.unsplash.com/photo-1578314675249-a6910f80cc4e?w=500&auto=format&fit=crop&q=60",
+                    IsActive = true
+                },
+                new MenuItem
+                {
+                    Id = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
+                    CafeId = Guid.Parse("33333333-3333-3333-3333-333333333333"), // Merkez
+                    Name = "Filtre Kahve",
+                    Description = "Özenle seçilmiş çekirdeklerden demlenmiş kahve.",
+                    Price = 45.00m,
+                    ImageUrl = "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=500&auto=format&fit=crop&q=60",
+                    IsActive = true
+                },
+                new MenuItem
+                {
+                    Id = Guid.Parse("cccccccc-cccc-cccc-cccc-cccccccccccc"),
+                    CafeId = Guid.Parse("33333333-3333-3333-3333-444444444444"), // Mogan
+                    Name = "Simit & Peynir",
+                    Description = "Çıtır Ankara simidi ve taze kaşar peyniri.",
+                    Price = 30.00m,
+                    ImageUrl = "https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?w=500&auto=format&fit=crop&q=60",
+                    IsActive = true
+                }
+            );
+            await context.SaveChangesAsync();
+        }
+
+        // 9. Seed Orders
+        if (!await context.Orders.AnyAsync())
+        {
+            var orderId1 = Guid.Parse("11110000-0000-0000-0000-000000000001");
+            var orderId2 = Guid.Parse("22220000-0000-0000-0000-000000000002");
+            var orderId3 = Guid.Parse("33330000-0000-0000-0000-000000000003");
+
+            context.Orders.AddRange(
+                new Order
+                {
+                    Id = orderId1,
+                    UserId = Guid.Parse("88888888-8888-8888-8888-888888888888"), // Ahmet Kaya
+                    CafeId = Guid.Parse("33333333-3333-3333-3333-333333333333"), // Merkez
+                    TotalAmount = 85.00m,
+                    PaidWithPoints = false,
+                    PointsUsed = 0,
+                    Status = "Preparing",
+                    CollectionCode = "IS-MR-4890",
+                    OrganizationId = orgId,
+                    CreatedDate = DateTime.UtcNow.AddMinutes(-20)
+                },
+                new Order
+                {
+                    Id = orderId2,
+                    UserId = Guid.Parse("88888888-8888-8888-8888-888888888888"), // Ahmet Kaya
+                    CafeId = Guid.Parse("33333333-3333-3333-3333-444444444444"), // Mogan
+                    TotalAmount = 30.00m,
+                    PaidWithPoints = true,
+                    PointsUsed = 30,
+                    Status = "Ready",
+                    CollectionCode = "IS-MR-9012",
+                    OrganizationId = orgId,
+                    CreatedDate = DateTime.UtcNow.AddMinutes(-5)
+                },
+                new Order
+                {
+                    Id = orderId3,
+                    UserId = Guid.Parse("88888888-8888-8888-8888-888888888888"), // Ahmet Kaya
+                    CafeId = Guid.Parse("33333333-3333-3333-3333-333333333333"), // Merkez
+                    TotalAmount = 40.00m,
+                    PaidWithPoints = false,
+                    PointsUsed = 0,
+                    Status = "Completed",
+                    CollectionCode = "IS-MR-1234",
+                    OrganizationId = orgId,
+                    CreatedDate = DateTime.UtcNow.AddHours(-3)
+                }
+            );
+
+            context.OrderItems.AddRange(
+                new OrderItem
+                {
+                    Id = Guid.NewGuid(),
+                    OrderId = orderId1,
+                    MenuItemId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"), // Türk Kahvesi
+                    Quantity = 1,
+                    UnitPrice = 40.00m
+                },
+                new OrderItem
+                {
+                    Id = Guid.NewGuid(),
+                    OrderId = orderId1,
+                    MenuItemId = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"), // Filtre Kahve
+                    Quantity = 1,
+                    UnitPrice = 45.00m
+                },
+                new OrderItem
+                {
+                    Id = Guid.NewGuid(),
+                    OrderId = orderId2,
+                    MenuItemId = Guid.Parse("cccccccc-cccc-cccc-cccc-cccccccccccc"), // Simit & Peynir
+                    Quantity = 1,
+                    UnitPrice = 30.00m
+                },
+                new OrderItem
+                {
+                    Id = Guid.NewGuid(),
+                    OrderId = orderId3,
+                    MenuItemId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"), // Türk Kahvesi
+                    Quantity = 1,
+                    UnitPrice = 40.00m
+                }
+            );
+
+            await context.SaveChangesAsync();
+        }
     }
 }

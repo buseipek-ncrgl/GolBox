@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../store/AuthContext';
 import { api } from '../services/api';
-import { LogIn, Sparkles, UserPlus, AlertCircle } from 'lucide-react';
+import { LogIn, ShieldCheck, UserPlus, AlertCircle } from 'lucide-react';
 
 export const Login: React.FC = () => {
   const { login } = useAuth();
@@ -22,7 +22,7 @@ export const Login: React.FC = () => {
     try {
       if (isRegister) {
         // Register flow
-        const registerResponse = await api.register({
+        await api.register({
           email,
           password,
           firstName,
@@ -39,7 +39,7 @@ export const Login: React.FC = () => {
         login(loginResponse.accessToken, loginResponse.refreshToken, loginResponse.user);
       }
     } catch (err: any) {
-      setError(err.message || 'Bir hata oluştu. Lütfen tekrar deneyin.');
+      setError(err.message || 'Giriş işlemi başarısız. Bilgilerinizi kontrol edin.');
     } finally {
       setLoading(false);
     }
@@ -51,28 +51,37 @@ export const Login: React.FC = () => {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      background: 'radial-gradient(circle at 50% 50%, #1a1528 0%, #0a0b10 100%)',
+      background: 'var(--bg-primary)',
       padding: '1.5rem'
     }}>
       <div className="glass-card animate-fade-in" style={{
         width: '100%',
-        maxWidth: '440px',
+        maxWidth: '420px',
         padding: '2.5rem',
         textAlign: 'center',
-        background: 'rgba(18, 19, 28, 0.7)',
-        backdropFilter: 'blur(20px)',
-        border: '1px solid rgba(255, 255, 255, 0.05)'
+        background: 'var(--bg-secondary)',
+        border: '1px solid var(--border-color)',
+        borderRadius: '12px',
+        boxShadow: 'var(--shadow-md)'
       }}>
         
-        <div style={{ display: 'inline-flex', padding: '1rem', borderRadius: '20px', background: 'rgba(255, 102, 0, 0.1)', marginBottom: '1.5rem' }}>
-          <Sparkles size={36} color="#ff6600" />
+        {/* Top Header Logo */}
+        <div style={{ 
+          display: 'inline-flex', 
+          padding: '0.85rem', 
+          borderRadius: '50%', 
+          background: 'rgba(37, 99, 235, 0.08)', 
+          marginBottom: '1.25rem',
+          color: 'var(--accent-primary)'
+        }}>
+          <ShieldCheck size={32} />
         </div>
 
-        <h1 style={{ fontSize: '2rem', margin: '0 0 0.5rem', letterSpacing: '-0.03em' }}>
-          {isRegister ? 'GölBox Hesabı Oluştur' : 'GölBox\'a Giriş Yap'}
+        <h1 style={{ fontSize: '1.65rem', margin: '0 0 0.4rem', letterSpacing: '-0.02em', color: 'var(--text-primary)', fontWeight: 700 }}>
+          {isRegister ? 'GölBox Hesabı Oluştur' : 'GölBox Platformu'}
         </h1>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', marginBottom: '2rem' }}>
-          {isRegister ? 'Gölbaşı sadakat ekosistemine katılın.' : 'Kazanmaya devam etmek için giriş yapın.'}
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '2rem' }}>
+          {isRegister ? 'Belediye sadakat programına katılmak için kaydolun.' : 'Gölbaşı Belediyesi sadakat ve ön sipariş sistemi.'}
         </p>
 
         {error && (
@@ -80,24 +89,24 @@ export const Login: React.FC = () => {
             display: 'flex',
             alignItems: 'center',
             gap: '0.75rem',
-            background: 'rgba(239, 68, 68, 0.1)',
-            border: '1px solid rgba(239, 68, 68, 0.3)',
-            borderRadius: '12px',
-            padding: '0.85rem 1rem',
+            background: 'rgba(239, 68, 68, 0.05)',
+            border: '1px solid rgba(239, 68, 68, 0.15)',
+            borderRadius: '8px',
+            padding: '0.75rem 1rem',
             color: '#ef4444',
-            fontSize: '0.9rem',
+            fontSize: '0.85rem',
             textAlign: 'left',
             marginBottom: '1.5rem'
           }}>
-            <AlertCircle size={18} style={{ flexShrink: 0 }} />
+            <AlertCircle size={16} style={{ flexShrink: 0 }} />
             <span>{error}</span>
           </div>
         )}
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {isRegister && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-              <div className="form-group">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Ad</label>
                 <input
                   type="text"
@@ -108,7 +117,7 @@ export const Login: React.FC = () => {
                   placeholder="Ahmet"
                 />
               </div>
-              <div className="form-group">
+              <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Soyad</label>
                 <input
                   type="text"
@@ -122,7 +131,7 @@ export const Login: React.FC = () => {
             </div>
           )}
 
-          <div className="form-group">
+          <div className="form-group" style={{ marginBottom: 0 }}>
             <label className="form-label">E-Posta Adresi</label>
             <input
               type="email"
@@ -134,7 +143,7 @@ export const Login: React.FC = () => {
             />
           </div>
 
-          <div className="form-group">
+          <div className="form-group" style={{ marginBottom: 0 }}>
             <label className="form-label">Şifre</label>
             <input
               type="password"
@@ -147,7 +156,7 @@ export const Login: React.FC = () => {
           </div>
 
           {isRegister && (
-            <div className="form-group">
+            <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label">Organizasyon (Belediye)</label>
               <select
                 className="form-input"
@@ -164,10 +173,10 @@ export const Login: React.FC = () => {
             type="submit"
             disabled={loading}
             className="btn btn-primary"
-            style={{ width: '100%', padding: '0.9rem', fontSize: '1rem', marginTop: '1rem' }}
+            style={{ width: '100%', padding: '0.75rem', fontSize: '0.95rem', marginTop: '0.5rem', display: 'flex', gap: '0.5rem', justifyContent: 'center' }}
           >
             {loading ? (
-              <span>Yükleniyor...</span>
+              <span>İşlem Yapılıyor...</span>
             ) : isRegister ? (
               <>
                 <UserPlus size={18} />
@@ -182,7 +191,7 @@ export const Login: React.FC = () => {
           </button>
         </form>
 
-        <div style={{ marginTop: '2rem', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '1.5rem' }}>
+        <div style={{ marginTop: '1.75rem', borderTop: '1px solid var(--border-color)', paddingTop: '1.25rem' }}>
           <button
             onClick={() => {
               setIsRegister(!isRegister);
@@ -191,9 +200,9 @@ export const Login: React.FC = () => {
             style={{
               background: 'none',
               border: 'none',
-              color: '#ff6600',
-              fontWeight: 500,
-              fontSize: '0.9rem',
+              color: 'var(--accent-primary)',
+              fontWeight: 600,
+              fontSize: '0.85rem',
               cursor: 'pointer'
             }}
           >

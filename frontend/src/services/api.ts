@@ -183,4 +183,12 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
+
+  // Orders (Ismarlıyor)
+  getOrders: () => request<any>('/orders'),
+  updateOrderStatus: (id: string, status: string) =>
+    request<any>(`/orders/${id}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    }),
 };
