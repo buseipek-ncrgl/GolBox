@@ -178,4 +178,9 @@ export const api = {
 
   // Settings / Organizations
   getSettings: () => request<any>('/settings'),
+  updateSetting: (key: string, data: any) =>
+    request<any>(`/settings/${key}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
 };

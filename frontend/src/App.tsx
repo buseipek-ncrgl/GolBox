@@ -8,11 +8,16 @@ import { Tasks } from './pages/Tasks';
 import { Admin } from './pages/Admin';
 
 const MainApp: React.FC = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
 
   if (!isAuthenticated) {
     return <Login />;
+  }
+
+  // Admin user gets a completely dedicated layout
+  if (user?.email === 'admin@golbox.gov.tr') {
+    return <Admin />;
   }
 
   return (
@@ -23,7 +28,6 @@ const MainApp: React.FC = () => {
         {activeTab === 'dashboard' && <Home />}
         {activeTab === 'rewards' && <Rewards />}
         {activeTab === 'tasks' && <Tasks />}
-        {activeTab === 'admin' && <Admin />}
       </main>
 
       <footer style={{
