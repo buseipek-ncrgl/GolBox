@@ -45,6 +45,7 @@ public class OrdersController : BaseApiController
             o.Status,
             o.CollectionCode,
             o.CreatedDate,
+            o.ImageUrl,
             Items = o.OrderItems.Select(oi => new
             {
                 oi.Id,
@@ -96,6 +97,21 @@ public class OrdersController : BaseApiController
             if (menuItem == null)
                 return NotFound(Result<object>.Fail("Menü ürünü bulunamadı."));
 
+            // Check eligibility conditions (MinAge, MaxAge, RequiredEducation)
+            if (menuItem.MinAge.HasValue && (!user.Age.HasValue || user.Age.Value < menuItem.MinAge.Value))
+            {
+                return BadRequest(Result<object>.Fail($"Bu ürün ('{menuItem.Name}') için yaşınız uygun değildir. Minimum yaş sınırı: {menuItem.MinAge.Value} (Sizin yaşınız: {user.Age ?? 0})."));
+            }
+            if (menuItem.MaxAge.HasValue && (!user.Age.HasValue || user.Age.Value > menuItem.MaxAge.Value))
+            {
+                return BadRequest(Result<object>.Fail($"Bu ürün ('{menuItem.Name}') için yaşınız uygun değildir. Maksimum yaş sınırı: {menuItem.MaxAge.Value} (Sizin yaşınız: {user.Age ?? 0})."));
+            }
+            if (!string.IsNullOrEmpty(menuItem.RequiredEducation) && 
+                (string.IsNullOrEmpty(user.EducationLevel) || !user.EducationLevel.Equals(menuItem.RequiredEducation, StringComparison.OrdinalIgnoreCase)))
+            {
+                return BadRequest(Result<object>.Fail($"Bu ürün ('{menuItem.Name}') yalnızca {menuItem.RequiredEducation} öğrencilerine sunulmaktadır (Sizin durumunuz: {user.EducationLevel ?? "Belirtilmemiş"})."));
+            }
+
             totalAmount += menuItem.Price * itemRequest.Quantity;
 
             orderItems.Add(new OrderItem
@@ -143,6 +159,7 @@ public class OrdersController : BaseApiController
             CollectionCode = collectionCode,
             OrganizationId = user.OrganizationId,
             OrderItems = orderItems,
+            ImageUrl = request.ImageUrl,
             CreatedDate = DateTime.UtcNow
         };
 
@@ -169,6 +186,7 @@ public class CreateOrderRequest
     public Guid UserId { get; set; }
     public Guid CafeId { get; set; }
     public bool PaidWithPoints { get; set; }
+    public string? ImageUrl { get; set; }
     public System.Collections.Generic.List<CreateOrderItemRequest> Items { get; set; } = new();
 }
 

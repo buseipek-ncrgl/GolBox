@@ -15,7 +15,9 @@ public record RegisterCommand(
     string Password,
     string FirstName,
     string LastName,
-    string? PhoneNumber
+    string? PhoneNumber,
+    int? Age,
+    string? EducationLevel
 ) : IRequest<Result<Guid>>;
 
 public class RegisterCommandHandler : IRequestHandler<RegisterCommand, Result<Guid>>
@@ -60,7 +62,9 @@ public class RegisterCommandHandler : IRequestHandler<RegisterCommand, Result<Gu
             PasswordHash = _passwordHasher.Hash(request.Password),
             EmailConfirmed = false,
             PhoneNumberConfirmed = false,
-            PointsBalance = 0
+            PointsBalance = 0,
+            Age = request.Age,
+            EducationLevel = request.EducationLevel
         };
 
         _context.Users.Add(user);

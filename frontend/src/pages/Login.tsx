@@ -10,6 +10,8 @@ export const Login: React.FC = () => {
   const [password, setPassword] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [age, setAge] = useState<number | ''>('');
+  const [educationLevel, setEducationLevel] = useState('Diğer');
   const [organizationId, setOrganizationId] = useState('11111111-1111-1111-1111-111111111111'); // default to Gölbaşı
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -28,6 +30,8 @@ export const Login: React.FC = () => {
           firstName,
           lastName,
           organizationId,
+          age: age !== '' ? Number(age) : null,
+          educationLevel
         });
         
         // Auto login on successful register
@@ -156,17 +160,46 @@ export const Login: React.FC = () => {
           </div>
 
           {isRegister && (
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Organizasyon (Belediye)</label>
-              <select
-                className="form-input"
-                value={organizationId}
-                onChange={(e) => setOrganizationId(e.target.value)}
-                style={{ appearance: 'none', cursor: 'pointer' }}
-              >
-                <option value="11111111-1111-1111-1111-111111111111">Gölbaşı Belediyesi</option>
-              </select>
-            </div>
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Yaşınız</label>
+                  <input
+                    type="number"
+                    required
+                    className="form-input"
+                    value={age}
+                    onChange={(e) => setAge(e.target.value !== '' ? Number(e.target.value) : '')}
+                    placeholder="Örn: 16"
+                  />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Öğrenim Durumu</label>
+                  <select
+                    className="form-input"
+                    value={educationLevel}
+                    onChange={(e) => setEducationLevel(e.target.value)}
+                    style={{ height: '38px', padding: '0 0.5rem' }}
+                  >
+                    <option value="Diğer">Diğer / Çalışan</option>
+                    <option value="Lise">Lise Öğrencisi</option>
+                    <option value="Üniversite">Üniversite Öğrencisi</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Organizasyon (Belediye)</label>
+                <select
+                  className="form-input"
+                  value={organizationId}
+                  onChange={(e) => setOrganizationId(e.target.value)}
+                  style={{ appearance: 'none', cursor: 'pointer' }}
+                >
+                  <option value="11111111-1111-1111-1111-111111111111">Gölbaşı Belediyesi</option>
+                </select>
+              </div>
+            </>
           )}
 
           <button

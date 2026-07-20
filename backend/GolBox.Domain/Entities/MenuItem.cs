@@ -11,6 +11,9 @@ public class MenuItem : BaseEntity
   public decimal Price { get; set; }
   public string? ImageUrl { get; set; }
   public bool IsActive { get; set; } = true;
+  public int? MinAge { get; set; }
+  public int? MaxAge { get; set; }
+  public string? RequiredEducation { get; set; }
 
   // Navigations
   public virtual Cafe Cafe { get; set; } = null!;

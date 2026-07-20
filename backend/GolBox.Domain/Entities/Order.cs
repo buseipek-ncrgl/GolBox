@@ -14,6 +14,7 @@ public class Order : BaseEntity
     public string Status { get; set; } = "Pending"; // Pending, Preparing, Ready, Completed, Cancelled
     public string CollectionCode { get; set; } = string.Empty;
     public Guid OrganizationId { get; set; }
+    public string? ImageUrl { get; set; }
 
     // Navigations
     public virtual User User { get; set; } = null!;

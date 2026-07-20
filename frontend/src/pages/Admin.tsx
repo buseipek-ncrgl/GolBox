@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { useAuth } from '../store/AuthContext';
-import type { AdminAnalytics } from '../types';
 import { 
   ShieldCheck, Award, Activity, AlertCircle, CheckCircle, 
   Smartphone, Users, Coffee, Building2, Trash2, Settings, 
@@ -15,6 +14,8 @@ interface UserListItem {
   firstName: string;
   lastName: string;
   pointsBalance: number;
+  age?: number;
+  educationLevel?: string;
 }
 
 interface CafeListItem {
@@ -31,6 +32,9 @@ interface MenuItemListItem {
   description: string;
   price: number;
   imageUrl?: string;
+  minAge?: number;
+  maxAge?: number;
+  requiredEducation?: string;
 }
 
 interface RewardListItem {
@@ -57,7 +61,7 @@ interface ActivityListItem {
 
 export const Admin: React.FC = () => {
   const { logout, user: currentUser } = useAuth();
-  const [activeMenu, setActiveMenu] = useState<'users' | 'cafes' | 'products' | 'rewards' | 'tasks' | 'activities' | 'settings' | 'pos' | 'reports' | 'orders'>('users');
+  const [activeMenu, setActiveMenu] = useState<'users' | 'cafes' | 'products' | 'rewards' | 'tasks' | 'activities' | 'settings' | 'pos' | 'orders'>('users');
   
   // Data lists
   const [usersList, setUsersList] = useState<UserListItem[]>([]);
@@ -68,7 +72,6 @@ export const Admin: React.FC = () => {
   const [tasksList, setTasksList] = useState<TaskListItem[]>([]);
   const [activitiesList, setActivitiesList] = useState<ActivityListItem[]>([]);
   const [ordersList, setOrdersList] = useState<any[]>([]);
-  const [analytics, setAnalytics] = useState<AdminAnalytics | null>(null);
   
   // Settings values
   const [rewardExpireDays, setRewardExpireDays] = useState('30');
@@ -89,6 +92,18 @@ export const Admin: React.FC = () => {
   const [productDesc, setProductDesc] = useState('');
   const [productPrice, setProductPrice] = useState(45);
   const [productImageUrl, setProductImageUrl] = useState('');
+  const [productMinAge, setProductMinAge] = useState<number | ''>('');
+  const [productMaxAge, setProductMaxAge] = useState<number | ''>('');
+  const [productReqEdu, setProductReqEdu] = useState('');
+
+  // Forms - Manual Order Creation
+  const [orderUserId, setOrderUserId] = useState('');
+  const [orderCafeId, setOrderCafeId] = useState('');
+  const [orderMenuItemId, setOrderMenuItemId] = useState('');
+  const [orderQuantity, setOrderQuantity] = useState(1);
+  const [orderPaidWithPoints, setOrderPaidWithPoints] = useState(false);
+  const [orderImageUrl, setOrderImageUrl] = useState('');
+  const [orderCafeMenuItems, setOrderCafeMenuItems] = useState<MenuItemListItem[]>([]);
 
   // Forms - Reward Definition
   const [rewardTitle, setRewardTitle] = useState('');
@@ -126,12 +141,19 @@ export const Admin: React.FC = () => {
       setLoading(true);
       const usersData = await api.getUsers();
       setUsersList(usersData);
+      if (usersData.length > 0 && !orderUserId) {
+        setOrderUserId(usersData[0].id);
+      }
       
       const cafesData = await api.getCafes();
       setCafesList(cafesData);
-      if (cafesData.length > 0 && !selectedCafeId) {
-        setSelectedCafeId(cafesData[0].id);
-        setScanCafeId(cafesData[0].id);
+      if (cafesData.length > 0) {
+        if (!selectedCafeId) setSelectedCafeId(cafesData[0].id);
+        if (!scanCafeId) setScanCafeId(cafesData[0].id);
+        if (!orderCafeId) {
+          setOrderCafeId(cafesData[0].id);
+          fetchOrderCafeMenuItems(cafesData[0].id);
+        }
       }
 
       const rewardsData = await api.getRewards(1, 100);
@@ -145,9 +167,6 @@ export const Admin: React.FC = () => {
 
       const ordersData = await api.getOrders();
       setOrdersList(ordersData);
-
-      const analyticsData = await api.getAdminAnalytics();
-      setAnalytics(analyticsData);
 
       const settingsData = await api.getSettings();
       const rx = settingsData.find((s: any) => s.key === 'rewardExpireDays');
@@ -175,6 +194,20 @@ export const Admin: React.FC = () => {
     }
   };
 
+  const fetchOrderCafeMenuItems = async (cafeId: string) => {
+    try {
+      const items = await api.getMenuItems(cafeId);
+      setOrderCafeMenuItems(items);
+      if (items.length > 0) {
+        setOrderMenuItemId(items[0].id);
+      } else {
+        setOrderMenuItemId('');
+      }
+    } catch (e) {
+      console.error('Failed to fetch menu items for order form', e);
+    }
+  };
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -184,6 +217,12 @@ export const Admin: React.FC = () => {
       fetchMenuItems(selectedCafeId);
     }
   }, [selectedCafeId]);
+
+  useEffect(() => {
+    if (orderCafeId) {
+      fetchOrderCafeMenuItems(orderCafeId);
+    }
+  }, [orderCafeId]);
 
   // Actions - Cafe CRUD
   const handleAddCafe = async (e: React.FormEvent) => {
@@ -226,12 +265,18 @@ export const Admin: React.FC = () => {
         name: productName,
         description: productDesc,
         price: productPrice,
-        imageUrl: productImageUrl || 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=500&auto=format&fit=crop&q=60'
+        imageUrl: productImageUrl || 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=500&auto=format&fit=crop&q=60',
+        minAge: productMinAge !== '' ? Number(productMinAge) : null,
+        maxAge: productMaxAge !== '' ? Number(productMaxAge) : null,
+        requiredEducation: productReqEdu || null
       });
       setSuccess('Ürün başarıyla menüye eklendi.');
       setProductName('');
       setProductDesc('');
       setProductImageUrl('');
+      setProductMinAge('');
+      setProductMaxAge('');
+      setProductReqEdu('');
       await fetchMenuItems(selectedCafeId);
     } catch (err: any) {
       setError(err.message || 'Ürün eklenemedi.');
@@ -427,6 +472,40 @@ export const Admin: React.FC = () => {
     }
   };
 
+  // Actions - Manually Create Order
+  const handleCreateManualOrder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSuccess(null);
+
+    if (!orderUserId || !orderCafeId || !orderMenuItemId) {
+      setError('Lütfen tüm sipariş bilgilerini eksiksiz doldurun.');
+      return;
+    }
+
+    try {
+      await api.createOrder({
+        userId: orderUserId,
+        cafeId: orderCafeId,
+        paidWithPoints: orderPaidWithPoints,
+        imageUrl: orderImageUrl || null,
+        items: [
+          {
+            menuItemId: orderMenuItemId,
+            quantity: orderQuantity
+          }
+        ]
+      });
+
+      setSuccess('Sipariş başarıyla oluşturuldu ve vatandaşın koşul şartları doğrulandı!');
+      setOrderQuantity(1);
+      setOrderImageUrl('');
+      await fetchData();
+    } catch (err: any) {
+      setError(err.message || 'Sipariş oluşturma hatası.');
+    }
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: 'var(--bg-primary)' }}>
       
@@ -546,14 +625,6 @@ export const Admin: React.FC = () => {
             <Smartphone size={18} />
             <span>POS Kasa Terminali</span>
           </button>
-
-          <button
-            onClick={() => { setActiveMenu('reports'); setError(null); setSuccess(null); }}
-            className={`sidebar-link ${activeMenu === 'reports' ? 'active' : ''}`}
-          >
-            <Activity size={18} />
-            <span>Sistem Analitiği</span>
-          </button>
         </aside>
 
         {/* Right Content Panel */}
@@ -613,6 +684,7 @@ export const Admin: React.FC = () => {
                       <tr>
                         <th>Ad Soyad</th>
                         <th>E-Posta</th>
+                        <th>Yaş & Öğrenim</th>
                         <th>GölPuan Bakiyesi</th>
                         <th style={{ textAlign: 'right' }}>İşlem</th>
                       </tr>
@@ -622,6 +694,9 @@ export const Admin: React.FC = () => {
                         <tr key={u.id}>
                           <td style={{ fontWeight: 600 }}>{u.firstName} {u.lastName}</td>
                           <td style={{ color: 'var(--text-secondary)' }}>{u.email}</td>
+                          <td>
+                            {u.age ? `${u.age} Yaş` : 'Bilinmiyor'} / {u.educationLevel || 'Diğer'}
+                          </td>
                           <td style={{ fontWeight: 700, color: 'var(--accent-primary)' }}>{u.pointsBalance} GP</td>
                           <td style={{ textAlign: 'right' }}>
                             <button
@@ -760,7 +835,7 @@ export const Admin: React.FC = () => {
 
           {/* 3. Ismarlıyor Ürünleri (Products) */}
           {activeMenu === 'products' && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1.5rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '1.5rem' }}>
               
               {/* Select Cafe List */}
               <div className="glass-card" style={{ textAlign: 'left', height: 'fit-content' }}>
@@ -804,28 +879,33 @@ export const Admin: React.FC = () => {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                     
                     {/* Add product form under selected cafe */}
-                    <form onSubmit={handleAddProduct} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 2fr 1fr', gap: '0.75rem', alignItems: 'end', background: 'var(--bg-tertiary)', padding: '1rem', borderRadius: '8px' }}>
-                      <div className="form-group" style={{ marginBottom: 0 }}>
-                        <label className="form-label">Yeni Ürün Adı</label>
-                        <input
-                          type="text"
-                          required
-                          className="form-input"
-                          value={productName}
-                          onChange={(e) => setProductName(e.target.value)}
-                          placeholder="Filtre Kahve"
-                        />
+                    <form onSubmit={handleAddProduct} style={{ background: 'var(--bg-tertiary)', padding: '1.25rem', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                      <h4 style={{ margin: '0 0 0.25rem', fontSize: '0.9rem' }}>Yeni Ürün Ekle</h4>
+                      
+                      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '0.75rem' }}>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label className="form-label">Ürün Adı</label>
+                          <input
+                            type="text"
+                            required
+                            className="form-input"
+                            value={productName}
+                            onChange={(e) => setProductName(e.target.value)}
+                            placeholder="Filtre Kahve"
+                          />
+                        </div>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label className="form-label">Fiyat (TL)</label>
+                          <input
+                            type="number"
+                            required
+                            className="form-input"
+                            value={productPrice}
+                            onChange={(e) => setProductPrice(Number(e.target.value))}
+                          />
+                        </div>
                       </div>
-                      <div className="form-group" style={{ marginBottom: 0 }}>
-                        <label className="form-label">Fiyat (TL)</label>
-                        <input
-                          type="number"
-                          required
-                          className="form-input"
-                          value={productPrice}
-                          onChange={(e) => setProductPrice(Number(e.target.value))}
-                        />
-                      </div>
+
                       <div className="form-group" style={{ marginBottom: 0 }}>
                         <label className="form-label">Görsel URL'i (Unsplash vb.)</label>
                         <input
@@ -836,8 +916,46 @@ export const Admin: React.FC = () => {
                           placeholder="https://images.unsplash.com/..."
                         />
                       </div>
-                      <button type="submit" className="btn btn-primary" style={{ padding: '0.65rem' }}>
-                        Ekle
+
+                      {/* Criteria Constraints fields */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.5fr', gap: '0.75rem' }}>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label className="form-label">Min Yaş Şartı</label>
+                          <input
+                            type="number"
+                            className="form-input"
+                            value={productMinAge}
+                            onChange={(e) => setProductMinAge(e.target.value !== '' ? Number(e.target.value) : '')}
+                            placeholder="Yok"
+                          />
+                        </div>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label className="form-label">Max Yaş Şartı</label>
+                          <input
+                            type="number"
+                            className="form-input"
+                            value={productMaxAge}
+                            onChange={(e) => setProductMaxAge(e.target.value !== '' ? Number(e.target.value) : '')}
+                            placeholder="Yok"
+                          />
+                        </div>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label className="form-label">Eğitim Şartı</label>
+                          <select
+                            className="form-input"
+                            value={productReqEdu}
+                            onChange={(e) => setProductReqEdu(e.target.value)}
+                            style={{ height: '38px', padding: '0 0.5rem' }}
+                          >
+                            <option value="">Yok (Herkes)</option>
+                            <option value="Lise">Sadece Lise Öğrencileri</option>
+                            <option value="Üniversite">Sadece Üniversite Öğrencileri</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <button type="submit" className="btn btn-primary" style={{ padding: '0.65rem', alignSelf: 'flex-end', width: '120px' }}>
+                        Ürünü Ekle
                       </button>
                     </form>
 
@@ -880,7 +998,15 @@ export const Admin: React.FC = () => {
                               )}
                               <div>
                                 <div style={{ fontWeight: 600 }}>{item.name}</div>
-                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{item.description || 'Açıklama girilmemiş.'}</div>
+                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                  {item.requiredEducation || item.minAge || item.maxAge ? (
+                                    <span style={{ color: 'var(--accent-primary)', fontWeight: 600 }}>
+                                      🔒 Şart: {item.requiredEducation || 'Tüm'} Öğrenciler {item.minAge && `(${item.minAge}-${item.maxAge || '+'} Yaş)`}
+                                    </span>
+                                  ) : (
+                                    '🔓 Herkes Alabilir'
+                                  )}
+                                </div>
                               </div>
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
@@ -906,133 +1032,280 @@ export const Admin: React.FC = () => {
 
           {/* 4. Ismarlıyor Siparişleri (Orders) */}
           {activeMenu === 'orders' && (
-            <div className="glass-card" style={{ textAlign: 'left' }}>
-              <h3 style={{ fontSize: '1.15rem', marginBottom: '0.25rem' }}>Ön Sipariş Takip Paneli (Ismarlıyor)</h3>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '1.5rem' }}>
-                Kitap Kafelerden verilen anlık veya aktif ön sipariş listesi ve hazırlık süreçleri.
-              </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              
+              {/* Manual Order Creation Form */}
+              <div className="glass-card" style={{ textAlign: 'left' }}>
+                <h3 style={{ fontSize: '1.1rem', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <PlusCircle size={18} color="var(--accent-primary)" />
+                  <span>Yönetici Olarak Sipariş Oluştur (Ismarlıyor Ekle)</span>
+                </h3>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '1.25rem' }}>
+                  Admin paneli üzerinden vatandaş adına manuel ön sipariş kaydetme formu. Yaş ve okul şartları otomatik doğrulanır.
+                </p>
 
-              <div style={{ overflowX: 'auto' }}>
-                <table className="premium-table">
-                  <thead>
-                    <tr>
-                      <th>Sipariş Kodu</th>
-                      <th>Alıcı (Kim)</th>
-                      <th>Şube</th>
-                      <th>İçerik (Ne Ismarlıyor)</th>
-                      <th>Tutar (Ne Kadar)</th>
-                      <th>Durum</th>
-                      <th style={{ textAlign: 'right' }}>İşlem</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {ordersList.length === 0 ? (
+                <form onSubmit={handleCreateManualOrder} style={{ background: 'var(--bg-tertiary)', padding: '1.25rem', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1.5fr', gap: '0.75rem' }}>
+                    
+                    {/* User Selection */}
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label">Kim Ismarlıyor (Vatandaş Seçimi)</label>
+                      <select
+                        className="form-input"
+                        value={orderUserId}
+                        onChange={(e) => setOrderUserId(e.target.value)}
+                        style={{ height: '38px', padding: '0 0.5rem' }}
+                      >
+                        {usersList.map(u => (
+                          <option key={u.id} value={u.id}>
+                            {u.firstName} {u.lastName} ({u.email}) — Yaş: {u.age || '?'}, Okul: {u.educationLevel || 'Diğer'}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Cafe Selection */}
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label">Nerede Hazırlanacak (Şube)</label>
+                      <select
+                        className="form-input"
+                        value={orderCafeId}
+                        onChange={(e) => setOrderCafeId(e.target.value)}
+                        style={{ height: '38px', padding: '0 0.5rem' }}
+                      >
+                        {cafesList.map(c => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* MenuItem Selection */}
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label">Ne Ismarlıyor (Menü Ürünü)</label>
+                      <select
+                        className="form-input"
+                        value={orderMenuItemId}
+                        onChange={(e) => setOrderMenuItemId(e.target.value)}
+                        style={{ height: '38px', padding: '0 0.5rem' }}
+                        disabled={orderCafeMenuItems.length === 0}
+                      >
+                        {orderCafeMenuItems.length === 0 ? (
+                          <option value="">Bu kafede ürün bulunamadı</option>
+                        ) : (
+                          orderCafeMenuItems.map(item => (
+                            <option key={item.id} value={item.id}>
+                              {item.name} — {item.price} TL {item.requiredEducation && `(Şart: ${item.requiredEducation})`}
+                            </option>
+                          ))
+                        )}
+                      </select>
+                    </div>
+
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr', gap: '0.75rem', alignItems: 'end' }}>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label">Adet / Miktar</label>
+                      <input
+                        type="number"
+                        min={1}
+                        required
+                        className="form-input"
+                        value={orderQuantity}
+                        onChange={(e) => setOrderQuantity(Number(e.target.value))}
+                      />
+                    </div>
+
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label">Sipariş Kanıt / Fiş Görseli URL'i</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={orderImageUrl}
+                        onChange={(e) => setOrderImageUrl(e.target.value)}
+                        placeholder="https://images.unsplash.com/..."
+                      />
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', height: '38px' }}>
+                      <input
+                        type="checkbox"
+                        id="orderPointsPay"
+                        checked={orderPaidWithPoints}
+                        onChange={(e) => setOrderPaidWithPoints(e.target.checked)}
+                        style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                      />
+                      <label htmlFor="orderPointsPay" style={{ fontSize: '0.85rem', cursor: 'pointer', fontWeight: 600 }}>
+                        GölPuan Kullan
+                      </label>
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    style={{ alignSelf: 'flex-end', padding: '0.65rem 1.5rem' }}
+                    disabled={orderCafeMenuItems.length === 0}
+                  >
+                    Siparişi Kaydet
+                  </button>
+                </form>
+              </div>
+
+              {/* Live Orders List */}
+              <div className="glass-card" style={{ textAlign: 'left' }}>
+                <h3 style={{ fontSize: '1.15rem', marginBottom: '0.25rem' }}>Ön Sipariş Takip Paneli</h3>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '1.5rem' }}>
+                  Kitap Kafelerden vatandaşlar veya yöneticiler tarafından girilmiş olan aktif sipariş kayıtları.
+                </p>
+
+                <div style={{ overflowX: 'auto' }}>
+                  <table className="premium-table">
+                    <thead>
                       <tr>
-                        <td colSpan={7} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
-                          Herhangi bir ön sipariş bulunmuyor.
-                        </td>
+                        <th>Sipariş Kodu</th>
+                        <th>Alıcı (Kim)</th>
+                        <th>Şube</th>
+                        <th>İçerik (Ne Ismarlıyor)</th>
+                        <th>Tutar (Ne Kadar)</th>
+                        <th>Sipariş/Fiş Görseli</th>
+                        <th>Durum</th>
+                        <th style={{ textAlign: 'right' }}>İşlem</th>
                       </tr>
-                    ) : (
-                      ordersList.map((o) => (
-                        <tr key={o.id}>
-                          <td style={{ fontWeight: 700, color: 'var(--accent-primary)' }}>{o.collectionCode}</td>
-                          <td>
-                            <div style={{ fontWeight: 600 }}>{o.userFullName}</div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{o.userEmail}</div>
-                          </td>
-                          <td>{o.cafeName}</td>
-                          <td>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                              {o.items.map((item: any, idx: number) => (
-                                <div key={idx} style={{ fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                  {item.menuItemImageUrl && (
-                                    <img
-                                      src={item.menuItemImageUrl}
-                                      alt={item.menuItemName}
-                                      style={{ width: '20px', height: '20px', objectFit: 'cover', borderRadius: '4px' }}
-                                    />
-                                  )}
-                                  <span>{item.menuItemName} <strong style={{ color: 'var(--text-secondary)' }}>x{item.quantity}</strong></span>
-                                </div>
-                              ))}
-                            </div>
-                          </td>
-                          <td>
-                            <div style={{ fontWeight: 700 }}>{o.totalAmount} TL</div>
-                            <div style={{ fontSize: '0.75rem', color: o.paidWithPoints ? 'var(--success)' : 'var(--text-muted)' }}>
-                              {o.paidWithPoints ? `🪙 ${o.pointsUsed} Puan` : '💳 Nakit/Kart'}
-                            </div>
-                          </td>
-                          <td>
-                            <span style={{
-                              padding: '0.2rem 0.5rem',
-                              borderRadius: '4px',
-                              fontSize: '0.75rem',
-                              fontWeight: 700,
-                              textTransform: 'uppercase',
-                              background: 
-                                o.status === 'Completed' ? 'rgba(16, 185, 129, 0.1)' :
-                                o.status === 'Ready' ? 'rgba(37, 99, 235, 0.1)' :
-                                o.status === 'Preparing' ? 'rgba(245, 158, 11, 0.1)' :
-                                o.status === 'Cancelled' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(107, 114, 128, 0.1)',
-                              color:
-                                o.status === 'Completed' ? 'var(--success)' :
-                                o.status === 'Ready' ? 'var(--accent-primary)' :
-                                o.status === 'Preparing' ? '#d97706' :
-                                o.status === 'Cancelled' ? 'var(--error)' : 'var(--text-muted)'
-                            }}>
-                              {o.status === 'Pending' ? 'Bekliyor' :
-                               o.status === 'Preparing' ? 'Hazırlanıyor' :
-                               o.status === 'Ready' ? 'Hazır' :
-                               o.status === 'Completed' ? 'Teslim Edildi' : 'İptal Edildi'}
-                            </span>
-                          </td>
-                          <td style={{ textAlign: 'right' }}>
-                            <div style={{ display: 'flex', gap: '0.35rem', justifyContent: 'flex-end' }}>
-                              {o.status === 'Pending' && (
-                                <button
-                                  onClick={() => handleUpdateOrderStatus(o.id, 'Preparing')}
-                                  className="btn btn-primary"
-                                  style={{ padding: '0.3rem 0.5rem', fontSize: '0.75rem', background: '#f59e0b', borderColor: '#f59e0b' }}
-                                >
-                                  Hazırla
-                                </button>
-                              )}
-                              {o.status === 'Preparing' && (
-                                <button
-                                  onClick={() => handleUpdateOrderStatus(o.id, 'Ready')}
-                                  className="btn btn-primary"
-                                  style={{ padding: '0.3rem 0.5rem', fontSize: '0.75rem' }}
-                                >
-                                  Hazır Et
-                                </button>
-                              )}
-                              {o.status === 'Ready' && (
-                                <button
-                                  onClick={() => handleUpdateOrderStatus(o.id, 'Completed')}
-                                  className="btn btn-primary"
-                                  style={{ padding: '0.3rem 0.5rem', fontSize: '0.75rem', background: 'var(--success)', borderColor: 'var(--success)' }}
-                                >
-                                  Teslim Et
-                                </button>
-                              )}
-                              {o.status !== 'Completed' && o.status !== 'Cancelled' && (
-                                <button
-                                  onClick={() => handleUpdateOrderStatus(o.id, 'Cancelled')}
-                                  className="btn btn-secondary"
-                                  style={{ padding: '0.3rem 0.5rem', fontSize: '0.75rem', color: 'var(--error)', borderColor: 'rgba(239, 68, 68, 0.2)' }}
-                                >
-                                  İptal
-                                </button>
-                              )}
-                            </div>
+                    </thead>
+                    <tbody>
+                      {ordersList.length === 0 ? (
+                        <tr>
+                          <td colSpan={8} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
+                            Herhangi bir ön sipariş bulunmuyor.
                           </td>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+                      ) : (
+                        ordersList.map((o) => (
+                          <tr key={o.id}>
+                            <td style={{ fontWeight: 700, color: 'var(--accent-primary)' }}>{o.collectionCode}</td>
+                            <td>
+                              <div style={{ fontWeight: 600 }}>{o.userFullName}</div>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{o.userEmail}</div>
+                            </td>
+                            <td>{o.cafeName}</td>
+                            <td>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                                {o.items.map((item: any, idx: number) => (
+                                  <div key={idx} style={{ fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                    {item.menuItemImageUrl && (
+                                      <img
+                                        src={item.menuItemImageUrl}
+                                        alt={item.menuItemName}
+                                        style={{ width: '20px', height: '20px', objectFit: 'cover', borderRadius: '4px' }}
+                                      />
+                                    )}
+                                    <span>{item.menuItemName} <strong style={{ color: 'var(--text-secondary)' }}>x{item.quantity}</strong></span>
+                                  </div>
+                                ))}
+                              </div>
+                            </td>
+                            <td>
+                              <div style={{ fontWeight: 700 }}>{o.totalAmount} TL</div>
+                              <div style={{ fontSize: '0.75rem', color: o.paidWithPoints ? 'var(--success)' : 'var(--text-muted)' }}>
+                                {o.paidWithPoints ? `🪙 ${o.pointsUsed} Puan` : '💳 Nakit/Kart'}
+                              </div>
+                            </td>
+                            <td>
+                              {o.imageUrl ? (
+                                <a
+                                  href={o.imageUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.25rem',
+                                    fontSize: '0.8rem',
+                                    color: 'var(--accent-primary)',
+                                    textDecoration: 'none',
+                                    fontWeight: 600
+                                  }}
+                                >
+                                  <Eye size={14} />
+                                  Görüntüle
+                                </a>
+                              ) : (
+                                <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Görsel Yok</span>
+                              )}
+                            </td>
+                            <td>
+                              <span style={{
+                                padding: '0.2rem 0.5rem',
+                                borderRadius: '4px',
+                                fontSize: '0.75rem',
+                                fontWeight: 700,
+                                textTransform: 'uppercase',
+                                background: 
+                                  o.status === 'Completed' ? 'rgba(16, 185, 129, 0.1)' :
+                                  o.status === 'Ready' ? 'rgba(37, 99, 235, 0.1)' :
+                                  o.status === 'Preparing' ? 'rgba(245, 158, 11, 0.1)' :
+                                  o.status === 'Cancelled' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(107, 114, 128, 0.1)',
+                                color:
+                                  o.status === 'Completed' ? 'var(--success)' :
+                                  o.status === 'Ready' ? 'var(--accent-primary)' :
+                                  o.status === 'Preparing' ? '#d97706' :
+                                  o.status === 'Cancelled' ? 'var(--error)' : 'var(--text-muted)'
+                              }}>
+                                {o.status === 'Pending' ? 'Bekliyor' :
+                                 o.status === 'Preparing' ? 'Hazırlanıyor' :
+                                 o.status === 'Ready' ? 'Hazır' :
+                                 o.status === 'Completed' ? 'Teslim Edildi' : 'İptal Edildi'}
+                              </span>
+                            </td>
+                            <td style={{ textAlign: 'right' }}>
+                              <div style={{ display: 'flex', gap: '0.35rem', justifyContent: 'flex-end' }}>
+                                {o.status === 'Pending' && (
+                                  <button
+                                    onClick={() => handleUpdateOrderStatus(o.id, 'Preparing')}
+                                    className="btn btn-primary"
+                                    style={{ padding: '0.3rem 0.5rem', fontSize: '0.75rem', background: '#f59e0b', borderColor: '#f59e0b' }}
+                                  >
+                                    Hazırla
+                                  </button>
+                                )}
+                                {o.status === 'Preparing' && (
+                                  <button
+                                    onClick={() => handleUpdateOrderStatus(o.id, 'Ready')}
+                                    className="btn btn-primary"
+                                    style={{ padding: '0.3rem 0.5rem', fontSize: '0.75rem' }}
+                                  >
+                                    Hazır Et
+                                  </button>
+                                )}
+                                {o.status === 'Ready' && (
+                                  <button
+                                    onClick={() => handleUpdateOrderStatus(o.id, 'Completed')}
+                                    className="btn btn-primary"
+                                    style={{ padding: '0.3rem 0.5rem', fontSize: '0.75rem', background: 'var(--success)', borderColor: 'var(--success)' }}
+                                  >
+                                    Teslim Et
+                                  </button>
+                                )}
+                                {o.status !== 'Completed' && o.status !== 'Cancelled' && (
+                                  <button
+                                    onClick={() => handleUpdateOrderStatus(o.id, 'Cancelled')}
+                                    className="btn btn-secondary"
+                                    style={{ padding: '0.3rem 0.5rem', fontSize: '0.75rem', color: 'var(--error)', borderColor: 'rgba(239, 68, 68, 0.2)' }}
+                                  >
+                                    İptal
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
+
             </div>
           )}
 
@@ -1485,54 +1758,6 @@ export const Admin: React.FC = () => {
                   </div>
                 </div>
               )}
-            </div>
-          )}
-
-          {/* 10. Genel Analitik (Reports) */}
-          {activeMenu === 'reports' && analytics && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-              
-              {/* Stats Cards */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
-                <div className="glass-card" style={{ textAlign: 'left' }}>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>TOPLAM VATANDAŞ</div>
-                  <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.25rem' }}>{analytics.totalUsersCount} Kişi</div>
-                </div>
-                <div className="glass-card" style={{ textAlign: 'left' }}>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>DAĞITILAN TOPLAM PUAN</div>
-                  <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--success)', marginTop: '0.25rem' }}>{analytics.totalPointsDistributed} GP</div>
-                </div>
-                <div className="glass-card" style={{ textAlign: 'left' }}>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>KULLANILAN TOPLAM PUAN</div>
-                  <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--error)', marginTop: '0.25rem' }}>{analytics.totalPointsRedeemed} GP</div>
-                </div>
-              </div>
-
-              {/* Cafe performance & rewards */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                
-                <div className="glass-card" style={{ textAlign: 'left' }}>
-                  <h3 style={{ marginBottom: '1rem', fontSize: '1.05rem' }}>Şubelere Göre Ziyaret ve Ciro</h3>
-                  {analytics.topCafes.map((tc, idx) => (
-                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.7rem 0', borderBottom: '1px solid var(--border-color)' }}>
-                      <span>{tc.cafeName}</span>
-                      <strong style={{ color: 'var(--text-secondary)' }}>{tc.visitCount} Giriş / {tc.totalSalesAmount} TL</strong>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="glass-card" style={{ textAlign: 'left' }}>
-                  <h3 style={{ marginBottom: '1rem', fontSize: '1.05rem' }}>En Çok Tercih Edilen İkramlar</h3>
-                  {analytics.topRewards.map((tr, idx) => (
-                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.7rem 0', borderBottom: '1px solid var(--border-color)' }}>
-                      <span>{tr.rewardTitle}</span>
-                      <strong style={{ color: 'var(--accent-primary)' }}>{tr.claimCount} Adet</strong>
-                    </div>
-                  ))}
-                </div>
-
-              </div>
-
             </div>
           )}
 

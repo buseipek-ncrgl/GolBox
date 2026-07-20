@@ -17,6 +17,8 @@ public class User : BaseEntity
     public string LastName { get; set; } = string.Empty;
     public string? ProfileImageUrl { get; set; }
     public int PointsBalance { get; set; } = 0;
+    public int? Age { get; set; }
+    public string? EducationLevel { get; set; }
 
     // Navigations
     public virtual Organization Organization { get; set; } = null!;

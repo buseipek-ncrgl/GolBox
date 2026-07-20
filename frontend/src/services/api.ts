@@ -191,4 +191,9 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify({ status }),
     }),
+  createOrder: (data: any) =>
+    request<any>('/orders', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 };

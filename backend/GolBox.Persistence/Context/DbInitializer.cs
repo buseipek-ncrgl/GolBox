@@ -109,7 +109,9 @@ public static class DbInitializer
                 PasswordHash = passwordHasher.Hash("User123!"),
                 FirstName = "Ahmet",
                 LastName = "Kaya",
-                PointsBalance = 150 // Give some default points for testing rewards
+                PointsBalance = 150, // Give some default points for testing rewards
+                Age = 16,
+                EducationLevel = "Lise"
             };
 
             context.Users.AddRange(adminUser, testUser);
@@ -250,7 +252,10 @@ public static class DbInitializer
                     Description = "Çıtır Ankara simidi ve taze kaşar peyniri.",
                     Price = 30.00m,
                     ImageUrl = "https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?w=500&auto=format&fit=crop&q=60",
-                    IsActive = true
+                    IsActive = true,
+                    MinAge = 14,
+                    MaxAge = 18,
+                    RequiredEducation = "Lise"
                 }
             );
             await context.SaveChangesAsync();

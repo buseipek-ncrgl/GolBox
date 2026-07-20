@@ -46,6 +46,9 @@ public class MenuItemsController : BaseApiController
             Description = request.Description,
             Price = request.Price,
             ImageUrl = request.ImageUrl,
+            MinAge = request.MinAge,
+            MaxAge = request.MaxAge,
+            RequiredEducation = request.RequiredEducation,
             IsActive = true
         };
 
@@ -78,4 +81,7 @@ public class CreateMenuItemRequest
     public string Description { get; set; } = string.Empty;
     public decimal Price { get; set; }
     public string? ImageUrl { get; set; }
+    public int? MinAge { get; set; }
+    public int? MaxAge { get; set; }
+    public string? RequiredEducation { get; set; }
 }
