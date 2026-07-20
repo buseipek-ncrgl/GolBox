@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GölBox</title>
+    <script>
+      window.addEventListener('error', function(event) {
+        var errDiv = document.createElement('div');
+        errDiv.style.position = 'fixed';
+        errDiv.style.top = '0';
+        errDiv.style.left = '0';
+        errDiv.style.right = '0';
+        errDiv.style.background = '#ef4444';
+        errDiv.style.color = '#fff';
+        errDiv.style.padding = '1.5rem';
+        errDiv.style.fontFamily = 'monospace';
+        errDiv.style.fontSize = '14px';
+        errDiv.style.zIndex = '999999';
+        errDiv.style.whiteSpace = 'pre-wrap';
+        errDiv.innerHTML = '<strong>Hata Yakalandı:</strong><br/>' + event.message + '<br/>Dosya: ' + event.filename + ':' + event.lineno + ':' + event.colno + '<br/><br/>Hata Detayı: ' + (event.error ? event.error.stack : 'Stack Yok');
+        document.body.appendChild(errDiv);
+      });
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
