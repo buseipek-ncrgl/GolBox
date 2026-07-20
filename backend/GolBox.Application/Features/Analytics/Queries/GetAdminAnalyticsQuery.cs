@@ -73,11 +73,14 @@ public class GetAdminAnalyticsQueryHandler : IRequestHandler<GetAdminAnalyticsQu
         var pointsDistributed = pointsInfo.Where(a => a > 0).Sum();
         var pointsRedeemed = Math.Abs(pointsInfo.Where(a => a < 0).Sum());
 
-        // Top cafes based on visits (QrPayments)
-        var topCafes = await _context.QrPayments
+        // Top cafes based on visits (QrPayments) - Grouped in-memory to prevent EF Core query translation issues
+        var qrPaymentsList = await _context.QrPayments
             .Include(qp => qp.Cafe)
             .Where(qp => qp.OrganizationId == orgId && qp.Status == "Completed")
-            .GroupBy(qp => qp.Cafe.Name)
+            .ToListAsync(cancellationToken);
+
+        var topCafes = qrPaymentsList
+            .GroupBy(qp => qp.Cafe?.Name ?? "Bilinmeyen Kafe")
             .Select(g => new TopCafeDto(
                 g.Key,
                 g.Count(),
@@ -85,20 +88,23 @@ public class GetAdminAnalyticsQueryHandler : IRequestHandler<GetAdminAnalyticsQu
             ))
             .OrderByDescending(dto => dto.VisitCount)
             .Take(5)
-            .ToListAsync(cancellationToken);
+            .ToList();
 
-        // Top rewards claimed
-        var topRewards = await _context.UserRewards
+        // Top rewards claimed - Grouped in-memory to prevent EF Core query translation issues
+        var userRewardsList = await _context.UserRewards
             .Include(ur => ur.Reward)
             .Where(ur => ur.OrganizationId == orgId)
-            .GroupBy(ur => ur.Reward.Title)
+            .ToListAsync(cancellationToken);
+
+        var topRewards = userRewardsList
+            .GroupBy(ur => ur.Reward?.Title ?? "Bilinmeyen İkram")
             .Select(g => new TopRewardDto(
                 g.Key,
                 g.Count()
             ))
             .OrderByDescending(dto => dto.ClaimCount)
             .Take(5)
-            .ToListAsync(cancellationToken);
+            .ToList();
 
         var analytics = new AdminAnalyticsDto(
             totalUsers,
