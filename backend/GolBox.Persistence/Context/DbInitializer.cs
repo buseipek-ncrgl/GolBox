@@ -261,6 +261,16 @@ public static class DbInitializer
             await context.SaveChangesAsync();
         }
 
+        // Force update existing seed data with eligibility conditions if not set
+        var simit = await context.MenuItems.FindAsync(Guid.Parse("cccccccc-cccc-cccc-cccc-cccccccccccc"));
+        if (simit != null && (!simit.MinAge.HasValue || simit.RequiredEducation != "Lise"))
+        {
+            simit.MinAge = 14;
+            simit.MaxAge = 18;
+            simit.RequiredEducation = "Lise";
+            await context.SaveChangesAsync();
+        }
+
         // 9. Seed Orders
         if (!await context.Orders.AnyAsync())
         {
