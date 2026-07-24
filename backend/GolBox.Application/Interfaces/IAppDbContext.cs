@@ -24,6 +24,12 @@ public interface IAppDbContext
     DbSet<MenuItem> MenuItems { get; }
     DbSet<Order> Orders { get; }
     DbSet<OrderItem> OrderItems { get; }
+    DbSet<AuditLog> AuditLogs { get; }
+    DbSet<ApprovalRequest> ApprovalRequests { get; }
+    DbSet<Campaign> Campaigns { get; }
+    DbSet<NotificationRecord> Notifications { get; }
+    DbSet<Coupon> Coupons { get; }
+    DbSet<StaffUser> StaffUsers { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

@@ -8,22 +8,39 @@ using GolBox.Application.Interfaces;
 using GolBox.Domain.Entities;
 using GolBox.Application.Common;
 
+using Microsoft.AspNetCore.SignalR;
+using GolBox.Api.Hubs;
+
 namespace GolBox.Api.Controllers;
 
 [Authorize]
 public class OrdersController : BaseApiController
 {
     private readonly IAppDbContext _context;
+    private readonly ICurrentUserService _currentUserService;
+    private readonly IHubContext<OrderHub> _hubContext;
 
-    public OrdersController(IAppDbContext context)
+    public OrdersController(IAppDbContext context, ICurrentUserService currentUserService, IHubContext<OrderHub> hubContext)
     {
         _context = context;
+        _currentUserService = currentUserService;
+        _hubContext = hubContext;
     }
 
     [HttpGet]
     public async Task<IActionResult> GetOrders()
     {
-        var orders = await _context.Orders
+        var currentUserId = _currentUserService.UserId;
+        var currentUser = await _context.Users.FindAsync(currentUserId);
+
+        var query = _context.Orders.AsQueryable();
+
+        if (currentUser != null && currentUser.Email != "admin@golbox.gov.tr")
+        {
+            query = query.Where(o => o.UserId == currentUserId);
+        }
+
+        var orders = await query
             .Include(o => o.User)
             .Include(o => o.Cafe)
             .Include(o => o.OrderItems)
@@ -71,13 +88,24 @@ public class OrdersController : BaseApiController
         order.UpdatedDate = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
+
+        // Broadcast real-time SignalR notification to user and admins
+        await _hubContext.Clients.All.SendAsync("OrderStatusUpdated", new
+        {
+            orderId = order.Id,
+            userId = order.UserId,
+            status = order.Status,
+            collectionCode = order.CollectionCode
+        });
+
         return Ok(Result<object>.Ok(null, $"Sipariş durumu '{request.Status}' olarak güncellendi."));
     }
 
     [HttpPost]
     public async Task<IActionResult> CreateOrder([FromBody] CreateOrderRequest request)
     {
-        var user = await _context.Users.FindAsync(request.UserId);
+        var targetUserId = request.UserId != Guid.Empty ? request.UserId : (_currentUserService.UserId ?? Guid.Empty);
+        var user = await _context.Users.FindAsync(targetUserId);
         if (user == null)
             return NotFound(Result<object>.Fail("Kullanıcı bulunamadı."));
 
@@ -150,7 +178,7 @@ public class OrdersController : BaseApiController
         var order = new Order
         {
             Id = orderId,
-            UserId = request.UserId,
+            UserId = targetUserId,
             CafeId = request.CafeId,
             TotalAmount = totalAmount,
             PaidWithPoints = request.PaidWithPoints,

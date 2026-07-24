@@ -196,4 +196,53 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+
+  // Dashboard & Specification Endpoints
+  getDashboardOverview: () => request<any>('/dashboard/overview'),
+  getUserDetail: (id: string) => request<any>(`/users/${id}/detail`),
+  adjustUserPoints: (id: string, data: any) =>
+    request<any>(`/users/${id}/adjust-points`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  getAuditLogs: (module = 'All', search = '') =>
+    request<any>(`/auditlogs?module=${module}&search=${encodeURIComponent(search)}`),
+  getApprovals: (status = 'Pending') => request<any>(`/approvals?status=${status}`),
+  actionApproval: (id: string, approved: boolean, note?: string) =>
+    request<any>(`/approvals/${id}/action`, {
+      method: 'POST',
+      body: JSON.stringify({ approved, note }),
+    }),
+  getStaff: () => request<any>('/staff'),
+  addStaff: (data: any) =>
+    request<any>('/staff', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  getCampaigns: () => request<any>('/campaigns'),
+  createCampaign: (data: any) =>
+    request<any>('/campaigns', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  getNotifications: () => request<any>('/notifications'),
+  sendNotification: (data: any) =>
+    request<any>('/notifications/send', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  getReportsSummary: () => request<any>('/reports/summary'),
+  uploadFile: async (file: File) => {
+    const token = localStorage.getItem('token');
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await fetch('http://localhost:5150/api/v1/files/upload', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.message || 'Dosya yüklenemedi.');
+    return data.data.url;
+  }
 };

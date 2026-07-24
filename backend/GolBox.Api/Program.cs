@@ -15,15 +15,17 @@ var builder = WebApplication.CreateBuilder(args);
 // 1. Controller ve HttpContextAccessor Servisleri
 builder.Services.AddControllers();
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddSignalR();
 
 // CORS Yapılandırması
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
     {
-        policy.AllowAnyOrigin()
+        policy.SetIsOriginAllowed(_ => true)
               .AllowAnyMethod()
-              .AllowAnyHeader();
+              .AllowAnyHeader()
+              .AllowCredentials();
     });
 });
 
@@ -139,7 +141,7 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-app.UseHttpsRedirection();
+app.UseStaticFiles();
 
 app.UseCors("AllowAll");
 
@@ -147,5 +149,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<GolBox.Api.Hubs.OrderHub>("/hubs/orders");
 
 app.Run();

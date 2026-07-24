@@ -27,7 +27,21 @@ public class CafesController : BaseApiController
             .Include(c => c.Category)
             .OrderBy(c => c.Name)
             .ToListAsync();
-        return Ok(Result<object>.Ok(cafes));
+
+        var dtoList = cafes.Select(c => new
+        {
+            c.Id,
+            c.Name,
+            c.Address,
+            c.Latitude,
+            c.Longitude,
+            c.IsActive,
+            CategoryId = c.CategoryId,
+            CategoryName = c.Category?.Name ?? "Genel",
+            c.OrganizationId
+        }).ToList();
+
+        return Ok(Result<object>.Ok(dtoList));
     }
 
     [HttpPost]

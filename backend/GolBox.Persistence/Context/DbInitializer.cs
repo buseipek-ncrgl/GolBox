@@ -11,11 +11,155 @@ public static class DbInitializer
 {
     public static async System.Threading.Tasks.Task SeedAsync(AppDbContext context, IPasswordHasher passwordHasher)
     {
-        // Apply migrations automatically if any are pending
-        if ((await context.Database.GetPendingMigrationsAsync()).Any())
-        {
-            await context.Database.MigrateAsync();
-        }
+        await context.Database.EnsureCreatedAsync();
+
+        // Ensure specification tables exist
+        await context.Database.ExecuteSqlRawAsync(@"
+            IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'ApprovalRequests')
+            BEGIN
+                CREATE TABLE [ApprovalRequests] (
+                    [Id] uniqueidentifier NOT NULL PRIMARY KEY,
+                    [RequestType] nvarchar(max) NOT NULL,
+                    [RequesterUserId] uniqueidentifier NOT NULL,
+                    [RequesterEmail] nvarchar(max) NOT NULL,
+                    [BranchId] uniqueidentifier NULL,
+                    [TargetEntityId] nvarchar(max) NULL,
+                    [OldValue] nvarchar(max) NULL,
+                    [NewValue] nvarchar(max) NULL,
+                    [Reason] nvarchar(max) NOT NULL,
+                    [Status] nvarchar(max) NOT NULL,
+                    [ApproverUserId] uniqueidentifier NULL,
+                    [ApproverEmail] nvarchar(max) NULL,
+                    [ApprovalNote] nvarchar(max) NULL,
+                    [CreatedDate] datetime2 NOT NULL,
+                    [CreatedBy] uniqueidentifier NULL,
+                    [UpdatedDate] datetime2 NULL,
+                    [UpdatedBy] uniqueidentifier NULL,
+                    [DeletedDate] datetime2 NULL,
+                    [DeletedBy] uniqueidentifier NULL,
+                    [IsDeleted] bit NOT NULL
+                );
+            END;
+
+            IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'AuditLogs')
+            BEGIN
+                CREATE TABLE [AuditLogs] (
+                    [Id] uniqueidentifier NOT NULL PRIMARY KEY,
+                    [UserId] uniqueidentifier NULL,
+                    [UserEmail] nvarchar(max) NOT NULL,
+                    [UserRole] nvarchar(max) NOT NULL,
+                    [ActionType] nvarchar(max) NOT NULL,
+                    [ModuleName] nvarchar(max) NOT NULL,
+                    [EntityName] nvarchar(max) NOT NULL,
+                    [EntityId] nvarchar(max) NULL,
+                    [OldValues] nvarchar(max) NULL,
+                    [NewValues] nvarchar(max) NULL,
+                    [Reason] nvarchar(max) NULL,
+                    [IpAddress] nvarchar(max) NULL,
+                    [CreatedDate] datetime2 NOT NULL,
+                    [CreatedBy] uniqueidentifier NULL,
+                    [UpdatedDate] datetime2 NULL,
+                    [UpdatedBy] uniqueidentifier NULL,
+                    [DeletedDate] datetime2 NULL,
+                    [DeletedBy] uniqueidentifier NULL,
+                    [IsDeleted] bit NOT NULL
+                );
+            END;
+
+            IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Campaigns')
+            BEGIN
+                CREATE TABLE [Campaigns] (
+                    [Id] uniqueidentifier NOT NULL PRIMARY KEY,
+                    [OrganizationId] uniqueidentifier NOT NULL,
+                    [Title] nvarchar(max) NOT NULL,
+                    [Description] nvarchar(max) NOT NULL,
+                    [ImageUrl] nvarchar(max) NULL,
+                    [CampaignType] nvarchar(max) NOT NULL,
+                    [StartDate] datetime2 NOT NULL,
+                    [EndDate] datetime2 NOT NULL,
+                    [TargetUserGroup] nvarchar(max) NOT NULL,
+                    [CafeId] uniqueidentifier NULL,
+                    [MenuItemId] uniqueidentifier NULL,
+                    [TotalUsageLimit] int NULL,
+                    [PerUserLimit] int NULL,
+                    [CurrentUsageCount] int NOT NULL,
+                    [IsActive] bit NOT NULL,
+                    [CreatedDate] datetime2 NOT NULL,
+                    [CreatedBy] uniqueidentifier NULL,
+                    [UpdatedDate] datetime2 NULL,
+                    [UpdatedBy] uniqueidentifier NULL,
+                    [DeletedDate] datetime2 NULL,
+                    [DeletedBy] uniqueidentifier NULL,
+                    [IsDeleted] bit NOT NULL
+                );
+            END;
+
+            IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Notifications')
+            BEGIN
+                CREATE TABLE [Notifications] (
+                    [Id] uniqueidentifier NOT NULL PRIMARY KEY,
+                    [OrganizationId] uniqueidentifier NOT NULL,
+                    [Title] nvarchar(max) NOT NULL,
+                    [Message] nvarchar(max) NOT NULL,
+                    [ImageUrl] nvarchar(max) NULL,
+                    [NotificationType] nvarchar(max) NOT NULL,
+                    [TargetUserGroup] nvarchar(max) NOT NULL,
+                    [TargetUserId] uniqueidentifier NULL,
+                    [ScheduledDate] datetime2 NULL,
+                    [SentDate] datetime2 NULL,
+                    [Status] nvarchar(max) NOT NULL,
+                    [SentCount] int NOT NULL,
+                    [CreatedDate] datetime2 NOT NULL,
+                    [CreatedBy] uniqueidentifier NULL,
+                    [UpdatedDate] datetime2 NULL,
+                    [UpdatedBy] uniqueidentifier NULL,
+                    [DeletedDate] datetime2 NULL,
+                    [DeletedBy] uniqueidentifier NULL,
+                    [IsDeleted] bit NOT NULL
+                );
+            END;
+
+            IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Coupons')
+            BEGIN
+                CREATE TABLE [Coupons] (
+                    [Id] uniqueidentifier NOT NULL PRIMARY KEY,
+                    [CouponCode] nvarchar(max) NOT NULL,
+                    [UserId] uniqueidentifier NOT NULL,
+                    [RewardId] uniqueidentifier NOT NULL,
+                    [Status] nvarchar(max) NOT NULL,
+                    [ExpiryDate] datetime2 NOT NULL,
+                    [UsedCafeId] uniqueidentifier NULL,
+                    [UsedDate] datetime2 NULL,
+                    [CreatedDate] datetime2 NOT NULL,
+                    [CreatedBy] uniqueidentifier NULL,
+                    [UpdatedDate] datetime2 NULL,
+                    [UpdatedBy] uniqueidentifier NULL,
+                    [DeletedDate] datetime2 NULL,
+                    [DeletedBy] uniqueidentifier NULL,
+                    [IsDeleted] bit NOT NULL
+                );
+            END;
+
+            IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'StaffUsers')
+            BEGIN
+                CREATE TABLE [StaffUsers] (
+                    [Id] uniqueidentifier NOT NULL PRIMARY KEY,
+                    [UserId] uniqueidentifier NOT NULL,
+                    [RegistrationNumber] nvarchar(max) NOT NULL,
+                    [Role] nvarchar(max) NOT NULL,
+                    [BranchId] uniqueidentifier NULL,
+                    [IsActive] bit NOT NULL,
+                    [LastLoginDate] datetime2 NULL,
+                    [CreatedDate] datetime2 NOT NULL,
+                    [CreatedBy] uniqueidentifier NULL,
+                    [UpdatedDate] datetime2 NULL,
+                    [UpdatedBy] uniqueidentifier NULL,
+                    [DeletedDate] datetime2 NULL,
+                    [DeletedBy] uniqueidentifier NULL,
+                    [IsDeleted] bit NOT NULL
+                );
+            END;
+        ");
 
         // 1. Seed Organization
         if (!await context.Organizations.AnyAsync())

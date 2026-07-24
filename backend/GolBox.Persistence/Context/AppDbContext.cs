@@ -33,6 +33,12 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<MenuItem> MenuItems => Set<MenuItem>();
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<ApprovalRequest> ApprovalRequests => Set<ApprovalRequest>();
+    public DbSet<Campaign> Campaigns => Set<Campaign>();
+    public DbSet<NotificationRecord> Notifications => Set<NotificationRecord>();
+    public DbSet<Coupon> Coupons => Set<Coupon>();
+    public DbSet<StaffUser> StaffUsers => Set<StaffUser>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

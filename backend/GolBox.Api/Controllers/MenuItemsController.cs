@@ -28,7 +28,22 @@ public class MenuItemsController : BaseApiController
             .Where(m => m.CafeId == cafeId)
             .OrderBy(m => m.Name)
             .ToListAsync();
-        return Ok(Result<object>.Ok(items));
+
+        var dtoList = items.Select(m => new
+        {
+            m.Id,
+            m.CafeId,
+            m.Name,
+            m.Description,
+            m.Price,
+            m.ImageUrl,
+            m.MinAge,
+            m.MaxAge,
+            m.RequiredEducation,
+            m.IsActive
+        }).ToList();
+
+        return Ok(Result<object>.Ok(dtoList));
     }
 
     [HttpPost]
