@@ -299,34 +299,37 @@ export const Admin: React.FC = () => {
 
   const handleCreateMenuItem = async (e: React.FormEvent) => {
     e.preventDefault();
-    const targetCafeId = newProdCafeId || (cafesList[0]?.id ?? '33333333-3333-3333-3333-333333333333');
+    const targetCafeId = newProdCafeId || 'ALL';
+    const targetCafeObj = cafesList.find(c => c.id === targetCafeId);
+    const cafeNameLabel = targetCafeId === 'ALL' ? 'Tüm Şubelerde Geçerli' : (targetCafeObj?.name || 'Göl Kafe Şubesi');
+
     try {
-      const newItem = await api.createMenuItem(targetCafeId, {
+      const newItem = await api.createMenuItem(targetCafeId === 'ALL' ? (cafesList[0]?.id ?? '33333333-3333-3333-3333-333333333333') : targetCafeId, {
         name: newProdName,
         description: newProdDesc,
         price: Number(newProdPrice),
         imageUrl: uploadedImageUrl || undefined,
-        requiredEducation: newProdReqEdu || undefined
+        requiredEducation: undefined
       });
       
-      const productObj = newItem?.id ? newItem : {
+      const productObj = newItem?.id ? { ...newItem, cafeId: targetCafeId, cafeName: cafeNameLabel } : {
         id: 'prod-' + Date.now(),
         name: newProdName,
         description: newProdDesc,
         price: Number(newProdPrice),
         imageUrl: uploadedImageUrl || undefined,
-        requiredEducation: newProdReqEdu || undefined,
-        cafeId: targetCafeId
+        cafeId: targetCafeId,
+        cafeName: cafeNameLabel
       };
 
       setMenuItemsList(prev => [productObj, ...extractArray(prev)]);
-      setSuccess(`✨ Yeni Ürün '${newProdName}' (${newProdPrice} TL) fotoğraflı olarak menüye eklendi!`);
+      setSuccess(`✨ Yeni Ürün '${newProdName}' (${newProdPrice} TL - ${cafeNameLabel}) fotoğraflı olarak menüye eklendi!`);
       setShowAddProductModal(false);
       setNewProdName('');
       setNewProdDesc('');
       setNewProdPrice(45);
       setUploadedImageUrl('');
-      setNewProdReqEdu('');
+      setNewProdCafeId('ALL');
       fetchData();
     } catch (err: any) {
       setError(err.message || 'Ürün eklenemedi.');
@@ -1035,12 +1038,13 @@ export const Admin: React.FC = () => {
               <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', background: '#ffffff', padding: '0.85rem 1.25rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: 700, color: '#475569' }}>Filtrelenen Şube:</label>
                 <select
-                  value={newProdCafeId || (cafesList[0]?.id ?? '')}
+                  value={newProdCafeId || 'ALL'}
                   onChange={(e) => setNewProdCafeId(e.target.value)}
                   style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f8fafc', fontWeight: 700, color: '#0f172a', outline: 'none' }}
                 >
+                  <option value="ALL">🌐 Tüm Şubelerdeki Ürünler</option>
                   {extractArray(cafesList).map(c => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
+                    <option key={c.id} value={c.id}>📍 {c.name}</option>
                   ))}
                 </select>
               </div>
@@ -1067,11 +1071,14 @@ export const Admin: React.FC = () => {
                         </span>
                       </div>
 
-                      {item.requiredEducation && (
-                        <div style={{ fontSize: '0.725rem', background: '#e0f2fe', color: '#0369a1', padding: '3px 8px', borderRadius: '6px', fontWeight: 700, width: 'fit-content' }}>
-                          🎓 {item.requiredEducation} Özel
-                        </div>
-                      )}
+                      <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '0.725rem', background: '#dcfce7', color: '#15803d', padding: '3px 8px', borderRadius: '6px', fontWeight: 700 }}>
+                          {item.cafeId === 'ALL' || !item.cafeId ? '🌐 Tüm Şubelerde Geçerli' : (item.cafeName ? `📍 ${item.cafeName}` : '📍 Seçili Şubede')}
+                        </span>
+                        <span style={{ fontSize: '0.725rem', background: '#f1f5f9', color: '#475569', padding: '3px 8px', borderRadius: '6px', fontWeight: 600 }}>
+                          🟢 Herkes Alabilir
+                        </span>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -1484,14 +1491,15 @@ export const Admin: React.FC = () => {
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
               <div>
-                <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>İlgili Şube</label>
+                <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#1d5f60', display: 'block', marginBottom: '4px' }}>🌐 Şube / Konum Geçerliliği</label>
                 <select
-                  value={newProdCafeId || (cafesList[0]?.id ?? '')}
+                  value={newProdCafeId}
                   onChange={(e) => setNewProdCafeId(e.target.value)}
-                  style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', color: '#0f172a', outline: 'none' }}
+                  style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '2px solid #1d5f60', borderRadius: '8px', color: '#0f172a', outline: 'none', fontWeight: 700 }}
                 >
+                  <option value="ALL">🌐 Tüm Şubelerde Geçerli (Bütün Şehitkamil Kafeler)</option>
                   {extractArray(cafesList).map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
+                    <option key={c.id} value={c.id}>📍 Sadece {c.name}</option>
                   ))}
                 </select>
               </div>
@@ -1509,18 +1517,9 @@ export const Admin: React.FC = () => {
               </div>
             </div>
 
-            <div>
-              <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>🎓 Öğrenim / Kitle Şartı (İsteğe Bağlı)</label>
-              <select
-                value={newProdReqEdu}
-                onChange={(e) => setNewProdReqEdu(e.target.value)}
-                style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', color: '#0f172a', outline: 'none' }}
-              >
-                <option value="">🌐 Tüm Vatandaşlara Açık (Şartsız)</option>
-                <option value="Lise">🎓 Sadece Lise Öğrencileri</option>
-                <option value="Üniversite">🎓 Sadece Üniversite Öğrencileri</option>
-                <option value="Gençler">🧒 Sadece Gençler (18-25 Yaş)</option>
-              </select>
+            <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '0.65rem 0.85rem', borderRadius: '8px', fontSize: '0.775rem', color: '#166534', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <CheckCircle2 size={16} />
+              <span>🟢 Bu Ürün Tüm Vatandaşlar Tarafından Şartsız Alınabilir.</span>
             </div>
 
             <div>
