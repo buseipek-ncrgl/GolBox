@@ -13,8 +13,9 @@ public static class DbInitializer
     {
         await context.Database.EnsureCreatedAsync();
 
-        // Ensure specification tables exist
-        await context.Database.ExecuteSqlRawAsync(@"
+        if (context.Database.IsSqlServer())
+        {
+            await context.Database.ExecuteSqlRawAsync(@"
             IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'ApprovalRequests')
             BEGIN
                 CREATE TABLE [ApprovalRequests] (
@@ -160,6 +161,7 @@ public static class DbInitializer
                 );
             END;
         ");
+        }
 
         // 1. Seed Organization
         if (!await context.Organizations.AnyAsync())

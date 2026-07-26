@@ -29,9 +29,19 @@ builder.Services.AddCors(options =>
     });
 });
 
-// 2. DbContext Tanımlaması (MSSQL)
+// 2. DbContext Tanımlaması (SQLite & MSSQL Desteği)
+var connStr = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+{
+    if (string.IsNullOrEmpty(connStr) || connStr.Contains("golbox.db") || connStr.Contains("Data Source="))
+    {
+        options.UseSqlite(connStr ?? "Data Source=golbox.db");
+    }
+    else
+    {
+        options.UseSqlServer(connStr);
+    }
+});
 
 // Interface ve Context mapping
 builder.Services.AddScoped<IAppDbContext>(provider => provider.GetRequiredService<AppDbContext>());
