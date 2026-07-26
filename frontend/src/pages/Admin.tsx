@@ -301,14 +301,26 @@ export const Admin: React.FC = () => {
     e.preventDefault();
     const targetCafeId = newProdCafeId || (cafesList[0]?.id ?? '33333333-3333-3333-3333-333333333333');
     try {
-      await api.createMenuItem(targetCafeId, {
+      const newItem = await api.createMenuItem(targetCafeId, {
         name: newProdName,
         description: newProdDesc,
         price: Number(newProdPrice),
         imageUrl: uploadedImageUrl || undefined,
         requiredEducation: newProdReqEdu || undefined
       });
-      setSuccess(`✨ Yeni Ürün '${newProdName}' menüye eklendi!`);
+      
+      const productObj = newItem?.id ? newItem : {
+        id: 'prod-' + Date.now(),
+        name: newProdName,
+        description: newProdDesc,
+        price: Number(newProdPrice),
+        imageUrl: uploadedImageUrl || undefined,
+        requiredEducation: newProdReqEdu || undefined,
+        cafeId: targetCafeId
+      };
+
+      setMenuItemsList(prev => [productObj, ...extractArray(prev)]);
+      setSuccess(`✨ Yeni Ürün '${newProdName}' (${newProdPrice} TL) fotoğraflı olarak menüye eklendi!`);
       setShowAddProductModal(false);
       setNewProdName('');
       setNewProdDesc('');
@@ -987,6 +999,87 @@ export const Admin: React.FC = () => {
           )}
 
           {/* ------------------------------------------------------------- */}
+          {/* 4. MENÜ VE ÜRÜNLER (WITH PRO PHOTO UPLOAD & CREATION MODAL) */}
+          {/* ------------------------------------------------------------- */}
+          {activeMenu === 'products' && (
+            <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+                <div>
+                  <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Şehitkamil Menü & Ürün Kataloğu</h1>
+                  <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '4px' }}>Kitap Kafe şubeleri için fotoğraflı ürün ekleme, fiyatlandırma ve kitle şartı yönetimi.</p>
+                </div>
+
+                <button
+                  onClick={() => setShowAddProductModal(true)}
+                  style={{
+                    background: 'linear-gradient(135deg, #1d5f60, #0284c7)',
+                    color: '#ffffff',
+                    border: 'none',
+                    padding: '0.7rem 1.35rem',
+                    borderRadius: '12px',
+                    fontWeight: 800,
+                    fontSize: '0.9rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    boxShadow: '0 4px 14px rgba(29, 95, 96, 0.25)'
+                  }}
+                >
+                  <Coffee size={18} />
+                  <span>+ Yeni Ürün / Menü Öğesi Ekle</span>
+                </button>
+              </div>
+
+              {/* Cafe Branch Filter Selector */}
+              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', background: '#ffffff', padding: '0.85rem 1.25rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 700, color: '#475569' }}>Filtrelenen Şube:</label>
+                <select
+                  value={newProdCafeId || (cafesList[0]?.id ?? '')}
+                  onChange={(e) => setNewProdCafeId(e.target.value)}
+                  style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f8fafc', fontWeight: 700, color: '#0f172a', outline: 'none' }}
+                >
+                  {extractArray(cafesList).map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Pro Product Cards Grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
+                {getFilteredList(menuItemsList).map((item) => (
+                  <div key={item.id} style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 4px 20px -2px rgba(0,0,0,0.03)' }}>
+                    {item.imageUrl ? (
+                      <img src={item.imageUrl} alt={item.name} style={{ width: '100%', height: '150px', objectFit: 'cover' }} />
+                    ) : (
+                      <div style={{ width: '100%', height: '110px', background: 'linear-gradient(135deg, #1d5f60 0%, #0284c7 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
+                        <Coffee size={36} />
+                      </div>
+                    )}
+                    <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', flexGrow: 1 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <div>
+                          <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#0f172a' }}>{item.name}</h3>
+                          <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: '#64748b' }}>{item.description}</p>
+                        </div>
+                        <span style={{ background: '#fef3c7', color: '#b45309', padding: '4px 10px', borderRadius: '100px', fontSize: '0.85rem', fontWeight: 800 }}>
+                          {item.price} TL
+                        </span>
+                      </div>
+
+                      {item.requiredEducation && (
+                        <div style={{ fontSize: '0.725rem', background: '#e0f2fe', color: '#0369a1', padding: '3px 8px', borderRadius: '6px', fontWeight: 700, width: 'fit-content' }}>
+                          🎓 {item.requiredEducation} Özel
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ------------------------------------------------------------- */}
           {/* 8. ISMARLIYOR (DONATOR TARGET CRITERIA & ISMARLAYAN PHOTO) */}
           {/* ------------------------------------------------------------- */}
           {activeMenu === 'ismarliyor' && (
@@ -1339,6 +1432,109 @@ export const Admin: React.FC = () => {
             <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
               <button type="button" onClick={() => setShowAddIsmarliyorModal(false)} style={{ flex: 1, padding: '10px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '10px', color: '#0f172a', fontWeight: 600, cursor: 'pointer' }}>İptal</button>
               <button type="submit" style={{ flex: 1, padding: '10px', background: '#1d5f60', border: 'none', borderRadius: '10px', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>Ismarlıyor Başvurusunu Yayınla</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* ------------------------------------------------------------- */}
+      {/* NEW PRO PRODUCT CREATION MODAL WITH PHOTO UPLOAD */}
+      {/* ------------------------------------------------------------- */}
+      {showAddProductModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <form onSubmit={handleCreateMenuItem} style={{ width: '540px', background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '20px', padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1.25rem', boxShadow: '0 20px 40px rgba(0,0,0,0.1)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.85rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <div style={{ background: '#1d5f60', color: '#fff', padding: '8px', borderRadius: '10px', display: 'flex' }}>
+                  <Coffee size={20} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' }}>Yeni Ürün / Menü Öğesi Ekle</h3>
+                  <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>Fotoğraflı ürün katalog yönetimi.</p>
+                </div>
+              </div>
+              <button type="button" onClick={() => setShowAddProductModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div>
+              <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Ürün Adı</label>
+              <input
+                type="text"
+                placeholder="Örn: Soğuk Brew Filtre Kahve"
+                value={newProdName}
+                onChange={(e) => setNewProdName(e.target.value)}
+                required
+                style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', color: '#0f172a', outline: 'none' }}
+              />
+            </div>
+
+            <div>
+              <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Ürün Açıklaması</label>
+              <textarea
+                rows={2}
+                placeholder="Özenle demlenmiş soğuk filtre kahve detayları..."
+                value={newProdDesc}
+                onChange={(e) => setNewProdDesc(e.target.value)}
+                required
+                style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', color: '#0f172a', outline: 'none', resize: 'vertical' }}
+              />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              <div>
+                <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>İlgili Şube</label>
+                <select
+                  value={newProdCafeId || (cafesList[0]?.id ?? '')}
+                  onChange={(e) => setNewProdCafeId(e.target.value)}
+                  style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', color: '#0f172a', outline: 'none' }}
+                >
+                  {extractArray(cafesList).map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#1d5f60', display: 'block', marginBottom: '4px' }}>Satış Fiyatı (TL)</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={newProdPrice}
+                  onChange={(e) => setNewProdPrice(Number(e.target.value))}
+                  required
+                  style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '2px solid #1d5f60', borderRadius: '8px', color: '#0f172a', outline: 'none', fontWeight: 700 }}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>🎓 Öğrenim / Kitle Şartı (İsteğe Bağlı)</label>
+              <select
+                value={newProdReqEdu}
+                onChange={(e) => setNewProdReqEdu(e.target.value)}
+                style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', color: '#0f172a', outline: 'none' }}
+              >
+                <option value="">🌐 Tüm Vatandaşlara Açık (Şartsız)</option>
+                <option value="Lise">🎓 Sadece Lise Öğrencileri</option>
+                <option value="Üniversite">🎓 Sadece Üniversite Öğrencileri</option>
+                <option value="Gençler">🧒 Sadece Gençler (18-25 Yaş)</option>
+              </select>
+            </div>
+
+            <div>
+              <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>📷 Ürün Fotoğrafı Yükle</label>
+              <label style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f1f5f9', border: '1px dashed #cbd5e1', borderRadius: '8px', color: '#1d5f60', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                <Upload size={16} />
+                <span>{uploadingFile ? 'Fotoğraf Yükleniyor...' : uploadedImageUrl ? 'Ürün Görseli Yüklendi ✓' : 'Ürün Fotoğrafı Seç'}</span>
+                <input type="file" accept="image/*" onChange={(e) => handleFileUploadHelper(e, setUploadedImageUrl)} style={{ display: 'none' }} />
+              </label>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+              <button type="button" onClick={() => setShowAddProductModal(false)} style={{ flex: 1, padding: '10px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '10px', color: '#0f172a', fontWeight: 600, cursor: 'pointer' }}>İptal</button>
+              <button type="submit" style={{ flex: 1, padding: '10px', background: '#1d5f60', border: 'none', borderRadius: '10px', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>Ürünü Menüye Ekle</button>
             </div>
           </form>
         </div>
