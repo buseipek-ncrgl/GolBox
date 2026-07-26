@@ -1848,6 +1848,68 @@ export const Admin: React.FC = () => {
         </div>
       )}
 
+      {/* ------------------------------------------------------------- */}
+      {/* NEW PRO CAFE CREATION MODAL */}
+      {/* ------------------------------------------------------------- */}
+      {showAddCafeModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <form onSubmit={handleCreateCafe} style={{ width: '520px', background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '20px', padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1.25rem', boxShadow: '0 20px 40px rgba(0,0,0,0.1)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.85rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <div style={{ background: '#1d5f60', color: '#fff', padding: '8px', borderRadius: '10px', display: 'flex' }}>
+                  <Building2 size={20} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' }}>Yeni Şehitkamil Kafe / Tesis Ekle</h3>
+                  <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>Fotoğraflı şube yönetimi.</p>
+                </div>
+              </div>
+              <button type="button" onClick={() => setShowAddCafeModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div>
+              <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Tesis / Şube Adı</label>
+              <input
+                type="text"
+                placeholder="Örn: Şehitkamil Sanat Kitap Kafe"
+                value={newCafeName}
+                onChange={(e) => setNewCafeName(e.target.value)}
+                required
+                style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', color: '#0f172a', outline: 'none' }}
+              />
+            </div>
+
+            <div>
+              <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Tesis Adresi & Konumu</label>
+              <input
+                type="text"
+                placeholder="Örn: Atatürk Mah. 15. Sok. No:4, Şehitkamil / Gaziantep"
+                value={newCafeAddress}
+                onChange={(e) => setNewCafeAddress(e.target.value)}
+                required
+                style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', color: '#0f172a', outline: 'none' }}
+              />
+            </div>
+
+            <div>
+              <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>📷 Tesis Kapak Fotoğrafı Yükle</label>
+              <label style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f1f5f9', border: '1px dashed #cbd5e1', borderRadius: '8px', color: '#1d5f60', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                <Upload size={16} />
+                <span>{uploadingFile ? 'Görsel Yükleniyor...' : (newCafeImageUrl || uploadedImageUrl) ? 'Tesis Fotoğrafı Yüklendi ✓' : 'Tesis Kapak Fotoğrafı Seç'}</span>
+                <input type="file" accept="image/*" onChange={(e) => handleFileUploadHelper(e, setNewCafeImageUrl)} style={{ display: 'none' }} />
+              </label>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+              <button type="button" onClick={() => setShowAddCafeModal(false)} style={{ flex: 1, padding: '10px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '10px', color: '#0f172a', fontWeight: 600, cursor: 'pointer' }}>İptal</button>
+              <button type="submit" style={{ flex: 1, padding: '10px', background: '#1d5f60', border: 'none', borderRadius: '10px', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>Şubeyi Ekle ve Yayınla</button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {/* MODAL: ADD EVENT (FIXED & POLISHED) */}
       {showAddEventModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
