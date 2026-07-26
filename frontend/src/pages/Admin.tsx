@@ -396,12 +396,13 @@ export const Admin: React.FC = () => {
     const selectedCafeObj = cafesList.find(c => c.id === newIsmCafeId) || cafesList[0];
     const targetCafeName = selectedCafeObj?.name || 'Şehitkamil Merkez Kitap Kafe';
     const targetCafeId = selectedCafeObj?.id || '33333333-3333-3333-3333-333333333333';
+    const donatorName = newIsmUserFullName && newIsmUserFullName.trim() ? newIsmUserFullName.trim() : 'Enes Çıkçık (Hayırsever Vatandaş)';
     
     try {
       const newOrder = {
         id: 'ism-' + Date.now(),
-        collectionCode: 'ISM-' + Math.floor(1000 + Math.random() * 9000),
-        userFullName: newIsmUserFullName || 'Şehitkamil Hayırsever Vatandaşı',
+        collectionCode: 'GB-' + Math.floor(1000 + Math.random() * 9000),
+        userFullName: donatorName,
         cafeId: targetCafeId,
         cafeName: targetCafeName,
         totalAmount: Number(newIsmAmount) || 45,
@@ -420,12 +421,11 @@ export const Admin: React.FC = () => {
       };
       
       setOrdersList(prev => [newOrder, ...extractArray(prev)]);
-      setSuccess(`✨ Gaziantep Şehitkamil Belediyesi Ismarlıyor (${newOrder.collectionCode}) [${newIsmTargetCriteria}] ikramı yayınlandı!`);
+      setSuccess(`✨ Gaziantep Şehitkamil Belediyesi Ismarlıyor (${newOrder.collectionCode}) [${donatorName}] ikramı yayınlandı!`);
       setShowAddIsmarliyorModal(false);
       setNewIsmUserFullName('');
       setNewIsmProofUrl('');
       setUploadedImageUrl('');
-      fetchData();
     } catch (err: any) {
       setError(err.message || 'Ismarlıyor oluşturulamadı.');
     }
@@ -1187,6 +1187,65 @@ export const Admin: React.FC = () => {
           )}
 
           {/* ------------------------------------------------------------- */}
+          {/* 7. İKRAMLAR VE ÖDÜLLER */}
+          {/* ------------------------------------------------------------- */}
+          {activeMenu === 'rewards' && (
+            <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+                <div>
+                  <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>GölPuan İkramlar & Ödüller Kataloğu</h1>
+                  <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '4px' }}>Vatandaşların GölPuan ile Kitap Kafelerden ücretsiz alabileceği ikram hediyeleri.</p>
+                </div>
+
+                <button
+                  onClick={() => setShowAddRewardModal(true)}
+                  style={{
+                    background: 'linear-gradient(135deg, #1d5f60, #0284c7)',
+                    color: '#ffffff',
+                    border: 'none',
+                    padding: '0.7rem 1.35rem',
+                    borderRadius: '12px',
+                    fontWeight: 800,
+                    fontSize: '0.9rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    boxShadow: '0 4px 14px rgba(29, 95, 96, 0.25)'
+                  }}
+                >
+                  <Award size={18} />
+                  <span>+ GölPuan İkram Ödülü Ekle</span>
+                </button>
+              </div>
+
+              {/* Rewards Cards Grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
+                {getFilteredList(rewardsList.length > 0 ? rewardsList : [
+                  { id: 'rew-1', title: '☕ Ücretsiz Filtre Kahve', description: 'Şehitkamil Kitap Kafelerde geçerli sıcak taze filtre kahve ikramı.', pointsRequired: 50, isAvailable: true },
+                  { id: 'rew-2', title: '🍰 Günün Dilim Pastası', description: 'Kitap Kafe günlük taze dilim pasta veya cheesecake ikramı.', pointsRequired: 100, isAvailable: true },
+                  { id: 'rew-3', title: '🥐 Sıcak Kruvasan & Taze Çay', description: 'Taze fırınlanmış kruvasan ve sınırsız demli çay ikramı.', pointsRequired: 75, isAvailable: true },
+                  { id: 'rew-4', title: '📚 %50 Kitap Satın Alma İndirim Kuponu', description: 'Gençlik Merkezleri ve Kitap Kafe kütüphanelerinde %50 indirim.', pointsRequired: 120, isAvailable: true }
+                ]).map((r) => (
+                  <div key={r.id} style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', boxShadow: '0 4px 20px -2px rgba(0,0,0,0.03)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#0f172a' }}>{r.title}</h3>
+                      <span style={{ background: '#fef3c7', color: '#b45309', padding: '4px 10px', borderRadius: '100px', fontSize: '0.85rem', fontWeight: 800 }}>
+                        {r.pointsRequired} GP
+                      </span>
+                    </div>
+                    <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>{r.description}</p>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', paddingTop: '0.5rem', borderTop: '1px solid #f1f5f9' }}>
+                      <span style={{ background: '#dcfce7', color: '#15803d', padding: '3px 8px', borderRadius: '6px', fontSize: '0.725rem', fontWeight: 700 }}>Aktif İkram</span>
+                      <span style={{ fontSize: '0.725rem', color: '#0284c7', fontWeight: 700 }}>Tüm Şubelerde</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ------------------------------------------------------------- */}
           {/* 8. ISMARLIYOR (DONATOR TARGET CRITERIA & ISMARLAYAN PHOTO) */}
           {/* ------------------------------------------------------------- */}
           {activeMenu === 'ismarliyor' && (
@@ -1675,7 +1734,11 @@ export const Admin: React.FC = () => {
               </div>
 
               <div>
-                <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#1d5f60', display: 'block', marginBottom: '4px' }}>İndirim Değeri Oranı</label>
+                <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#1d5f60', display: 'block', marginBottom: '4px' }}>
+                  {newCampType === 'Percentage' ? 'İndirim Oranı (%)' :
+                   newCampType === 'FixedAmount' ? 'İndirim Tutarı (TL)' :
+                   newCampType === 'BonusPoints' ? 'Kazanılacak Ekstra GölPuan (+GP)' : 'İkram Fırsat Adedi'}
+                </label>
                 <input
                   type="number"
                   min={1}
