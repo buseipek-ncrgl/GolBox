@@ -1075,9 +1075,6 @@ export const Admin: React.FC = () => {
                         <span style={{ fontSize: '0.725rem', background: '#dcfce7', color: '#15803d', padding: '3px 8px', borderRadius: '6px', fontWeight: 700 }}>
                           {item.cafeId === 'ALL' || !item.cafeId ? '🌐 Tüm Şubelerde Geçerli' : (item.cafeName ? `📍 ${item.cafeName}` : '📍 Seçili Şubede')}
                         </span>
-                        <span style={{ fontSize: '0.725rem', background: '#f1f5f9', color: '#475569', padding: '3px 8px', borderRadius: '6px', fontWeight: 600 }}>
-                          🟢 Herkes Alabilir
-                        </span>
                       </div>
                     </div>
                   </div>
@@ -1515,11 +1512,6 @@ export const Admin: React.FC = () => {
                   style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '2px solid #1d5f60', borderRadius: '8px', color: '#0f172a', outline: 'none', fontWeight: 700 }}
                 />
               </div>
-            </div>
-
-            <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '0.65rem 0.85rem', borderRadius: '8px', fontSize: '0.775rem', color: '#166534', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <CheckCircle2 size={16} />
-              <span>🟢 Bu Ürün Tüm Vatandaşlar Tarafından Şartsız Alınabilir.</span>
             </div>
 
             <div>
