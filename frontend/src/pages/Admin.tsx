@@ -8,7 +8,7 @@ import {
   LogOut, Plus, Search, Filter, AlertTriangle, ChevronRight,
   Upload, Image as ImageIcon, ShieldCheck, CheckCircle2, XCircle, 
   Download, MoreVertical, X, ChevronLeft, ChevronDown, Check, ArrowRight, RefreshCw,
-  Clock, TrendingUp, HelpCircle, MapPin, Receipt, Gift, CreditCard, Megaphone, BarChart3, FileCheck, Trash2, Eye, Phone, Edit3, Save, Send, Shield, DollarSign, Layers
+  Clock, TrendingUp, HelpCircle, MapPin, Receipt, Gift, CreditCard, Megaphone, BarChart3, FileCheck, Trash2, Eye, Phone, Edit3, Save, Send, Shield, DollarSign, Layers, Heart
 } from 'lucide-react';
 
 // Safe array extraction helper
@@ -50,6 +50,7 @@ export const Admin: React.FC = () => {
   const [rewardsList, setRewardsList] = useState<any[]>([]);
   const [campaignsList, setCampaignsList] = useState<any[]>([]);
   const [eventsList, setEventsList] = useState<any[]>([]);
+  const [notificationsList, setNotificationsList] = useState<any[]>([]);
   const [auditLogsList, setAuditLogsList] = useState<any[]>([]);
 
   // Ismarlıyor Filter Pill State
@@ -59,6 +60,7 @@ export const Admin: React.FC = () => {
   const [selectedUserDrawer, setSelectedUserDrawer] = useState<any>(null);
   const [selectedCafeDetail, setSelectedCafeDetail] = useState<any>(null);
   const [previewProofImage, setPreviewProofImage] = useState<string | null>(null);
+  const [showNotificationsDrawer, setShowNotificationsDrawer] = useState(false);
 
   // Cafe Edit State inside Detail Modal
   const [editCafeName, setEditCafeName] = useState('');
@@ -116,17 +118,18 @@ export const Admin: React.FC = () => {
   const [showAddEventModal, setShowAddEventModal] = useState(false);
   const [newEventTitle, setNewEventTitle] = useState('');
   const [newEventDesc, setNewEventDesc] = useState('');
-  const [newEventLocation, setNewEventLocation] = useState('');
+  const [newEventLocation, setNewEventLocation] = useState('Şehitkamil Gençlik Merkezi');
   const [newEventPoints, setNewEventPoints] = useState<number>(100);
+  const [newEventQuota, setNewEventQuota] = useState<number>(50);
 
-  // NEW ISMARLIYOR CREATION MODAL STATE
+  // ISMARLIYOR CREATION & TARGET CRITERIA STATE
   const [showAddIsmarliyorModal, setShowAddIsmarliyorModal] = useState(false);
   const [newIsmUserFullName, setNewIsmUserFullName] = useState('');
   const [newIsmCafeId, setNewIsmCafeId] = useState('');
   const [newIsmItemName, setNewIsmItemName] = useState('Filtre Kahve');
   const [newIsmQuantity, setNewIsmQuantity] = useState<number>(1);
   const [newIsmAmount, setNewIsmAmount] = useState<number>(45);
-  const [newIsmReqEdu, setNewIsmReqEdu] = useState('');
+  const [newIsmTargetCriteria, setNewIsmTargetCriteria] = useState('Gençler'); // Gençler, Öğrenciler, Emekliler, Herkese Açık
   const [newIsmProofUrl, setNewIsmProofUrl] = useState('');
 
   const fetchData = async () => {
@@ -168,6 +171,9 @@ export const Admin: React.FC = () => {
       } else if (activeMenu === 'events') {
         const a = await api.getActivities();
         setEventsList(extractArray(a));
+      } else if (activeMenu === 'notifications') {
+        const n = await api.getNotifications();
+        setNotificationsList(extractArray(n));
       } else if (activeMenu === 'audit') {
         const logs = await api.getAuditLogs();
         setAuditLogsList(extractArray(logs));
@@ -198,8 +204,7 @@ export const Admin: React.FC = () => {
         (item.cafeName && String(item.cafeName).toLowerCase().includes(q)) ||
         (item.collectionCode && String(item.collectionCode).toLowerCase().includes(q)) ||
         (item.description && String(item.description).toLowerCase().includes(q)) ||
-        (item.address && String(item.address).toLowerCase().includes(q)) ||
-        (item.phoneNumber && String(item.phoneNumber).toLowerCase().includes(q))
+        (item.address && String(item.address).toLowerCase().includes(q))
       );
     });
   };
@@ -261,7 +266,7 @@ export const Admin: React.FC = () => {
         imageUrl: editCafeImageUrl || undefined,
         categoryId: selectedCafeDetail.categoryId || '22222222-2222-2222-2222-222222222222'
       });
-      setSuccess(`✨ Tesis '${editCafeName}' fotoğrafı ve detayları kaydedildi!`);
+      setSuccess(`✨ Şehitkamil Tesis '${editCafeName}' fotoğrafı ve detayları kaydedildi!`);
       setSelectedCafeDetail(null);
       fetchData();
     } catch (err: any) {
@@ -281,7 +286,7 @@ export const Admin: React.FC = () => {
         imageUrl: newCafeImageUrl || undefined,
         categoryId: '22222222-2222-2222-2222-222222222222'
       });
-      setSuccess(`✨ Yeni Tesis/Şube '${newCafeName}' eklendi!`);
+      setSuccess(`✨ Yeni Şehitkamil Tesis/Şube '${newCafeName}' eklendi!`);
       setShowAddCafeModal(false);
       setNewCafeName('');
       setNewCafeAddress('');
@@ -347,23 +352,24 @@ export const Admin: React.FC = () => {
     }
   };
 
-  // ADMIN ISMARLIYOR CREATION HANDLER
+  // ADMIN ISMARLIYOR CREATION WITH TARGET CRITERIA
   const handleCreateIsmarliyor = async (e: React.FormEvent) => {
     e.preventDefault();
     const selectedCafeObj = cafesList.find(c => c.id === newIsmCafeId) || cafesList[0];
-    const targetCafeName = selectedCafeObj?.name || 'Gölbaşı Merkez Kitap Kafe';
+    const targetCafeName = selectedCafeObj?.name || 'Şehitkamil Merkez Kitap Kafe';
     const targetCafeId = selectedCafeObj?.id || '33333333-3333-3333-3333-333333333333';
     
     try {
       const newOrder = {
         id: 'ism-' + Date.now(),
         collectionCode: 'ISM-' + Math.floor(1000 + Math.random() * 9000),
-        userFullName: newIsmUserFullName || 'Belediye Hayırsever Vatandaşı',
+        userFullName: newIsmUserFullName || 'Şehitkamil Hayırsever Vatandaşı',
         cafeId: targetCafeId,
         cafeName: targetCafeName,
         totalAmount: Number(newIsmAmount) || 45,
         imageUrl: newIsmProofUrl || uploadedImageUrl || undefined,
         status: 'Ready',
+        targetCriteria: newIsmTargetCriteria || 'Gençler',
         createdDate: new Date().toISOString(),
         items: [
           {
@@ -376,7 +382,7 @@ export const Admin: React.FC = () => {
       };
       
       setOrdersList(prev => [newOrder, ...extractArray(prev)]);
-      setSuccess(`✨ Yeni Ismarlıyor (${newOrder.collectionCode}) başarıyla oluşturuldu ve şubede yayınlandı!`);
+      setSuccess(`✨ Gaziantep Şehitkamil Belediyesi Ismarlıyor (${newOrder.collectionCode}) [${newIsmTargetCriteria}] ikramı yayınlandı!`);
       setShowAddIsmarliyorModal(false);
       setNewIsmUserFullName('');
       setNewIsmProofUrl('');
@@ -387,22 +393,36 @@ export const Admin: React.FC = () => {
     }
   };
 
+  // FIX EVENT CREATION FUNCTION
   const handleCreateEvent = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await api.createActivity({
+      const newAct = await api.createActivity({
         title: newEventTitle,
         description: newEventDesc,
-        location: newEventLocation,
+        location: newEventLocation || 'Şehitkamil Gençlik Merkezi',
         pointsReward: Number(newEventPoints),
         startDate: new Date().toISOString(),
         endDate: new Date(Date.now() + 7 * 86400000).toISOString()
       });
-      setSuccess(`✨ Yeni Etkinlik '${newEventTitle}' (${newEventPoints} GP Ödüllü) oluşturuldu!`);
+      
+      const eventItem = newAct?.id ? newAct : {
+        id: 'act-' + Date.now(),
+        title: newEventTitle,
+        description: newEventDesc,
+        location: newEventLocation || 'Şehitkamil Gençlik Merkezi',
+        pointsReward: Number(newEventPoints),
+        quota: Number(newEventQuota) || 50,
+        status: 'Active'
+      };
+
+      setEventsList(prev => [eventItem, ...extractArray(prev)]);
+      setSuccess(`✨ Gaziantep Şehitkamil Belediyesi '${newEventTitle}' (${newEventPoints} GP Ödüllü) Etkinliği başarıyla yayınlandı!`);
       setShowAddEventModal(false);
       setNewEventTitle('');
       setNewEventDesc('');
       setNewEventLocation('');
+      setNewEventPoints(100);
       fetchData();
     } catch (err: any) {
       setError(err.message || 'Etkinlik eklenemedi.');
@@ -501,7 +521,7 @@ export const Admin: React.FC = () => {
     const labels: Record<string, string> = {
       overview: 'Genel Bakış Dashboard',
       users: 'Vatandaş & Kullanıcı Yönetimi',
-      cafes: 'Göl Kafeler & Şubeler',
+      cafes: 'Şehitkamil Göl Kafeler',
       products: 'Menü & Ürün Kataloğu',
       points: 'GölPuan Kuralları & Defteri',
       qr: 'QR İşlemleri & Güvenlik',
@@ -526,7 +546,7 @@ export const Admin: React.FC = () => {
       fontFamily: 'Inter, system-ui, -apple-system, sans-serif'
     }}>
       
-      {/* 1. EXECUTIVE SAAS SIDEBAR */}
+      {/* 1. EXECUTIVE SAAS SIDEBAR (GAZİANTEP ŞEHİTKAMİL BELEDİYESİ BRANDING) */}
       <aside style={{
         width: sidebarCollapsed ? '76px' : '270px',
         background: '#0f172a',
@@ -539,26 +559,27 @@ export const Admin: React.FC = () => {
         zIndex: 50
       }}>
         {/* Sidebar Header */}
-        <div style={{ height: '70px', display: 'flex', alignItems: 'center', justifyContent: sidebarCollapsed ? 'center' : 'space-between', padding: '0 1.25rem', borderBottom: '1px solid #1e293b' }}>
+        <div style={{ height: '75px', display: 'flex', alignItems: 'center', justifyContent: sidebarCollapsed ? 'center' : 'space-between', padding: '0 1.25rem', borderBottom: '1px solid #1e293b' }}>
           {!sidebarCollapsed && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <div style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '10px',
+                width: '38px',
+                height: '38px',
+                borderRadius: '12px',
                 background: 'linear-gradient(135deg, #1d5f60 0%, #0284c7 100%)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 color: '#fff',
-                fontWeight: 800,
-                boxShadow: '0 4px 12px rgba(29, 95, 96, 0.3)'
+                fontWeight: 900,
+                boxShadow: '0 4px 12px rgba(29, 95, 96, 0.35)',
+                fontSize: '0.9rem'
               }}>
-                GP
+                ŠB
               </div>
               <div>
-                <div style={{ fontWeight: 800, fontSize: '1.05rem', color: '#ffffff', lineHeight: 1.2 }}>GölPuan Admin</div>
-                <div style={{ fontSize: '0.68rem', color: '#94a3b8' }}>Gölbaşı Belediyesi SaaS Portal</div>
+                <div style={{ fontWeight: 800, fontSize: '1.05rem', color: '#ffffff', lineHeight: 1.2 }}>GölBox Admin</div>
+                <div style={{ fontSize: '0.68rem', color: '#38bdf8', fontWeight: 600 }}>Gaziantep Şehitkamil Belediyesi</div>
               </div>
             </div>
           )}
@@ -653,7 +674,7 @@ export const Admin: React.FC = () => {
         {/* Bottom Profile */}
         <div style={{ padding: sidebarCollapsed ? '0.75rem 0.5rem' : '0.85rem 1rem', borderTop: '1px solid #1e293b', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: '#0284c7', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '0.85rem', flexShrink: 0 }}>
-            SA
+            ŠB
           </div>
           {!sidebarCollapsed && (
             <div style={{ minWidth: 0, flexGrow: 1 }}>
@@ -675,9 +696,9 @@ export const Admin: React.FC = () => {
       <div style={{ flexGrow: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
         
         {/* Top Header Bar */}
-        <header style={{ height: '70px', background: '#ffffff', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 2rem', position: 'sticky', top: 0, zIndex: 40, boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+        <header style={{ height: '75px', background: '#ffffff', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 2rem', position: 'sticky', top: 0, zIndex: 40, boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', color: '#64748b' }}>
-            <span>GölPuan Portalı</span>
+            <span style={{ fontWeight: 600, color: '#1d5f60' }}>Gaziantep Şehitkamil Belediyesi</span>
             <ChevronRight size={14} />
             <span style={{ fontWeight: 700, color: '#0f172a' }}>{getMenuLabel(activeMenu)}</span>
           </div>
@@ -686,7 +707,7 @@ export const Admin: React.FC = () => {
             {/* Live Operations Pill */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: '#dcfce7', color: '#166534', padding: '5px 14px', borderRadius: '100px', fontSize: '0.75rem', fontWeight: 700 }}>
               <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#16a34a' }} />
-              Canlı SaaS Operasyonu
+              Şehitkamil Canlı Sistem
             </div>
 
             {/* Global Live Filter Search */}
@@ -694,7 +715,7 @@ export const Admin: React.FC = () => {
               <Search size={16} style={{ position: 'absolute', left: '12px', top: '10px', color: '#94a3b8' }} />
               <input
                 type="text"
-                placeholder="Tüm Verilerde Ara (Ad, Kod, Şube)..."
+                placeholder="Canlı Liste Filtrele (Ad, Kod, Şube)..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 style={{
@@ -711,10 +732,17 @@ export const Admin: React.FC = () => {
               />
             </div>
 
-            <div style={{ position: 'relative', cursor: 'pointer' }}>
-              <Bell size={20} color="#64748b" />
-              <span style={{ position: 'absolute', top: '-4px', right: '-4px', background: '#ef4444', color: '#fff', fontSize: '0.65rem', fontWeight: 700, width: '16px', height: '16px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>4</span>
-            </div>
+            {/* INTERACTIVE NOTIFICATION BELL ICON */}
+            <button
+              onClick={() => setShowNotificationsDrawer(true)}
+              title="Canlı Bildirimler & Duyurular"
+              style={{ position: 'relative', background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}
+            >
+              <Bell size={22} color="#1d5f60" />
+              <span style={{ position: 'absolute', top: '-2px', right: '-2px', background: '#ef4444', color: '#fff', fontSize: '0.65rem', fontWeight: 800, width: '17px', height: '17px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                3
+              </span>
+            </button>
           </div>
         </header>
 
@@ -748,34 +776,34 @@ export const Admin: React.FC = () => {
           {activeMenu === 'overview' && (
             <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
               <div>
-                <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>GölPuan Genel Yönetim Dashboard</h1>
-                <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '4px' }}>Belediye sadakat ekosisteminin tüm canlı metrikleri ve operasyon dökümü.</p>
+                <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Gaziantep Şehitkamil Belediyesi GölBox Panel</h1>
+                <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '4px' }}>Akıllı Şehir & Sadakat Ekosisteminin tüm canlı metrikleri ve operasyon dökümü.</p>
               </div>
 
               {/* Stat Cards Grid */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem' }}>
                 <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '1.5rem', boxShadow: '0 4px 20px -2px rgba(0,0,0,0.03)' }}>
-                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#1d5f60', letterSpacing: '0.05em', textTransform: 'uppercase' }}>TOPLAM KULLANICI</div>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#1d5f60', letterSpacing: '0.05em', textTransform: 'uppercase' }}>TOPLAM VATANDAŞ KULLANICI</div>
                   <div style={{ fontSize: '2rem', fontWeight: 800, color: '#0f172a', marginTop: '6px' }}>{overviewData?.totalUsers ?? usersList.length ?? 1250}</div>
-                  <div style={{ fontSize: '0.75rem', color: '#16a34a', marginTop: '6px', fontWeight: 600 }}>%100 Doğrulanmış Vatandaş</div>
+                  <div style={{ fontSize: '0.75rem', color: '#16a34a', marginTop: '6px', fontWeight: 600 }}>%100 Şehitkamil Doğrulanmış</div>
                 </div>
 
                 <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '1.5rem', boxShadow: '0 4px 20px -2px rgba(0,0,0,0.03)' }}>
-                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#0284c7', letterSpacing: '0.05em', textTransform: 'uppercase' }}>BUGÜN DAĞITILAN PUAN</div>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#0284c7', letterSpacing: '0.05em', textTransform: 'uppercase' }}>DAĞITILAN GÖLPUAN</div>
                   <div style={{ fontSize: '2rem', fontWeight: 800, color: '#0f172a', marginTop: '6px' }}>4,850 GP</div>
-                  <div style={{ fontSize: '0.75rem', color: '#0284c7', marginTop: '6px', fontWeight: 600 }}>Alışveriş & Etkinlik Bonusu</div>
+                  <div style={{ fontSize: '0.75rem', color: '#0284c7', marginTop: '6px', fontWeight: 600 }}>Gençlik & Etkinlik Bonusu</div>
                 </div>
 
                 <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '1.5rem', boxShadow: '0 4px 20px -2px rgba(0,0,0,0.03)' }}>
                   <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#d97706', letterSpacing: '0.05em', textTransform: 'uppercase' }}>BEKLEYEN ISMARLIYOR</div>
                   <div style={{ fontSize: '2rem', fontWeight: 800, color: '#0f172a', marginTop: '6px' }}>{ordersList.length > 0 ? ordersList.length : 6} Başvuru</div>
-                  <div style={{ fontSize: '0.75rem', color: '#d97706', marginTop: '6px', fontWeight: 600 }}>Inceleme & Fiş Onayı Bekliyor</div>
+                  <div style={{ fontSize: '0.75rem', color: '#d97706', marginTop: '6px', fontWeight: 600 }}>Onay & Teslimat Bekliyor</div>
                 </div>
 
                 <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '1.5rem', boxShadow: '0 4px 20px -2px rgba(0,0,0,0.03)' }}>
                   <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#16a34a', letterSpacing: '0.05em', textTransform: 'uppercase' }}>BUGÜNKÜ QR TARAMASI</div>
                   <div style={{ fontSize: '2rem', fontWeight: 800, color: '#0f172a', marginTop: '6px' }}>342 İşlem</div>
-                  <div style={{ fontSize: '0.75rem', color: '#16a34a', marginTop: '6px', fontWeight: 600 }}>Mogan & Merkez Kitap Kafe</div>
+                  <div style={{ fontSize: '0.75rem', color: '#16a34a', marginTop: '6px', fontWeight: 600 }}>Şehitkamil Kitap Kafeler</div>
                 </div>
               </div>
 
@@ -788,8 +816,8 @@ export const Admin: React.FC = () => {
                       <tr style={{ background: '#f8fafc', color: '#64748b', fontSize: '0.7rem', textTransform: 'uppercase' }}>
                         <th style={{ padding: '0.65rem' }}>Kod</th>
                         <th style={{ padding: '0.65rem' }}>Vatandaş</th>
+                        <th style={{ padding: '0.65rem' }}>Hedef Kriter</th>
                         <th style={{ padding: '0.65rem' }}>Şube</th>
-                        <th style={{ padding: '0.65rem' }}>Tutar</th>
                         <th style={{ padding: '0.65rem', textAlign: 'right' }}>Eylem</th>
                       </tr>
                     </thead>
@@ -798,8 +826,12 @@ export const Admin: React.FC = () => {
                         <tr key={o.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                           <td style={{ padding: '0.75rem 0.65rem', fontWeight: 800, color: '#d97706' }}>{o.collectionCode}</td>
                           <td style={{ padding: '0.75rem 0.65rem', fontWeight: 700 }}>{o.userFullName}</td>
+                          <td style={{ padding: '0.75rem 0.65rem' }}>
+                            <span style={{ background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 700 }}>
+                              {o.targetCriteria || 'Gençler'}
+                            </span>
+                          </td>
                           <td style={{ padding: '0.75rem 0.65rem', color: '#64748b' }}>{o.cafeName}</td>
-                          <td style={{ padding: '0.75rem 0.65rem', fontWeight: 800, color: '#1d5f60' }}>{o.totalAmount} TL</td>
                           <td style={{ padding: '0.75rem 0.65rem', textAlign: 'right' }}>
                             <button onClick={() => handleUpdateOrderStatus(o.id, 'Delivered')} style={{ padding: '4px 10px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}>
                               ⚡ Onayla
@@ -814,10 +846,10 @@ export const Admin: React.FC = () => {
                 <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '1.5rem', boxShadow: '0 4px 20px -2px rgba(0,0,0,0.03)', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                   <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#0f172a' }}>⚙️ Hızlı Eylemler</h3>
                   <button onClick={() => setShowAddIsmarliyorModal(true)} style={{ padding: '0.75rem', background: '#1d5f60', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <Gift size={18} /> + Yeni Ismarlıyor Ekle & Yayınla
+                    <Gift size={18} /> + Yeni Ismarlıyor Ekle (Kitle Kriterli)
                   </button>
-                  <button onClick={() => setShowQrModal(true)} style={{ padding: '0.75rem', background: '#0284c7', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <Sparkles size={18} /> Vatandaş QR Okut / Puan Yükle
+                  <button onClick={() => setShowAddEventModal(true)} style={{ padding: '0.75rem', background: '#0284c7', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Calendar size={18} /> + Yeni Etkinlik Tanımla
                   </button>
                   <button onClick={() => setShowAddRewardModal(true)} style={{ padding: '0.75rem', background: '#d97706', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <Award size={18} /> GölPuan İkram Ödülü Ekle
@@ -834,7 +866,7 @@ export const Admin: React.FC = () => {
             <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
               <div>
                 <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Vatandaş & Kullanıcı Yönetimi</h1>
-                <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '4px' }}>Profil detayları, öğrenim filtreleri, bakiye yönetimi ve puan/ikram tanımlama.</p>
+                <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '4px' }}>Gaziantep Şehitkamil ilçesi kayıtlı vatandaşlar ve puan hareketleri.</p>
               </div>
 
               <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 4px 20px -2px rgba(0,0,0,0.03)' }}>
@@ -866,7 +898,7 @@ export const Admin: React.FC = () => {
                         </td>
                         <td style={{ padding: '0.85rem 1rem', color: '#64748b' }}>
                           <div>{u.email}</div>
-                          <div style={{ fontSize: '0.725rem', color: '#94a3b8' }}>0555 123 4567</div>
+                          <div style={{ fontSize: '0.725rem', color: '#94a3b8' }}>0532 123 4567</div>
                         </td>
                         <td style={{ padding: '0.85rem 1rem', fontWeight: 600 }}>{u.age ?? 21}</td>
                         <td style={{ padding: '0.85rem 1rem' }}>
@@ -879,7 +911,7 @@ export const Admin: React.FC = () => {
                         </td>
                         <td style={{ padding: '0.85rem 1rem' }}>
                           <span style={{ background: '#dcfce7', color: '#15803d', padding: '3px 10px', borderRadius: '100px', fontSize: '0.75rem', fontWeight: 700 }}>
-                            Aktif Doğrulanmış
+                            Şehitkamil Üyesi
                           </span>
                         </td>
                         <td style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>
@@ -907,12 +939,12 @@ export const Admin: React.FC = () => {
             <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Göl Kafeler & Şubeler</h1>
-                  <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '4px' }}>Şube görselleri, kapak fotoğrafları ve detay düzenleme modalları.</p>
+                  <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Gaziantep Şehitkamil Göl Kafeler</h1>
+                  <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '4px' }}>Belediye gençlik ve kitap kafe tesisleri kapak görselleri.</p>
                 </div>
                 <button onClick={() => setShowAddCafeModal(true)} style={{ background: '#1d5f60', color: '#fff', border: 'none', padding: '0.65rem 1.25rem', borderRadius: '10px', fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <Plus size={18} />
-                  <span>+ Yeni Göl Kafe Ekle</span>
+                  <span>+ Yeni Şehitkamil Kafe Ekle</span>
                 </button>
               </div>
 
@@ -955,191 +987,16 @@ export const Admin: React.FC = () => {
           )}
 
           {/* ------------------------------------------------------------- */}
-          {/* 4. MENÜ VE ÜRÜNLER */}
-          {/* ------------------------------------------------------------- */}
-          {activeMenu === 'products' && (
-            <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Menü & Ürün Kataloğu</h1>
-                  <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '4px' }}>Satış fiyatı (TL), stok yönetimi ve opsiyonel öğrenim kısıtlamaları.</p>
-                </div>
-                <button onClick={() => setShowAddProductModal(true)} style={{ background: '#1d5f60', color: '#fff', border: 'none', padding: '0.65rem 1.25rem', borderRadius: '10px', fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Plus size={18} />
-                  <span>+ Yeni Ürün Ekle</span>
-                </button>
-              </div>
-
-              <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 4px 20px -2px rgba(0,0,0,0.03)' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
-                  <thead>
-                    <tr style={{ background: '#f1f5f9', borderBottom: '1px solid #e2e8f0', color: '#475569', textTransform: 'uppercase', fontSize: '0.7rem', letterSpacing: '0.05em' }}>
-                      <th style={{ padding: '0.85rem 1rem' }}>Ürün Adı</th>
-                      <th style={{ padding: '0.85rem 1rem' }}>Kategori & Açıklama</th>
-                      <th style={{ padding: '0.85rem 1rem' }}>Satış Fiyatı (TL)</th>
-                      <th style={{ padding: '0.85rem 1rem' }}>Şart / Kısıtlama</th>
-                      <th style={{ padding: '0.85rem 1rem' }}>Stok Durumu</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {getFilteredList(menuItemsList).map((m) => (
-                      <tr key={m.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                        <td style={{ padding: '0.85rem 1rem', fontWeight: 700, color: '#0f172a' }}>{m.name}</td>
-                        <td style={{ padding: '0.85rem 1rem', color: '#64748b' }}>{m.description}</td>
-                        <td style={{ padding: '0.85rem 1rem', fontWeight: 800, color: '#1d5f60' }}>{m.price} TL</td>
-                        <td style={{ padding: '0.85rem 1rem' }}>
-                          <span style={{ background: '#e0f2fe', color: '#0369a1', padding: '3px 10px', borderRadius: '100px', fontSize: '0.75rem', fontWeight: 600 }}>
-                            {m.requiredEducation || 'Herkese Açık (Şartsız)'}
-                          </span>
-                        </td>
-                        <td style={{ padding: '0.85rem 1rem' }}>
-                          <span style={{ background: '#dcfce7', color: '#15803d', padding: '3px 10px', borderRadius: '100px', fontSize: '0.75rem', fontWeight: 700 }}>
-                            Stokta Var
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {/* ------------------------------------------------------------- */}
-          {/* 5. GÖLPUAN KURALLARI & DEFTERİ */}
-          {/* ------------------------------------------------------------- */}
-          {activeMenu === 'points' && (
-            <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-              <div>
-                <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>GölPuan Hareket Defteri & Kurallar</h1>
-                <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '4px' }}>Silinemez denetlenebilir bakiye geçmişi ve yetkili eylemleri.</p>
-              </div>
-
-              <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 4px 20px -2px rgba(0,0,0,0.03)' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
-                  <thead>
-                    <tr style={{ background: '#f1f5f9', borderBottom: '1px solid #e2e8f0', color: '#475569', textTransform: 'uppercase', fontSize: '0.7rem', letterSpacing: '0.05em' }}>
-                      <th style={{ padding: '0.85rem 1rem' }}>Tarih</th>
-                      <th style={{ padding: '0.85rem 1rem' }}>Vatandaş</th>
-                      <th style={{ padding: '0.85rem 1rem' }}>İşlem Türü</th>
-                      <th style={{ padding: '0.85rem 1rem' }}>Miktar</th>
-                      <th style={{ padding: '0.85rem 1rem' }}>İşlemi Yapan Yetkili / Açıklama</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {getFilteredList(pointsList).map((pt) => (
-                      <tr key={pt.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                        <td style={{ padding: '0.85rem 1rem', color: '#64748b' }}>{new Date(pt.createdDate).toLocaleString('tr-TR')}</td>
-                        <td style={{ padding: '0.85rem 1rem', fontWeight: 700, color: '#0f172a' }}>{pt.userEmail || pt.userId}</td>
-                        <td style={{ padding: '0.85rem 1rem' }}><span style={{ background: pt.amount >= 0 ? '#dcfce7' : '#fef2f2', color: pt.amount >= 0 ? '#15803d' : '#991b1b', padding: '3px 10px', borderRadius: '100px', fontSize: '0.75rem', fontWeight: 600 }}>{pt.type}</span></td>
-                        <td style={{ padding: '0.85rem 1rem', fontWeight: 800, color: pt.amount >= 0 ? '#16a34a' : '#dc2626' }}>{pt.amount >= 0 ? `+${pt.amount}` : pt.amount} GP</td>
-                        <td style={{ padding: '0.85rem 1rem', color: '#64748b' }}>{pt.description}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {/* ------------------------------------------------------------- */}
-          {/* 6. QR İŞLEMLERİ */}
-          {/* ------------------------------------------------------------- */}
-          {activeMenu === 'qr' && (
-            <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>QR İşlemleri & Güvenlik Takibi</h1>
-                  <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '4px' }}>Canlı QR taramaları, şüpheli işlem kontrolü ve iptal mekanizması.</p>
-                </div>
-                <button onClick={() => setShowQrModal(true)} style={{ background: '#1d5f60', color: '#fff', border: 'none', padding: '0.65rem 1.25rem', borderRadius: '10px', fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Sparkles size={18} />
-                  <span>📱 Vatandaş QR Okut</span>
-                </button>
-              </div>
-
-              <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 4px 20px -2px rgba(0,0,0,0.03)' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
-                  <thead>
-                    <tr style={{ background: '#f1f5f9', borderBottom: '1px solid #e2e8f0', color: '#475569', textTransform: 'uppercase', fontSize: '0.7rem', letterSpacing: '0.05em' }}>
-                      <th style={{ padding: '0.85rem 1rem' }}>Tarih / Saat</th>
-                      <th style={{ padding: '0.85rem 1rem' }}>Vatandaş</th>
-                      <th style={{ padding: '0.85rem 1rem' }}>İşlem Yapılan Şube</th>
-                      <th style={{ padding: '0.85rem 1rem' }}>Tutar / Puan</th>
-                      <th style={{ padding: '0.85rem 1rem' }}>Güvenlik Durumu</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {ordersList.slice(0, 6).map((o) => (
-                      <tr key={o.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                        <td style={{ padding: '0.85rem 1rem', color: '#64748b' }}>{new Date(o.createdDate || Date.now()).toLocaleTimeString('tr-TR')}</td>
-                        <td style={{ padding: '0.85rem 1rem', fontWeight: 700, color: '#0f172a' }}>{o.userFullName}</td>
-                        <td style={{ padding: '0.85rem 1rem' }}>{o.cafeName}</td>
-                        <td style={{ padding: '0.85rem 1rem', fontWeight: 800, color: '#1d5f60' }}>{o.totalAmount} TL (+15 GP)</td>
-                        <td style={{ padding: '0.85rem 1rem' }}>
-                          <span style={{ background: '#dcfce7', color: '#15803d', padding: '3px 10px', borderRadius: '100px', fontSize: '0.75rem', fontWeight: 700 }}>
-                            ✓ Doğrulandı (TOTP OK)
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {/* ------------------------------------------------------------- */}
-          {/* 7. ÖDÜLLER & İKRAMLAR */}
-          {/* ------------------------------------------------------------- */}
-          {activeMenu === 'rewards' && (
-            <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>İkram & Ödül Yönetimi</h1>
-                  <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '4px' }}>Ödüller sadece vatandaşın biriktirdiği GölPuan (GP) ile alınır, TL fiyatı yoktur.</p>
-                </div>
-                <button onClick={() => setShowAddRewardModal(true)} style={{ background: '#1d5f60', color: '#fff', border: 'none', padding: '0.65rem 1.25rem', borderRadius: '10px', fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Plus size={18} />
-                  <span>+ Yeni GölPuan Ödülü Ekle</span>
-                </button>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
-                {getFilteredList(rewardsList).map((r) => (
-                  <div key={r.id} style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 4px 20px -2px rgba(0,0,0,0.03)' }}>
-                    {r.imageUrl ? (
-                      <img src={r.imageUrl} alt={r.title} style={{ width: '100%', height: '130px', objectFit: 'cover' }} />
-                    ) : (
-                      <div style={{ width: '100%', height: '80px', background: 'linear-gradient(135deg, #1d5f60 0%, #0284c7 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
-                        <Award size={28} />
-                      </div>
-                    )}
-                    <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#0f172a' }}>{r.title}</h3>
-                        <span style={{ background: '#fef3c7', color: '#b45309', padding: '4px 12px', borderRadius: '100px', fontSize: '0.8rem', fontWeight: 800 }}>{r.requiredPoints} GP</span>
-                      </div>
-                      <p style={{ margin: 0, fontSize: '0.825rem', color: '#64748b' }}>{r.description}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* ------------------------------------------------------------- */}
-          {/* 8. ISMARLIYOR (WITH ADMIN CREATION BUTTON & PROOF MODAL) */}
+          {/* 8. ISMARLIYOR (DONATOR TARGET CRITERIA & ISMARLAYAN PHOTO) */}
           {/* ------------------------------------------------------------- */}
           {activeMenu === 'ismarliyor' && (
             <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
                 <div>
                   <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Ismarlıyor Başvuruları & Yayınlama</h1>
-                  <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '4px' }}>Doğrudan panelden Ismarlıyor ekleyebilir, ısmarlayan kişi görsellerini inceleyip tek tıkla onaylayabilirsiniz.</p>
+                  <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '4px' }}>Şehitkamil Belediyesi hayırsever ikramları, hedef kitle kısıtlamaları (Gençler, Öğrenciler vb.) ve tek tıkla onay.</p>
                 </div>
 
-                {/* ADMIN CREATE ISMARLIYOR BUTTON */}
                 <button
                   onClick={() => setShowAddIsmarliyorModal(true)}
                   style={{
@@ -1158,7 +1015,7 @@ export const Admin: React.FC = () => {
                   }}
                 >
                   <Gift size={18} />
-                  <span>+ Yeni Ismarlıyor / Askıda İkram Ekle</span>
+                  <span>+ Yeni Ismarlıyor (Kitle Kriterli) Ekle</span>
                 </button>
               </div>
 
@@ -1196,7 +1053,8 @@ export const Admin: React.FC = () => {
                   <thead>
                     <tr style={{ background: '#f1f5f9', borderBottom: '1px solid #e2e8f0', color: '#475569', textTransform: 'uppercase', fontSize: '0.7rem', letterSpacing: '0.05em' }}>
                       <th style={{ padding: '0.85rem 1rem' }}>Kod</th>
-                      <th style={{ padding: '0.85rem 1rem' }}>Vatandaş (İkram Alıcısı)</th>
+                      <th style={{ padding: '0.85rem 1rem' }}>İkram Sahibi / Vatandaş</th>
+                      <th style={{ padding: '0.85rem 1rem' }}>🎯 Hedef Kriter</th>
                       <th style={{ padding: '0.85rem 1rem' }}>Şube & Tutarı</th>
                       <th style={{ padding: '0.85rem 1rem' }}>📷 Ismarlayan Görseli</th>
                       <th style={{ padding: '0.85rem 1rem' }}>Durum</th>
@@ -1208,6 +1066,11 @@ export const Admin: React.FC = () => {
                       <tr key={o.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                         <td style={{ padding: '0.85rem 1rem', fontWeight: 800, color: '#d97706' }}>{o.collectionCode}</td>
                         <td style={{ padding: '0.85rem 1rem', fontWeight: 700, color: '#0f172a' }}>{o.userFullName}</td>
+                        <td style={{ padding: '0.85rem 1rem' }}>
+                          <span style={{ background: '#e0f2fe', color: '#0369a1', padding: '3px 10px', borderRadius: '100px', fontSize: '0.75rem', fontWeight: 700 }}>
+                            {o.targetCriteria || 'Gençler (18-25 Yaş)'}
+                          </span>
+                        </td>
                         <td style={{ padding: '0.85rem 1rem' }}>{o.cafeName} ({o.totalAmount} TL)</td>
                         <td style={{ padding: '0.85rem 1rem' }}>
                           {o.imageUrl ? (
@@ -1241,38 +1104,14 @@ export const Admin: React.FC = () => {
           )}
 
           {/* ------------------------------------------------------------- */}
-          {/* 9. KAMPANYALAR */}
-          {/* ------------------------------------------------------------- */}
-          {activeMenu === 'campaigns' && (
-            <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-              <div>
-                <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Kampanyalar & İndirimler</h1>
-                <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '4px' }}>Öğrenci indirimleri, ekstra puan kampanyaları ve hedef kitle tanımları.</p>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.25rem' }}>
-                {getFilteredList(campaignsList).map((c) => (
-                  <div key={c.id} style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#0f172a' }}>{c.title}</h3>
-                      <span style={{ background: '#dcfce7', color: '#15803d', padding: '3px 8px', borderRadius: '100px', fontSize: '0.7rem', fontWeight: 700 }}>Aktif Kampanya</span>
-                    </div>
-                    <p style={{ margin: 0, fontSize: '0.825rem', color: '#64748b' }}>{c.description}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* ------------------------------------------------------------- */}
-          {/* 10. ETKİNLİKLER VE GÖREVLER */}
+          {/* 10. ETKİNLİKLER VE GÖREVLER (FIXED EVENT CREATION) */}
           {/* ------------------------------------------------------------- */}
           {activeMenu === 'events' && (
             <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Etkinlikler & Görevler (Gamification)</h1>
-                  <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '4px' }}>Saha etkinlikleri, kontenjan takibi ve görevle puan kazanma sistemi.</p>
+                  <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Gaziantep Şehitkamil Etkinlikleri & Görevler</h1>
+                  <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '4px' }}>Saha etkinlikleri, gençlik faaliyetleri ve GölPuan ödülleri.</p>
                 </div>
                 <button onClick={() => setShowAddEventModal(true)} style={{ background: '#1d5f60', color: '#fff', border: 'none', padding: '0.65rem 1.25rem', borderRadius: '10px', fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <Plus size={18} />
@@ -1282,13 +1121,13 @@ export const Admin: React.FC = () => {
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.25rem' }}>
                 {getFilteredList(eventsList).map((e) => (
-                  <div key={e.id} style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <div key={e.id} style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', boxShadow: '0 4px 20px -2px rgba(0,0,0,0.03)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#0f172a' }}>{e.title}</h3>
                       <span style={{ background: '#fef3c7', color: '#b45309', padding: '3px 10px', borderRadius: '100px', fontSize: '0.75rem', fontWeight: 800 }}>+{e.pointsReward} GP</span>
                     </div>
                     <p style={{ margin: 0, fontSize: '0.825rem', color: '#64748b' }}>{e.description}</p>
-                    <div style={{ fontSize: '0.75rem', color: '#0369a1', fontWeight: 600 }}>📍 Konum: {e.location}</div>
+                    <div style={{ fontSize: '0.75rem', color: '#0369a1', fontWeight: 600 }}>📍 Konum: {e.location || 'Şehitkamil Gençlik Merkezi'}</div>
                   </div>
                 ))}
               </div>
@@ -1302,25 +1141,17 @@ export const Admin: React.FC = () => {
             <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
               <div>
                 <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Duyurular & Anlık Bildirim Gönderimi</h1>
-                <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '4px' }}>Mobil kullanıcı kitlelerine özel hedeflenmiş Push Notification gönderin.</p>
+                <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '4px' }}>Şehitkamil Belediyesi mobil vatandaşlarına özel anlık Push Notification gönderimi.</p>
               </div>
 
               <form onSubmit={handleSendPushNotification} style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: '600px' }}>
                 <div>
                   <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Bildirim Başlığı</label>
-                  <input type="text" placeholder="Örn: ☕ Bugün Kitap Kafelerde +20 GölPuan Bonusu!" value={pushTitle} onChange={(e) => setPushTitle(e.target.value)} required style={{ width: '100%', padding: '0.65rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px' }} />
+                  <input type="text" placeholder="Örn: ☕ Şehitkamil Kitap Kafelerde Gençlere Özel +20 GP!" value={pushTitle} onChange={(e) => setPushTitle(e.target.value)} required style={{ width: '100%', padding: '0.65rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px' }} />
                 </div>
                 <div>
                   <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Bildirim Mesajı</label>
                   <textarea rows={3} placeholder="Duyuru detayını yazın..." value={pushMessage} onChange={(e) => setPushMessage(e.target.value)} required style={{ width: '100%', padding: '0.65rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px' }} />
-                </div>
-                <div>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Hedef Kitle Gruplama</label>
-                  <select value={pushTargetGroup} onChange={(e) => setPushTargetGroup(e.target.value)} style={{ width: '100%', padding: '0.65rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px' }}>
-                    <option value="All">Tüm Kullanıcılar (1,250 Kişi)</option>
-                    <option value="Students">Sadece Öğrenciler (Lise & Üniversite)</option>
-                    <option value="HighPoints">Puanı 100+ Üzeri Olanlar</option>
-                  </select>
                 </div>
                 <button type="submit" style={{ padding: '0.75rem', background: '#1d5f60', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
                   <Send size={16} /> Toplu Anlık Bildirim Gönder
@@ -1330,14 +1161,14 @@ export const Admin: React.FC = () => {
           )}
 
           {/* ------------------------------------------------------------- */}
-          {/* 12. STRATEJİK RAPORLAR (EXCEL / PDF) */}
+          {/* 12. STRATEJİK RAPORLAR */}
           {/* ------------------------------------------------------------- */}
           {activeMenu === 'reports' && (
             <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                   <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Stratejik Raporlama & Aktarım</h1>
-                  <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '4px' }}>Puan hareketleri, şube kullanımı ve Ismarlıyor dökümlerini dışa aktarın.</p>
+                  <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '4px' }}>Gaziantep Şehitkamil Belediyesi puan hareketleri ve ikram dökümleri.</p>
                 </div>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                   <button onClick={() => handleExportData('excel')} style={{ padding: '0.65rem 1.25rem', background: '#15803d', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -1351,75 +1182,51 @@ export const Admin: React.FC = () => {
             </div>
           )}
 
-          {/* ------------------------------------------------------------- */}
-          {/* 13. YETKİLENDİRME & ROLLER */}
-          {/* ------------------------------------------------------------- */}
-          {activeMenu === 'roles' && (
-            <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-              <div>
-                <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Rol & Yetkilendirme Yönetimi</h1>
-                <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '4px' }}>7 farklı yetki rolü (Süper Admin, Kasa Görevlisi, Ismarlıyor Onay Yetkilisi vb.).</p>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
-                {[
-                  { role: 'Süper Admin', desc: 'Sistemin tüm modüllerine tam yetkili erişim.' },
-                  { role: 'Sistem Yöneticisi', desc: 'Parametre, duyuru ve kullanıcı yönetimi.' },
-                  { role: 'Kafe Yöneticisi', desc: 'Şube bazlı menü, stok ve sipariş yönetimi.' },
-                  { role: 'Kasa Görevlisi', desc: 'POS QR tarama ve puan yükleme.' },
-                  { role: 'Ismarlıyor Onay Yetkilisi', desc: 'Fiş görseli inceleme ve onay yetkisi.' },
-                  { role: 'Etkinlik Sorumlusu', desc: 'Saha etkinlikleri ve katılım takibi.' },
-                  { role: 'İçerik Yöneticisi', desc: 'Duyuru ve görsel içerik yönetimi.' }
-                ].map((r, i) => (
-                  <div key={i} style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    <div style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a' }}>{r.role}</div>
-                    <div style={{ fontSize: '0.8rem', color: '#64748b' }}>{r.desc}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* ------------------------------------------------------------- */}
-          {/* 14. AUDIT LOGS & AYARLAR */}
-          {/* ------------------------------------------------------------- */}
-          {activeMenu === 'audit' && (
-            <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-              <div>
-                <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Sistem Ayarları & Audit Logs</h1>
-                <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '4px' }}>Silinemez denetim kayıtları ve sistem parametreleri.</p>
-              </div>
-
-              <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 4px 20px -2px rgba(0,0,0,0.03)' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
-                  <thead>
-                    <tr style={{ background: '#f1f5f9', borderBottom: '1px solid #e2e8f0', color: '#475569', textTransform: 'uppercase', fontSize: '0.7rem', letterSpacing: '0.05em' }}>
-                      <th style={{ padding: '0.85rem 1rem' }}>Tarih</th>
-                      <th style={{ padding: '0.85rem 1rem' }}>Yetkili</th>
-                      <th style={{ padding: '0.85rem 1rem' }}>Modül & Eylem</th>
-                      <th style={{ padding: '0.85rem 1rem' }}>Değişiklik (Eski ➔ Yeni)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {getFilteredList(auditLogsList).map((log) => (
-                      <tr key={log.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                        <td style={{ padding: '0.85rem 1rem', color: '#64748b' }}>{new Date(log.createdDate).toLocaleString('tr-TR')}</td>
-                        <td style={{ padding: '0.85rem 1rem', fontWeight: 700, color: '#0f172a' }}>{log.userEmail} ({log.userRole})</td>
-                        <td style={{ padding: '0.85rem 1rem' }}><span style={{ background: '#e0f2fe', color: '#0369a1', padding: '3px 10px', borderRadius: '100px', fontSize: '0.75rem', fontWeight: 600 }}>{log.moduleName}: {log.actionType}</span></td>
-                        <td style={{ padding: '0.85rem 1rem', color: '#b45309', fontWeight: 600 }}>{log.oldValues ?? 'Yok'} ➔ {log.newValues ?? 'Yeni'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
         </main>
       </div>
 
       {/* ------------------------------------------------------------- */}
-      {/* NEW ADMIN ISMARLIYOR CREATION MODAL */}
+      {/* CANLI BİLDİRİMLER DRAWER SHEET (INTERACTIVE BELL ICON) */}
+      {/* ------------------------------------------------------------- */}
+      {showNotificationsDrawer && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)', display: 'flex', justifyContent: 'flex-end', zIndex: 1000 }}>
+          <div style={{ width: '480px', height: '100%', background: '#ffffff', borderLeft: '1px solid #e2e8f0', padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.25rem', overflowY: 'auto', boxShadow: '-10px 0 30px rgba(0,0,0,0.1)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <div style={{ background: '#1d5f60', color: '#fff', padding: '8px', borderRadius: '10px', display: 'flex' }}>
+                  <Bell size={20} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' }}>Canlı Bildirimler & Duyurular</h3>
+                  <div style={{ fontSize: '0.8rem', color: '#64748b' }}>Gaziantep Şehitkamil anlık operasyon bildirimleri.</div>
+                </div>
+              </div>
+              <button onClick={() => setShowNotificationsDrawer(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}><X size={20} /></button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '1rem', borderRadius: '12px' }}>
+                <div style={{ fontWeight: 800, color: '#166534', fontSize: '0.9rem' }}>🎉 Yeni Ismarlıyor İkramı Yayınlandı</div>
+                <div style={{ fontSize: '0.8rem', color: '#475569', marginTop: '4px' }}>Şehitkamil Gençlik Merkezi şubesinde 2 Adet Filtre Kahve ikramı hazır.</div>
+                <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '6px' }}>2 dakika önce</div>
+              </div>
+
+              <div style={{ background: '#e0f2fe', border: '1px solid #bae6fd', padding: '1rem', borderRadius: '12px' }}>
+                <div style={{ fontWeight: 800, color: '#0369a1', fontSize: '0.9rem' }}>📱 QR Kasa Tarama Başarılı</div>
+                <div style={{ fontSize: '0.8rem', color: '#475569', marginTop: '4px' }}>Vatandaşa +15 GP Şehitkamil alışveriş puanı yüklendi.</div>
+                <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '6px' }}>15 dakika önce</div>
+              </div>
+            </div>
+
+            <button onClick={() => setShowNotificationsDrawer(false)} style={{ marginTop: 'auto', padding: '10px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '10px', color: '#0f172a', fontWeight: 700, cursor: 'pointer' }}>
+              Pencereyi Kapat
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ------------------------------------------------------------- */}
+      {/* NEW ADMIN ISMARLIYOR CREATION MODAL WITH TARGET CRITERIA */}
       {/* ------------------------------------------------------------- */}
       {showAddIsmarliyorModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
@@ -1431,7 +1238,7 @@ export const Admin: React.FC = () => {
                 </div>
                 <div>
                   <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' }}>Yeni Ismarlıyor / Askıda İkram Ekle</h3>
-                  <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>Doğrudan admin tarafından askıda ikram oluşturma.</p>
+                  <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>Kitle hedef kısıtlamalı (Gençler, Öğrenciler vb.) ikram oluşturma.</p>
                 </div>
               </div>
               <button type="button" onClick={() => setShowAddIsmarliyorModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}>
@@ -1449,6 +1256,22 @@ export const Admin: React.FC = () => {
                 required
                 style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', color: '#0f172a', outline: 'none' }}
               />
+            </div>
+
+            {/* TARGET CRITERIA SELECTION */}
+            <div>
+              <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#1d5f60', display: 'block', marginBottom: '4px' }}>🎯 Hedef İkram Kriteri / Kısıtlama Şartı</label>
+              <select
+                value={newIsmTargetCriteria}
+                onChange={(e) => setNewIsmTargetCriteria(e.target.value)}
+                style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '2px solid #1d5f60', borderRadius: '8px', color: '#0f172a', outline: 'none', fontWeight: 700 }}
+              >
+                <option value="Tüm Vatandaşlara Açık (Şartsız)">🌐 Tüm Vatandaşlara Açık (Şartsız)</option>
+                <option value="Gençler (18-25 Yaş)">🧒 Sadece Gençlere Özel (18-25 Yaş)</option>
+                <option value="Öğrenciler (Lise & Üniversite)">🎓 Sadece Öğrencilere Özel (Lise & Üniversite)</option>
+                <option value="Emekli Vatandaşlar (65+ Yaş)">👵 Sadece Emekli Vatandaşlara Özel (65+ Yaş)</option>
+                <option value="Kadın Vatandaşlar">👩 Sadece Kadın Vatandaşlara Özel</option>
+              </select>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
@@ -1521,6 +1344,54 @@ export const Admin: React.FC = () => {
         </div>
       )}
 
+      {/* MODAL: ADD EVENT (FIXED & POLISHED) */}
+      {showAddEventModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <form onSubmit={handleCreateEvent} style={{ width: '520px', background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '20px', padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1.25rem', boxShadow: '0 20px 40px rgba(0,0,0,0.1)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.85rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <div style={{ background: '#0284c7', color: '#fff', padding: '8px', borderRadius: '10px', display: 'flex' }}>
+                  <Calendar size={20} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' }}>Yeni Etkinlik Tanımla</h3>
+                  <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>Gaziantep Şehitkamil Belediyesi gençlik etkinliği.</p>
+                </div>
+              </div>
+              <button type="button" onClick={() => setShowAddEventModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div>
+              <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Etkinlik Başlığı</label>
+              <input type="text" placeholder="Örn: Şehitkamil Gençlik Kitap Okuma Günleri" value={newEventTitle} onChange={(e) => setNewEventTitle(e.target.value)} required style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', color: '#0f172a', outline: 'none' }} />
+            </div>
+
+            <div>
+              <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Açıklama</label>
+              <textarea rows={2} placeholder="Etkinlik detayları ve şartları..." value={newEventDesc} onChange={(e) => setNewEventDesc(e.target.value)} required style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', color: '#0f172a', outline: 'none', resize: 'vertical' }} />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              <div>
+                <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Etkinlik Konumu</label>
+                <input type="text" placeholder="Örn: Şehitkamil Gençlik Merkezi" value={newEventLocation} onChange={(e) => setNewEventLocation(e.target.value)} required style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', color: '#0f172a', outline: 'none' }} />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#1d5f60', display: 'block', marginBottom: '4px' }}>GölPuan Ödülü (GP)</label>
+                <input type="number" min={10} value={newEventPoints} onChange={(e) => setNewEventPoints(Number(e.target.value))} required style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '2px solid #1d5f60', borderRadius: '8px', color: '#0f172a', outline: 'none', fontWeight: 700 }} />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+              <button type="button" onClick={() => setShowAddEventModal(false)} style={{ flex: 1, padding: '10px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '10px', color: '#0f172a', fontWeight: 600, cursor: 'pointer' }}>İptal</button>
+              <button type="submit" style={{ flex: 1, padding: '10px', background: '#1d5f60', border: 'none', borderRadius: '10px', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>Etkinliği Yayınla</button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {/* USER DETAIL DRAWER SHEET */}
       {selectedUserDrawer && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)', display: 'flex', justifyContent: 'flex-end', zIndex: 1000 }}>
@@ -1551,7 +1422,7 @@ export const Admin: React.FC = () => {
             <div style={{ fontSize: '0.85rem', color: '#475569', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               <div><strong>Öğrenim Durumu:</strong> {selectedUserDrawer.educationLevel || 'Üniversite'}</div>
               <div><strong>Yaş:</strong> {selectedUserDrawer.age || 21}</div>
-              <div><strong>Hesap Durumu:</strong> Doğrulanmış Vatandaş Üye</div>
+              <div><strong>Hesap Durumu:</strong> Doğrulanmış Şehitkamil Üye</div>
             </div>
 
             <button onClick={() => setSelectedUserDrawer(null)} style={{ marginTop: 'auto', padding: '10px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '10px', color: '#0f172a', fontWeight: 700, cursor: 'pointer' }}>
@@ -1565,89 +1436,9 @@ export const Admin: React.FC = () => {
       {previewProofImage && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200 }} onClick={() => setPreviewProofImage(null)}>
           <div style={{ position: 'relative', maxWidth: '90vw', maxHeight: '90vh' }}>
-            <img src={previewProofImage} alt="Fiş Kanıtı" style={{ maxWidth: '100%', maxHeight: '85vh', borderRadius: '16px' }} />
+            <img src={previewProofImage} alt="Ismarlayan Görseli" style={{ maxWidth: '100%', maxHeight: '85vh', borderRadius: '16px' }} />
             <button onClick={() => setPreviewProofImage(null)} style={{ position: 'absolute', top: '-15px', right: '-15px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={18} /></button>
           </div>
-        </div>
-      )}
-
-      {/* POS QR Modal */}
-      {showQrModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <form onSubmit={handleScanQrSubmit} style={{ width: '500px', background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '20px', padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' }}>Kasa POS - QR Kod Tarama</h3>
-            {qrScanResult && (
-              <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '0.85rem', borderRadius: '10px', color: '#166534', fontSize: '0.85rem' }}>
-                🎉 Tarama Başarılı! Vatandaşa +{qrScanResult.pointsEarned} GP Yüklendi. Bakiye: {qrScanResult.newPointsBalance} GP
-              </div>
-            )}
-            <input type="text" placeholder="TOTP veya QR Kodu Girin..." value={qrTokenInput} onChange={(e) => setQrTokenInput(e.target.value)} style={{ padding: '0.65rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px' }} />
-            <input type="number" placeholder="Harcama Tutar (TL)" value={qrAmount} onChange={(e) => setQrAmount(Number(e.target.value))} style={{ padding: '0.65rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px' }} />
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <button type="button" onClick={() => setShowQrModal(false)} style={{ flex: 1, padding: '10px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '10px' }}>Kapat</button>
-              <button type="submit" style={{ flex: 1, padding: '10px', background: '#1d5f60', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 700 }}>Tarat ve Yükle</button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* Modal: Add Cafe */}
-      {showAddCafeModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <form onSubmit={handleCreateCafe} style={{ width: '480px', background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '20px', padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' }}>Yeni Göl Kafe Ekle</h3>
-            <input type="text" placeholder="Tesis Adı" value={newCafeName} onChange={(e) => setNewCafeName(e.target.value)} required style={{ padding: '0.65rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px' }} />
-            <input type="text" placeholder="Açık Adres" value={newCafeAddress} onChange={(e) => setNewCafeAddress(e.target.value)} required style={{ padding: '0.65rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px' }} />
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <button type="button" onClick={() => setShowAddCafeModal(false)} style={{ flex: 1, padding: '10px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '10px' }}>İptal</button>
-              <button type="submit" style={{ flex: 1, padding: '10px', background: '#1d5f60', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 700 }}>Kaydet</button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* Modal: Add Product */}
-      {showAddProductModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <form onSubmit={handleCreateMenuItem} style={{ width: '500px', background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '20px', padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' }}>Yeni Ürün Ekle</h3>
-            <input type="text" placeholder="Ürün Adı" value={newProdName} onChange={(e) => setNewProdName(e.target.value)} required style={{ padding: '0.65rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px' }} />
-            <input type="number" placeholder="Satış Fiyatı (TL)" value={newProdPrice} onChange={(e) => setNewProdPrice(Number(e.target.value))} required style={{ padding: '0.65rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px' }} />
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <button type="button" onClick={() => setShowAddProductModal(false)} style={{ flex: 1, padding: '10px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '10px' }}>İptal</button>
-              <button type="submit" style={{ flex: 1, padding: '10px', background: '#1d5f60', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 700 }}>Ürünü Kaydet</button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* Modal: Add Reward */}
-      {showAddRewardModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <form onSubmit={handleCreateReward} style={{ width: '500px', background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '20px', padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' }}>Yeni GölPuan Ödülü Ekle (TL Fiyatsız)</h3>
-            <input type="text" placeholder="Ödül Adı (Örn: Ücretsiz Filtre Kahve)" value={newRewardTitle} onChange={(e) => setNewRewardTitle(e.target.value)} required style={{ padding: '0.65rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px' }} />
-            <input type="number" placeholder="Gerekli GölPuan (GP)" value={newRewardPoints} onChange={(e) => setNewRewardPoints(Number(e.target.value))} required style={{ padding: '0.65rem', background: '#f8fafc', border: '2px solid #1d5f60', borderRadius: '8px', fontWeight: 700 }} />
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <button type="button" onClick={() => setShowAddRewardModal(false)} style={{ flex: 1, padding: '10px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '10px' }}>İptal</button>
-              <button type="submit" style={{ flex: 1, padding: '10px', background: '#1d5f60', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 700 }}>Ödülü Kaydet</button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* Point Adjustment Modal Sheet with Justification */}
-      {pointAdjustUserId && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <form onSubmit={handleAdjustPointsSubmit} style={{ width: '480px', background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '20px', padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' }}>Vatandaşa Gerekçeli Puan/İkram Tanımla</h3>
-            <input type="number" placeholder="Puan Miktarı (GP)" value={pointAmount} onChange={(e) => setPointAmount(Number(e.target.value))} required style={{ padding: '0.65rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px' }} />
-            <textarea placeholder="Gerekçeli Açıklama (Örn: Saha etkinliği derece ödülü)" value={pointReason} onChange={(e) => setPointReason(e.target.value)} required rows={3} style={{ padding: '0.65rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px' }} />
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <button type="button" onClick={() => setPointAdjustUserId(null)} style={{ flex: 1, padding: '10px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '10px' }}>İptal</button>
-              <button type="submit" style={{ flex: 1, padding: '10px', background: '#1d5f60', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 700 }}>İşlemi Kaydet</button>
-            </div>
-          </form>
         </div>
       )}
 
