@@ -8,7 +8,7 @@ import {
   LogOut, Plus, Search, Filter, AlertTriangle, ChevronRight,
   Upload, Image as ImageIcon, ShieldCheck, CheckCircle2, XCircle, 
   Download, MoreVertical, X, ChevronLeft, ChevronDown, Check, ArrowRight, RefreshCw,
-  Clock, TrendingUp, HelpCircle, MapPin, Receipt, Gift, CreditCard, Megaphone, BarChart3, FileCheck, Trash2, Eye, Phone, Edit3, Save, Send, Shield, DollarSign, Layers, Heart
+  Clock, TrendingUp, HelpCircle, MapPin, Receipt, Gift, CreditCard, Megaphone, BarChart3, FileCheck, Trash2, Eye, Phone, Edit3, Save, Send, Shield, DollarSign, Layers, Heart, Tag
 } from 'lucide-react';
 
 // Safe array extraction helper
@@ -121,6 +121,18 @@ export const Admin: React.FC = () => {
   const [newEventLocation, setNewEventLocation] = useState('Şehitkamil Gençlik Merkezi');
   const [newEventPoints, setNewEventPoints] = useState<number>(100);
   const [newEventQuota, setNewEventQuota] = useState<number>(50);
+
+  // CAMPAIGN CREATION STATE
+  const [showAddCampaignModal, setShowAddCampaignModal] = useState(false);
+  const [newCampTitle, setNewCampTitle] = useState('');
+  const [newCampDesc, setNewCampDesc] = useState('');
+  const [newCampType, setNewCampType] = useState<'Percentage' | 'FixedAmount' | 'BonusPoints' | 'BuyOneGetOne'>('Percentage');
+  const [newCampValue, setNewCampValue] = useState<number>(20);
+  const [newCampStartDate, setNewCampStartDate] = useState(new Date().toISOString().split('T')[0]);
+  const [newCampEndDate, setNewCampEndDate] = useState(new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0]);
+  const [newCampTargetGroup, setNewCampTargetGroup] = useState('Students');
+  const [newCampCafeId, setNewCampCafeId] = useState('ALL');
+  const [newCampImageUrl, setNewCampImageUrl] = useState('');
 
   // ISMARLIYOR CREATION & TARGET CRITERIA STATE
   const [showAddIsmarliyorModal, setShowAddIsmarliyorModal] = useState(false);
@@ -280,17 +292,28 @@ export const Admin: React.FC = () => {
   const handleCreateCafe = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await api.createCafe({
+      const res = await api.createCafe({
         name: newCafeName,
         address: newCafeAddress,
-        imageUrl: newCafeImageUrl || undefined,
+        imageUrl: newCafeImageUrl || uploadedImageUrl || undefined,
         categoryId: '22222222-2222-2222-2222-222222222222'
       });
+
+      const cafeObj = res?.id ? res : {
+        id: 'cafe-' + Date.now(),
+        name: newCafeName,
+        address: newCafeAddress,
+        imageUrl: newCafeImageUrl || uploadedImageUrl || undefined,
+        status: 'Active'
+      };
+
+      setCafesList(prev => [cafeObj, ...extractArray(prev)]);
       setSuccess(`✨ Yeni Şehitkamil Tesis/Şube '${newCafeName}' eklendi!`);
       setShowAddCafeModal(false);
       setNewCafeName('');
       setNewCafeAddress('');
       setNewCafeImageUrl('');
+      setUploadedImageUrl('');
       fetchData();
     } catch (err: any) {
       setError(err.message || 'Tesis eklenemedi.');
@@ -441,6 +464,56 @@ export const Admin: React.FC = () => {
       fetchData();
     } catch (err: any) {
       setError(err.message || 'Etkinlik eklenemedi.');
+    }
+  };
+
+  // DETAILED CAMPAIGN & DISCOUNT CREATION FUNCTION
+  const handleCreateCampaign = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await api.createCampaign({
+        title: newCampTitle,
+        description: newCampDesc,
+        campaignType: newCampType,
+        targetUserGroup: newCampTargetGroup,
+        startDate: new Date(newCampStartDate).toISOString(),
+        endDate: new Date(newCampEndDate).toISOString(),
+        imageUrl: newCampImageUrl || uploadedImageUrl || undefined,
+        cafeId: newCampCafeId === 'ALL' ? undefined : newCampCafeId
+      });
+
+      const targetLabel = newCampTargetGroup === 'Students' ? '🎓 Öğrencilere Özel' :
+                         newCampTargetGroup === 'Youth' ? '🧒 Gençlere Özel (18-25)' :
+                         newCampTargetGroup === 'Seniors' ? '👵 Emeklilere Özel' : '🌐 Tüm Vatandaşlara Açık';
+
+      const valueLabel = newCampType === 'Percentage' ? `%${newCampValue} İndirim` :
+                        newCampType === 'FixedAmount' ? `${newCampValue} TL İndirim` :
+                        newCampType === 'BonusPoints' ? `+${newCampValue} GP Bonus` : '1 Alana 1 Bedava';
+
+      const campObj = res?.id ? { ...res, targetGroupLabel: targetLabel, valueLabel } : {
+        id: 'camp-' + Date.now(),
+        title: newCampTitle,
+        description: newCampDesc,
+        campaignType: newCampType,
+        valueLabel,
+        targetGroupLabel: targetLabel,
+        startDate: newCampStartDate,
+        endDate: newCampEndDate,
+        imageUrl: newCampImageUrl || uploadedImageUrl || undefined,
+        cafeId: newCampCafeId,
+        isActive: true
+      };
+
+      setCampaignsList(prev => [campObj, ...extractArray(prev)]);
+      setSuccess(`✨ Yeni Şehitkamil Kampanyası '${newCampTitle}' (${targetLabel}) başarıyla yayınlandı!`);
+      setShowAddCampaignModal(false);
+      setNewCampTitle('');
+      setNewCampDesc('');
+      setNewCampImageUrl('');
+      setUploadedImageUrl('');
+      fetchData();
+    } catch (err: any) {
+      setError(err.message || 'Kampanya oluşturulamadı.');
     }
   };
 
@@ -612,7 +685,7 @@ export const Admin: React.FC = () => {
             {
               section: 'ANA EKOSİSTEM',
               items: [
-                { id: 'overview', label: 'Dashboard', icon: LayoutDashboard },
+                { id: 'overview', label: 'Genel Bakış', icon: LayoutDashboard },
                 { id: 'users', label: 'Vatandaşlar', icon: Users },
                 { id: 'cafes', label: 'Göl Kafeler', icon: Building2 },
                 { id: 'products', label: 'Menü ve Ürünler', icon: Coffee }
@@ -1201,6 +1274,76 @@ export const Admin: React.FC = () => {
           )}
 
           {/* ------------------------------------------------------------- */}
+          {/* 9. KAMPANYALAR & İNDİRİMLER (PRO CREATION & DATES & CRITERIA) */}
+          {/* ------------------------------------------------------------- */}
+          {activeMenu === 'campaigns' && (
+            <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+                <div>
+                  <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Kampanyalar & İndirim Yönetimi</h1>
+                  <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '4px' }}>Şehitkamil Kitap Kafeler için tarihli, hedef kitle şartlı ve süreli indirim kampanyaları.</p>
+                </div>
+
+                <button
+                  onClick={() => setShowAddCampaignModal(true)}
+                  style={{
+                    background: 'linear-gradient(135deg, #1d5f60, #0284c7)',
+                    color: '#ffffff',
+                    border: 'none',
+                    padding: '0.7rem 1.35rem',
+                    borderRadius: '12px',
+                    fontWeight: 800,
+                    fontSize: '0.9rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    boxShadow: '0 4px 14px rgba(29, 95, 96, 0.25)'
+                  }}
+                >
+                  <Tag size={18} />
+                  <span>+ Yeni Kampanya / İndirim Tanımla</span>
+                </button>
+              </div>
+
+              {/* Campaigns Grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem' }}>
+                {getFilteredList(campaignsList).map((c) => (
+                  <div key={c.id} style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 4px 20px -2px rgba(0,0,0,0.03)' }}>
+                    {c.imageUrl ? (
+                      <img src={c.imageUrl} alt={c.title} style={{ width: '100%', height: '140px', objectFit: 'cover' }} />
+                    ) : (
+                      <div style={{ width: '100%', height: '100px', background: 'linear-gradient(135deg, #1d5f60 0%, #0284c7 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
+                        <Tag size={36} />
+                      </div>
+                    )}
+                    <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', flexGrow: 1 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <div>
+                          <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#0f172a' }}>{c.title}</h3>
+                          <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: '#64748b' }}>{c.description}</p>
+                        </div>
+                        <span style={{ background: '#dcfce7', color: '#15803d', padding: '4px 10px', borderRadius: '100px', fontSize: '0.8rem', fontWeight: 800 }}>
+                          {c.valueLabel || c.discountRate || '%20 İndirim'}
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginTop: 'auto' }}>
+                        <span style={{ fontSize: '0.725rem', background: '#e0f2fe', color: '#0369a1', padding: '3px 8px', borderRadius: '6px', fontWeight: 700 }}>
+                          {c.targetGroupLabel || c.targetCriteria || '🎓 Öğrencilere Özel'}
+                        </span>
+                        <span style={{ fontSize: '0.725rem', background: '#fef3c7', color: '#b45309', padding: '3px 8px', borderRadius: '6px', fontWeight: 700 }}>
+                          📅 {c.startDate ? new Date(c.startDate).toLocaleDateString('tr-TR') : 'Bugün'} - {c.endDate ? new Date(c.endDate).toLocaleDateString('tr-TR') : '14 Gün'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ------------------------------------------------------------- */}
           {/* 10. ETKİNLİKLER VE GÖREVLER (FIXED EVENT CREATION) */}
           {/* ------------------------------------------------------------- */}
           {activeMenu === 'events' && (
@@ -1436,6 +1579,150 @@ export const Admin: React.FC = () => {
             <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
               <button type="button" onClick={() => setShowAddIsmarliyorModal(false)} style={{ flex: 1, padding: '10px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '10px', color: '#0f172a', fontWeight: 600, cursor: 'pointer' }}>İptal</button>
               <button type="submit" style={{ flex: 1, padding: '10px', background: '#1d5f60', border: 'none', borderRadius: '10px', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>Ismarlıyor Başvurusunu Yayınla</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* ------------------------------------------------------------- */}
+      {/* NEW PRO CAMPAIGN & DISCOUNT CREATION MODAL */}
+      {/* ------------------------------------------------------------- */}
+      {showAddCampaignModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <form onSubmit={handleCreateCampaign} style={{ width: '560px', background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '20px', padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1.25rem', boxShadow: '0 20px 40px rgba(0,0,0,0.1)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.85rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <div style={{ background: '#1d5f60', color: '#fff', padding: '8px', borderRadius: '10px', display: 'flex' }}>
+                  <Tag size={20} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' }}>Yeni Kampanya & İndirim Tanımla</h3>
+                  <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>Tarihli, kitle şartlı ve şube özel indirim kurguları.</p>
+                </div>
+              </div>
+              <button type="button" onClick={() => setShowAddCampaignModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div>
+              <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Kampanya Başlığı</label>
+              <input
+                type="text"
+                placeholder="Örn: 🎓 Şehitkamil Öğrencilerine %20 Kitap Kafe İndirimi"
+                value={newCampTitle}
+                onChange={(e) => setNewCampTitle(e.target.value)}
+                required
+                style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', color: '#0f172a', outline: 'none' }}
+              />
+            </div>
+
+            <div>
+              <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Kampanya Açıklaması & Şartları</label>
+              <textarea
+                rows={2}
+                placeholder="Tüm Kitap Kafelerde geçerli öğrenci kartı ibrazında %20 indirim fırsatı..."
+                value={newCampDesc}
+                onChange={(e) => setNewCampDesc(e.target.value)}
+                required
+                style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', color: '#0f172a', outline: 'none', resize: 'vertical' }}
+              />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              <div>
+                <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>İndirim Tipi</label>
+                <select
+                  value={newCampType}
+                  onChange={(e: any) => setNewCampType(e.target.value)}
+                  style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', color: '#0f172a', outline: 'none', fontWeight: 700 }}
+                >
+                  <option value="Percentage">Yüzde İndirim (%)</option>
+                  <option value="FixedAmount">Sabit Tutar İndirimi (TL)</option>
+                  <option value="BonusPoints">Ekstra GölPuan (+GP)</option>
+                  <option value="BuyOneGetOne">1 Alana 1 Bedava</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#1d5f60', display: 'block', marginBottom: '4px' }}>İndirim Değeri Oranı</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={newCampValue}
+                  onChange={(e) => setNewCampValue(Number(e.target.value))}
+                  required
+                  style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '2px solid #1d5f60', borderRadius: '8px', color: '#0f172a', outline: 'none', fontWeight: 700 }}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              <div>
+                <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>📅 Başlangıç Tarihi</label>
+                <input
+                  type="date"
+                  value={newCampStartDate}
+                  onChange={(e) => setNewCampStartDate(e.target.value)}
+                  required
+                  style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', color: '#0f172a', outline: 'none' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>📅 Bitiş Tarihi</label>
+                <input
+                  type="date"
+                  value={newCampEndDate}
+                  onChange={(e) => setNewCampEndDate(e.target.value)}
+                  required
+                  style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', color: '#0f172a', outline: 'none' }}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              <div>
+                <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#1d5f60', display: 'block', marginBottom: '4px' }}>🎯 Hedef Kitle Kriteri</label>
+                <select
+                  value={newCampTargetGroup}
+                  onChange={(e) => setNewCampTargetGroup(e.target.value)}
+                  style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', color: '#0f172a', outline: 'none', fontWeight: 700 }}
+                >
+                  <option value="All">🌐 Tüm Vatandaşlar (Şartsız)</option>
+                  <option value="Students">🎓 Sadece Öğrencilere Özel</option>
+                  <option value="Youth">🧒 Sadece Gençler (18-25 Yaş)</option>
+                  <option value="Seniors">👵 Sadece Emekliler (65+ Yaş)</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>🌐 Şube Geçerliliği</label>
+                <select
+                  value={newCampCafeId}
+                  onChange={(e) => setNewCampCafeId(e.target.value)}
+                  style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', color: '#0f172a', outline: 'none' }}
+                >
+                  <option value="ALL">🌐 Tüm Şubelerde Geçerli</option>
+                  {extractArray(cafesList).map((c) => (
+                    <option key={c.id} value={c.id}>📍 Sadece {c.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>📷 Kampanya Görseli Yükle</label>
+              <label style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f1f5f9', border: '1px dashed #cbd5e1', borderRadius: '8px', color: '#1d5f60', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                <Upload size={16} />
+                <span>{uploadingFile ? 'Görsel Yükleniyor...' : newCampImageUrl ? 'Kampanya Görseli Yüklendi ✓' : 'Kampanya Afiş Görseli Seç'}</span>
+                <input type="file" accept="image/*" onChange={(e) => handleFileUploadHelper(e, setNewCampImageUrl)} style={{ display: 'none' }} />
+              </label>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+              <button type="button" onClick={() => setShowAddCampaignModal(false)} style={{ flex: 1, padding: '10px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '10px', color: '#0f172a', fontWeight: 600, cursor: 'pointer' }}>İptal</button>
+              <button type="submit" style={{ flex: 1, padding: '10px', background: '#1d5f60', border: 'none', borderRadius: '10px', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>Kampanyayı Yayınla</button>
             </div>
           </form>
         </div>
