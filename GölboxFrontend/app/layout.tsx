@@ -32,8 +32,6 @@ export const viewport: Viewport = {
   userScalable: false,
 }
 
-import { GolboxProvider } from '@/lib/golbox-context'
-
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -42,9 +40,7 @@ export default function RootLayout({
   return (
     <html lang="tr" className={`light ${manrope.variable} ${fraunces.variable}`}>
       <body className="bg-background font-sans antialiased">
-        <GolboxProvider>
-          {children}
-        </GolboxProvider>
+        {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>

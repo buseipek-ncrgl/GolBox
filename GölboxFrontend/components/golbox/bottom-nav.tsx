@@ -1,13 +1,12 @@
 "use client"
 
-import { Coffee, Gift, Home, QrCode, User, Award } from "lucide-react"
+import { Coffee, Gift, Home, QrCode, User } from "lucide-react"
 import type { TabId } from "@/lib/golbox-data"
 
 const items: { id: TabId; label: string; icon: typeof Home }[] = [
   { id: "home", label: "Ana Sayfa", icon: Home },
   { id: "cafes", label: "Göl Kafeler", icon: Coffee },
   { id: "qr", label: "QR", icon: QrCode },
-  { id: "rewards", label: "Ödüller", icon: Award },
   { id: "ismarliyor", label: "Ismarlıyor", icon: Gift },
   { id: "profile", label: "Profil", icon: User },
 ]

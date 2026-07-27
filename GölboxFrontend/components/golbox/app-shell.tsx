@@ -11,10 +11,6 @@ import { CafesScreen } from "@/components/golbox/screens/cafes-screen"
 import { QrScreen } from "@/components/golbox/screens/qr-screen"
 import { IsmarliyorScreen } from "@/components/golbox/screens/ismarliyor-screen"
 import { ProfileScreen } from "@/components/golbox/screens/profile-screen"
-import { RewardsScreen } from "@/components/golbox/screens/rewards-screen"
-
-import { useGolbox } from "@/lib/golbox-context"
-import { LoginScreen } from "@/components/golbox/screens/login-screen"
 
 function StatusBar() {
   return (
@@ -30,7 +26,6 @@ function StatusBar() {
 }
 
 export function AppShell() {
-  const { token, user } = useGolbox()
   const [tab, setTab] = useState<TabId>("home")
   const [openCafe, setOpenCafe] = useState<string | null>(null)
 
@@ -45,21 +40,14 @@ export function AppShell() {
         <StatusBar />
 
         <main className="no-scrollbar flex-1 overflow-y-auto">
-          {!token || !user ? (
-            <LoginScreen />
-          ) : (
-            <>
-              {tab === "home" && <HomeScreen onNavigate={goto} onOpenCafe={setOpenCafe} />}
-              {tab === "cafes" && <CafesScreen onOpenCafe={setOpenCafe} />}
-              {tab === "qr" && <QrScreen />}
-              {tab === "rewards" && <RewardsScreen />}
-              {tab === "ismarliyor" && <IsmarliyorScreen onNavigate={goto} />}
-              {tab === "profile" && <ProfileScreen />}
-            </>
-          )}
+          {tab === "home" && <HomeScreen onNavigate={goto} onOpenCafe={setOpenCafe} />}
+          {tab === "cafes" && <CafesScreen onOpenCafe={setOpenCafe} />}
+          {tab === "qr" && <QrScreen />}
+          {tab === "ismarliyor" && <IsmarliyorScreen onNavigate={goto} />}
+          {tab === "profile" && <ProfileScreen />}
         </main>
 
-        {token && user && <BottomNav active={tab} onChange={goto} />}
+        <BottomNav active={tab} onChange={goto} />
 
         {openCafe && <CafeDetailSheet cafeId={openCafe} onClose={() => setOpenCafe(null)} />}
       </div>

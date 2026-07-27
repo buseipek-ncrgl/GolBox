@@ -1,53 +1,76 @@
 "use client"
 
 import { Bell, ChevronRight, CreditCard, HelpCircle, LogOut, Settings, Shield } from "lucide-react"
-import { useGolbox } from "@/lib/golbox-context"
+import { activity, user } from "@/lib/golbox-data"
+import { useGolToast } from "@/components/golbox/gol-toast"
 
 const settings = [
-  { id: "account", label: "Hesap Bilgileri", icon: CreditCard },
-  { id: "notify", label: "Bildirim Tercihleri", icon: Bell },
-  { id: "security", label: "Güvenlik & Şifre", icon: Shield },
-  { id: "prefs", label: "Uygulama Ayarları", icon: Settings },
-  { id: "help", label: "Yardım & Destek", icon: HelpCircle },
+  { id: "account", label: "Hesap bilgileri", icon: CreditCard },
+  { id: "notify", label: "Bildirim tercihleri", icon: Bell },
+  { id: "security", label: "Güvenlik", icon: Shield },
+  { id: "prefs", label: "Uygulama ayarları", icon: Settings },
+  { id: "help", label: "Yardım", icon: HelpCircle },
 ]
 
 export function ProfileScreen() {
-  const { user, logout } = useGolbox()
-  if (!user) return null
+  const notify = useGolToast()
 
   return (
     <div className="gol-fade-up space-y-6 px-5 pb-6 pt-3">
       <header className="flex items-center gap-4">
         <div className="flex size-14 items-center justify-center rounded-full bg-primary font-serif text-2xl text-primary-foreground">
-          {user.firstName.charAt(0)}
+          {user.name.charAt(0)}
         </div>
         <div className="min-w-0">
-          <h1 className="truncate text-lg font-semibold text-foreground">{user.firstName} {user.lastName}</h1>
-          <p className="text-xs text-muted-foreground">E-Posta: {user.email}</p>
-          <p className="text-xs text-muted-foreground mt-0.5">Yaş: {user.age || 'Belirtilmemiş'} · {user.educationLevel || 'Öğrenci / Çalışan'}</p>
+          <h1 className="truncate text-lg font-semibold text-foreground">{user.fullName}</h1>
+          <p className="text-sm text-muted-foreground">{user.memberSince}&apos;ten beri GölBox&apos;ta</p>
         </div>
       </header>
 
-      {/* Puan Özeti */}
-      <div className="flex items-center justify-between rounded-3xl bg-primary px-5 py-4 text-primary-foreground shadow-sm">
+      {/* puan özeti */}
+      <div className="flex items-center justify-between rounded-3xl bg-primary px-5 py-4 text-primary-foreground">
         <div>
-          <p className="text-xs uppercase tracking-wide text-primary-foreground/70">Toplanan GölPuan</p>
-          <p className="font-serif text-3xl font-bold leading-tight">{user.pointsBalance} <span className="text-sm font-sans font-normal">GP</span></p>
+          <p className="text-xs uppercase tracking-wide text-primary-foreground/70">Göl Puan</p>
+          <p className="font-serif text-3xl leading-tight">{user.points}</p>
         </div>
-        <p className="max-w-[9rem] text-pretty text-right text-xs text-primary-foreground/90 leading-snug">
-          Gölbaşı Belediyesi Dijital Vatandaş Ekosistemi
+        <p className="max-w-[9rem] text-pretty text-right text-sm text-primary-foreground/90">
+          Ödüllerin otomatik işlenir, talep etmene gerek yok.
         </p>
       </div>
 
-      {/* Ayarlar Listesi */}
+      {/* puan geçmişi */}
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-foreground">Hesap Ayarları</h2>
+        <h2 className="text-sm font-semibold text-foreground">Puan hareketleri</h2>
+        <ul className="divide-y divide-border overflow-hidden rounded-3xl border border-border bg-card">
+          {activity.map((a) => (
+            <li key={a.id} className="flex items-center gap-3 px-4 py-3">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-card-foreground">{a.label}</p>
+                <p className="text-xs text-muted-foreground">{a.when}</p>
+              </div>
+              <span
+                className={
+                  a.kind === "earn"
+                    ? "font-serif text-base text-primary"
+                    : "font-serif text-base text-muted-foreground"
+                }
+              >
+                {a.value}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      {/* ayarlar */}
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold text-foreground">Hesabın</h2>
         <ul className="divide-y divide-border overflow-hidden rounded-3xl border border-border bg-card">
           {settings.map((s) => (
             <li key={s.id}>
               <button
-                onClick={() => alert(`${s.label} ayarları günceldir.`)}
-                className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-secondary/40"
+                onClick={() => notify("Bu bölüm prototipte hazır değil")}
+                className="flex w-full items-center gap-3 px-4 py-3.5 text-left"
               >
                 <span className="flex size-9 items-center justify-center rounded-xl bg-secondary text-secondary-foreground">
                   <s.icon className="size-4.5" />
@@ -60,13 +83,12 @@ export function ProfileScreen() {
         </ul>
       </section>
 
-      {/* Oturum Kapat Butonu */}
       <button
-        onClick={logout}
-        className="flex w-full items-center justify-center gap-2 rounded-full border border-border bg-card py-3.5 text-sm font-semibold text-rose-500 hover:bg-rose-50 hover:text-rose-600 transition-colors"
+        onClick={() => notify("Çıkış yapıldı")}
+        className="flex w-full items-center justify-center gap-2 rounded-full border border-border bg-card py-3.5 text-sm font-semibold text-muted-foreground"
       >
         <LogOut className="size-4.5" />
-        Oturumu Kapat
+        Çıkış yap
       </button>
     </div>
   )

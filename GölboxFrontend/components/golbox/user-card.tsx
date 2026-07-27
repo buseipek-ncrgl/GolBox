@@ -1,36 +1,7 @@
-import { useGolbox } from "@/lib/golbox-context"
+import { rewardProgress, user } from "@/lib/golbox-data"
 
 export function UserCard() {
-  const { user } = useGolbox()
-
-  if (!user) {
-    return (
-      <section
-        aria-label="Göl Puan durumun"
-        className="relative overflow-hidden rounded-3xl bg-primary px-5 py-5 text-primary-foreground shadow-[0_18px_40px_-24px_rgba(29,95,96,0.9)]"
-      >
-        <div className="relative flex items-center gap-3">
-          <div className="flex size-11 items-center justify-center rounded-full bg-primary-foreground/15 font-serif text-lg">
-            🏛️
-          </div>
-          <div className="min-w-0">
-            <p className="text-xs text-primary-foreground/70">Hoş Geldiniz</p>
-            <p className="truncate text-base font-bold">Gaziantep Şehitkamil Belediyesi</p>
-          </div>
-        </div>
-        <p className="mt-3 text-xs text-primary-foreground/80">
-          GölPuan kazanmak, ikram talebi yapmak ve QR okutmak için oturum açın.
-        </p>
-      </section>
-    )
-  }
-
-  // Calculate target reward bounds (e.g. 200 points)
-  const target = 200
-  const points = user.pointsBalance
-  const pct = Math.min(1, points / target)
-  const remaining = Math.max(0, target - points)
-  const rewardTitle = "Ücretsiz Filtre Kahve"
+  const { pct, remaining } = rewardProgress()
 
   return (
     <section
@@ -49,15 +20,15 @@ export function UserCard() {
 
       <div className="relative flex items-center gap-3">
         <div className="flex size-11 items-center justify-center rounded-full bg-primary-foreground/15 font-serif text-lg">
-          {user.firstName.charAt(0)}
+          {user.name.charAt(0)}
         </div>
         <div className="min-w-0">
           <p className="text-sm/none text-primary-foreground/70">Merhaba</p>
-          <p className="mt-1 truncate text-lg font-semibold">{user.firstName}</p>
+          <p className="mt-1 truncate text-lg font-semibold">{user.name}</p>
         </div>
         <div className="ml-auto text-right">
           <p className="text-[11px] uppercase tracking-wide text-primary-foreground/60">Göl Puan</p>
-          <p className="font-serif text-2xl leading-none">{user.pointsBalance}</p>
+          <p className="font-serif text-2xl leading-none">{user.points}</p>
         </div>
       </div>
 
@@ -65,7 +36,7 @@ export function UserCard() {
         <div className="flex items-end justify-between gap-3">
           <p className="text-pretty text-sm leading-snug text-primary-foreground/90">
             <span className="font-semibold text-accent">{remaining} puan</span> sonra{" "}
-            <span className="font-medium">{rewardTitle.toLowerCase()}</span> seni bekliyor.
+            <span className="font-medium">{user.reward.title.toLowerCase()}</span> seni bekliyor.
           </p>
         </div>
         <div className="mt-3 h-2 overflow-hidden rounded-full bg-primary-foreground/15">
