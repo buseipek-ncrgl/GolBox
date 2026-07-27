@@ -6,8 +6,8 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "sdkVersion": "54.0.0",
     "splash": {
-      "resizeMode": "contain",
       "backgroundColor": "#1d5f60"
     },
     "ios": {
@@ -17,9 +17,6 @@
       "adaptiveIcon": {
         "backgroundColor": "#1d5f60"
       }
-    },
-    "web": {
-      "favicon": "./assets/favicon.png"
     }
   }
 }
