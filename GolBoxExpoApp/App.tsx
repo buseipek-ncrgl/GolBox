@@ -8,13 +8,13 @@ import {
   TextInput,
   Image,
   Modal,
-  SafeAreaView,
   StatusBar,
   ActivityIndicator,
   Alert,
   FlatList,
   Platform
 } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 const API_BASE_URL = 'http://localhost:5155/api/v1';
 
@@ -188,9 +188,11 @@ function GolboxProvider({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   return (
-    <GolboxProvider>
-      <MainContainer />
-    </GolboxProvider>
+    <SafeAreaProvider>
+      <GolboxProvider>
+        <MainContainer />
+      </GolboxProvider>
+    </SafeAreaProvider>
   );
 }
 
