@@ -39,10 +39,23 @@ export function LoginScreen() {
         <div className="flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary mb-3">
           <ShieldCheck className="size-8" strokeWidth={2} />
         </div>
-        <h2 className="font-serif text-2xl font-semibold text-foreground">GölBox Mobil</h2>
+        <h2 className="font-serif text-2xl font-bold text-foreground">GölBox Gaziantep Şehitkamil</h2>
         <p className="mt-1.5 text-center text-xs text-muted-foreground px-4">
-          Tebrikler! Dijital belediyecilik ve sadakat programına katılmak üzeresiniz.
+          Şehitkamil Belediyesi Akıllı Şehir & Sadakat Portalı.
         </p>
+      </div>
+
+      <div className="mb-4">
+        <button
+          type="button"
+          onClick={() => {
+            setEmail("admin@golbox.gov.tr")
+            setPassword("123456")
+          }}
+          className="w-full rounded-xl bg-emerald-500/10 border border-emerald-500/30 p-2.5 text-xs font-bold text-emerald-700 hover:bg-emerald-500/20 transition-colors"
+        >
+          ⚡ Hızlı Vatandaş Girişi (admin@golbox.gov.tr)
+        </button>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">

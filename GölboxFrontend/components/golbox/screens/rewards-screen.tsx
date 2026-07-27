@@ -8,8 +8,6 @@ export function RewardsScreen() {
   const { user, rewards, claimReward, loading } = useGolbox()
   const [claimingId, setClaimingId] = useState<string | null>(null)
 
-  if (!user) return null
-
   const handleClaim = async (id: string) => {
     setClaimingId(id)
     await claimReward(id)
@@ -27,7 +25,7 @@ export function RewardsScreen() {
       <div className="flex items-center justify-between rounded-3xl bg-primary px-5 py-4 text-primary-foreground shadow-md">
         <div>
           <p className="text-xs uppercase tracking-wide text-primary-foreground/70">Mevcut Bakiyen</p>
-          <p className="font-serif text-3xl font-bold leading-tight">{user.pointsBalance} <span className="text-sm font-sans font-normal">GP</span></p>
+          <p className="font-serif text-3xl font-bold leading-tight">{user ? user.pointsBalance : 0} <span className="text-sm font-sans font-normal">GP</span></p>
         </div>
         <div className="flex size-10 items-center justify-center rounded-2xl bg-white/10">
           <Gift className="size-6 text-accent" />
@@ -46,7 +44,7 @@ export function RewardsScreen() {
         ) : (
           <div className="grid gap-3">
             {rewards.map((reward) => {
-              const canAfford = user.pointsBalance >= reward.requiredPoints
+              const canAfford = user ? user.pointsBalance >= reward.requiredPoints : false
               const isClaiming = claimingId === reward.id
 
               return (

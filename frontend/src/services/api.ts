@@ -236,7 +236,7 @@ export const api = {
     const token = localStorage.getItem('token');
     const formData = new FormData();
     formData.append('file', file);
-    const res = await fetch('http://localhost:5150/api/v1/files/upload', {
+    const res = await fetch(`${API_BASE_URL}/files/upload`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
       body: formData,

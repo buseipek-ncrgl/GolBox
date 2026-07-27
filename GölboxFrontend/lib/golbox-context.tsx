@@ -4,8 +4,8 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { useGolToast } from "@/components/golbox/gol-toast"
 import * as signalR from "@microsoft/signalr"
 
-const API_BASE_URL = "http://localhost:5150/api/v1"
-const HUB_URL = "http://localhost:5150/hubs/orders"
+const API_BASE_URL = "http://localhost:5155/api/v1"
+const HUB_URL = "http://localhost:5155/hubs/orders"
 
 export interface UserProfile {
   id: string
@@ -119,31 +119,26 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const refreshData = useCallback(async () => {
-    if (!token) return
+    const authHeader: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {}
     try {
-      // 1. Fetch profile
-      const profileRes = await fetch(`${API_BASE_URL}/users/me`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      if (profileRes.ok) {
-        const res = await profileRes.json()
-        setUser(res.data)
+      // 1. Fetch profile if token exists
+      if (token) {
+        const profileRes = await fetch(`${API_BASE_URL}/users/me`, { headers: authHeader })
+        if (profileRes.ok) {
+          const res = await profileRes.json()
+          if (res.data) setUser(res.data)
+        }
       }
 
-      // 2. Fetch cafes
-      const cafesRes = await fetch(`${API_BASE_URL}/cafes`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
+      // 2. Fetch cafes (public or authenticated)
+      const cafesRes = await fetch(`${API_BASE_URL}/cafes`, { headers: authHeader })
       if (cafesRes.ok) {
         const res = await cafesRes.json()
-        const cafesList: Cafe[] = res.data || []
+        const fetchedCafes: Cafe[] = res.data || []
 
-        // For each cafe, load menu items
         const enrichedCafes = await Promise.all(
-          cafesList.map(async (c) => {
-            const menuRes = await fetch(`${API_BASE_URL}/cafes/${c.id}/menu`, {
-              headers: { Authorization: `Bearer ${token}` }
-            })
+          fetchedCafes.map(async (c) => {
+            const menuRes = await fetch(`${API_BASE_URL}/cafes/${c.id}/menu`, { headers: authHeader })
             if (menuRes.ok) {
               const menuData = await menuRes.json()
               return { ...c, menuItems: menuData.data || [] }
@@ -151,36 +146,84 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
             return { ...c, menuItems: [] }
           })
         )
-        setCafes(enrichedCafes)
+
+        // Fallback default Şehitkamil cafes if empty
+        const defaultCafes: Cafe[] = [
+          {
+            id: '33333333-3333-3333-3333-333333333333',
+            name: 'Gaziantep Şehitkamil Merkez Kitap Kafe',
+            address: 'İncilipınar Mah. Muammer Aksoy Bulv. No:12, Şehitkamil / Gaziantep',
+            categoryId: '22222222-2222-2222-2222-222222222222',
+            menuItems: [
+              { id: 'm-1', name: 'Sıcak Filtre Kahve', description: 'Taze demlenmiş espresso blend filtre kahve', price: 25, minAge: 0, maxAge: 99, requiredEducation: 'Tüm Vatandaşlar' },
+              { id: 'm-2', name: 'Türk Kahvesi & Lokum', description: 'Geleneksel közde pişirilmiş Türk kahvesi', price: 20, minAge: 0, maxAge: 99, requiredEducation: 'Tüm Vatandaşlar' },
+              { id: 'm-3', name: 'Soğuk Brew Latte', description: 'Özel demlenmiş soğuk sütlü kahve', price: 35, minAge: 16, maxAge: 30, requiredEducation: 'Gençler & Öğrenciler' }
+            ]
+          },
+          {
+            id: '33333333-3333-3333-3333-444444444444',
+            name: 'Şehitkamil Gençlik Kitap Kafe',
+            address: 'Atatürk Mah. 15. Sok. No:4, Şehitkamil / Gaziantep',
+            categoryId: '22222222-2222-2222-2222-222222222222',
+            menuItems: [
+              { id: 'm-4', name: 'Demli Çay & Simit', description: 'Taze fırın simidi ve sınırsız demli çay ikramı', price: 15 },
+              { id: 'm-5', name: 'Bitki Çayı Çeşitleri', description: 'Ihlamur, adaçayı ve yeşil çay', price: 20 }
+            ]
+          }
+        ]
+
+        setCafes(enrichedCafes.length > 0 ? enrichedCafes : defaultCafes)
+      } else {
+        // Fallback default cafes if server unauthenticated
+        setCafes([
+          {
+            id: '33333333-3333-3333-3333-333333333333',
+            name: 'Gaziantep Şehitkamil Merkez Kitap Kafe',
+            address: 'İncilipınar Mah. Muammer Aksoy Bulv. No:12, Şehitkamil / Gaziantep',
+            categoryId: '22222222-2222-2222-2222-222222222222',
+            menuItems: [
+              { id: 'm-1', name: 'Sıcak Filtre Kahve', description: 'Taze demlenmiş espresso blend filtre kahve', price: 25 },
+              { id: 'm-2', name: 'Türk Kahvesi & Lokum', description: 'Geleneksel közde pişirilmiş Türk kahvesi', price: 20 },
+              { id: 'm-3', name: 'Soğuk Brew Latte', description: 'Özel demlenmiş soğuk sütlü kahve', price: 35 }
+            ]
+          }
+        ])
       }
 
-      // 3. Fetch user orders
-      const ordersRes = await fetch(`${API_BASE_URL}/orders`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      if (ordersRes.ok) {
-        const res = await ordersRes.json()
-        setOrders(res.data || [])
+      // 3. Fetch user orders if token exists
+      if (token) {
+        const ordersRes = await fetch(`${API_BASE_URL}/orders`, { headers: authHeader })
+        if (ordersRes.ok) {
+          const res = await ordersRes.json()
+          setOrders(res.data || [])
+        }
       }
 
       // 4. Fetch rewards
-      const rewardsRes = await fetch(`${API_BASE_URL}/rewards`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
+      const rewardsRes = await fetch(`${API_BASE_URL}/rewards`, { headers: authHeader })
+      const defaultRewards: Reward[] = [
+        { id: 'rew-1', title: '☕ Ücretsiz Filtre Kahve', description: 'Şehitkamil Kitap Kafelerde geçerli sıcak taze filtre kahve ikramı.', requiredPoints: 50, status: 'Active' },
+        { id: 'rew-2', title: '🍰 Günün Dilim Pastası', description: 'Kitap Kafe günlük taze dilim pasta veya cheesecake ikramı.', requiredPoints: 100, status: 'Active' },
+        { id: 'rew-3', title: '🥐 Sıcak Kruvasan & Taze Çay', description: 'Taze fırınlanmış kruvasan ve sınırsız demli çay ikramı.', requiredPoints: 75, status: 'Active' },
+        { id: 'rew-4', title: '📚 %50 Kitap Satın Alma İndirim Kuponu', description: 'Gençlik Merkezleri ve Kitap Kafe kütüphanelerinde %50 indirim.', requiredPoints: 120, status: 'Active' }
+      ]
+
       if (rewardsRes.ok) {
         const res = await rewardsRes.json()
         const items = res.data?.items || res.data || []
-        setRewards(items)
+        setRewards(items.length > 0 ? items : defaultRewards)
+      } else {
+        setRewards(defaultRewards)
       }
 
-      // 5. Fetch point transactions
-      const pointsRes = await fetch(`${API_BASE_URL}/points`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      if (pointsRes.ok) {
-        const res = await pointsRes.json()
-        const items = res.data?.items || res.data || []
-        setPointTransactions(items)
+      // 5. Fetch point transactions if token exists
+      if (token) {
+        const pointsRes = await fetch(`${API_BASE_URL}/points`, { headers: authHeader })
+        if (pointsRes.ok) {
+          const res = await pointsRes.json()
+          const items = res.data?.items || res.data || []
+          setPointTransactions(items)
+        }
       }
 
     } catch (e) {

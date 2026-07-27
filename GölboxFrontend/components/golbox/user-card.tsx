@@ -2,7 +2,28 @@ import { useGolbox } from "@/lib/golbox-context"
 
 export function UserCard() {
   const { user } = useGolbox()
-  if (!user) return null
+
+  if (!user) {
+    return (
+      <section
+        aria-label="Göl Puan durumun"
+        className="relative overflow-hidden rounded-3xl bg-primary px-5 py-5 text-primary-foreground shadow-[0_18px_40px_-24px_rgba(29,95,96,0.9)]"
+      >
+        <div className="relative flex items-center gap-3">
+          <div className="flex size-11 items-center justify-center rounded-full bg-primary-foreground/15 font-serif text-lg">
+            🏛️
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs text-primary-foreground/70">Hoş Geldiniz</p>
+            <p className="truncate text-base font-bold">Gaziantep Şehitkamil Belediyesi</p>
+          </div>
+        </div>
+        <p className="mt-3 text-xs text-primary-foreground/80">
+          GölPuan kazanmak, ikram talebi yapmak ve QR okutmak için oturum açın.
+        </p>
+      </section>
+    )
+  }
 
   // Calculate target reward bounds (e.g. 200 points)
   const target = 200
