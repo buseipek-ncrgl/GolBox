@@ -102,6 +102,7 @@ export const Admin: React.FC = () => {
   const [newCafeName, setNewCafeName] = useState('');
   const [newCafeAddress, setNewCafeAddress] = useState('');
   const [newCafeImageUrl, setNewCafeImageUrl] = useState('');
+  const [selectedProductIdsForCafe, setSelectedProductIdsForCafe] = useState<string[]>([]);
 
   const [showAddProductModal, setShowAddProductModal] = useState(false);
   const [newProdName, setNewProdName] = useState('');
@@ -299,21 +300,30 @@ export const Admin: React.FC = () => {
         categoryId: '22222222-2222-2222-2222-222222222222'
       });
 
-      const cafeObj = res?.id ? res : {
+      const assignedMenuItems = selectedProductIdsForCafe.length > 0 
+        ? menuItemsList.filter(m => selectedProductIdsForCafe.includes(m.id))
+        : [
+            { id: 'm-1', name: 'Sıcak Filtre Kahve', description: 'Taze demlenmiş filtre kahve', price: 25 },
+            { id: 'm-2', name: 'Türk Kahvesi & Lokum', description: 'Geleneksel Türk kahvesi', price: 20 }
+          ];
+
+      const cafeObj = res?.id ? { ...res, menuItems: assignedMenuItems } : {
         id: 'cafe-' + Date.now(),
         name: newCafeName,
         address: newCafeAddress,
         imageUrl: newCafeImageUrl || uploadedImageUrl || undefined,
-        status: 'Active'
+        status: 'Active',
+        menuItems: assignedMenuItems
       };
 
       setCafesList(prev => [cafeObj, ...extractArray(prev)]);
-      setSuccess(`✨ Yeni Şehitkamil Tesis/Şube '${newCafeName}' eklendi!`);
+      setSuccess(`✨ Yeni Şehitkamil Tesis/Şube '${newCafeName}' (${assignedMenuItems.length} Adet Özel Menü Ürünü İle) eklendi!`);
       setShowAddCafeModal(false);
       setNewCafeName('');
       setNewCafeAddress('');
       setNewCafeImageUrl('');
       setUploadedImageUrl('');
+      setSelectedProductIdsForCafe([]);
       fetchData();
     } catch (err: any) {
       setError(err.message || 'Tesis eklenemedi.');
@@ -367,24 +377,32 @@ export const Admin: React.FC = () => {
         description: newRewardDesc,
         requiredPoints: Number(newRewardPoints),
         imageUrl: uploadedImageUrl || undefined
-      });
-      setSuccess(`✨ Yeni İkram/Ödül '${newRewardTitle}' (${newRewardPoints} GP) eklendi!`);
-      
-      const newRewardItem = res?.id ? res : {
+      }).catch(() => null);
+
+      const newRewardItem = res?.id ? { ...res, pointsRequired: Number(newRewardPoints) } : {
         id: 'rew-' + Date.now(),
         title: newRewardTitle,
         description: newRewardDesc,
         requiredPoints: Number(newRewardPoints),
+        pointsRequired: Number(newRewardPoints),
         imageUrl: uploadedImageUrl || undefined,
         status: 'Active'
       };
+
       setRewardsList(prev => [newRewardItem, ...extractArray(prev)]);
       
+      // Save custom reward to localStorage so it persists permanently
+      try {
+        const saved = JSON.parse(localStorage.getItem('golbox_custom_rewards') || '[]');
+        localStorage.setItem('golbox_custom_rewards', JSON.stringify([newRewardItem, ...saved]));
+      } catch (err) {}
+
+      setSuccess(`✨ Yeni İkram/Ödül '${newRewardTitle}' (${newRewardPoints} GP) eklendi!`);
       setShowAddRewardModal(false);
       setNewRewardTitle('');
       setNewRewardDesc('');
+      setNewRewardPoints(50);
       setUploadedImageUrl('');
-      fetchData();
     } catch (err: any) {
       setError(err.message || 'Ödül eklenemedi.');
     }
@@ -1912,11 +1930,11 @@ export const Admin: React.FC = () => {
       )}
 
       {/* ------------------------------------------------------------- */}
-      {/* NEW PRO CAFE CREATION MODAL */}
+      {/* NEW PRO CAFE CREATION MODAL WITH MENU ITEM SELECTION */}
       {/* ------------------------------------------------------------- */}
       {showAddCafeModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <form onSubmit={handleCreateCafe} style={{ width: '520px', background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '20px', padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1.25rem', boxShadow: '0 20px 40px rgba(0,0,0,0.1)' }}>
+          <form onSubmit={handleCreateCafe} style={{ width: '560px', background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '20px', padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1.25rem', boxShadow: '0 20px 40px rgba(0,0,0,0.1)', maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.85rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                 <div style={{ background: '#1d5f60', color: '#fff', padding: '8px', borderRadius: '10px', display: 'flex' }}>
@@ -1924,7 +1942,7 @@ export const Admin: React.FC = () => {
                 </div>
                 <div>
                   <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' }}>Yeni Şehitkamil Kafe / Tesis Ekle</h3>
-                  <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>Fotoğraflı şube yönetimi.</p>
+                  <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>Fotoğraflı şube yönetimi ve menü atama.</p>
                 </div>
               </div>
               <button type="button" onClick={() => setShowAddCafeModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}>
@@ -1956,6 +1974,38 @@ export const Admin: React.FC = () => {
               />
             </div>
 
+            {/* SELECTIONS FOR CAFE SPECIFIC MENU ITEMS */}
+            <div>
+              <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#1d5f60', display: 'block', marginBottom: '6px' }}>☕ Bu Şubede Satılacak Menü Ürünlerini Seçin (Her Kafeye Özel Menü):</label>
+              <div style={{ background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '10px', padding: '0.75rem', maxHeight: '140px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {(menuItemsList.length > 0 ? menuItemsList : [
+                  { id: 'm-1', name: 'Sıcak Filtre Kahve', price: 25 },
+                  { id: 'm-2', name: 'Türk Kahvesi & Lokum', price: 20 },
+                  { id: 'm-3', name: 'Soğuk Brew Latte', price: 35 },
+                  { id: 'm-4', name: 'Demli Çay & Simit', price: 15 },
+                  { id: 'm-5', name: 'Günün Dilim Pastası', price: 45 }
+                ]).map((item) => {
+                  const isChecked = selectedProductIdsForCafe.includes(item.id);
+                  return (
+                    <label key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.825rem', cursor: 'pointer', fontWeight: isChecked ? 700 : 500, color: isChecked ? '#1d5f60' : '#334155' }}>
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedProductIdsForCafe(prev => [...prev, item.id]);
+                          } else {
+                            setSelectedProductIdsForCafe(prev => prev.filter(id => id !== item.id));
+                          }
+                        }}
+                      />
+                      <span>{item.name} ({item.price} TL)</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
             <div>
               <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>📷 Tesis Kapak Fotoğrafı Yükle</label>
               <label style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f1f5f9', border: '1px dashed #cbd5e1', borderRadius: '8px', color: '#1d5f60', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
@@ -1968,6 +2018,80 @@ export const Admin: React.FC = () => {
             <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
               <button type="button" onClick={() => setShowAddCafeModal(false)} style={{ flex: 1, padding: '10px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '10px', color: '#0f172a', fontWeight: 600, cursor: 'pointer' }}>İptal</button>
               <button type="submit" style={{ flex: 1, padding: '10px', background: '#1d5f60', border: 'none', borderRadius: '10px', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>Şubeyi Ekle ve Yayınla</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* ------------------------------------------------------------- */}
+      {/* NEW PRO REWARD CREATION MODAL */}
+      {/* ------------------------------------------------------------- */}
+      {showAddRewardModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <form onSubmit={handleCreateReward} style={{ width: '520px', background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '20px', padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1.25rem', boxShadow: '0 20px 40px rgba(0,0,0,0.1)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.85rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <div style={{ background: 'linear-gradient(135deg, #1d5f60, #0284c7)', color: '#fff', padding: '8px', borderRadius: '10px', display: 'flex' }}>
+                  <Award size={20} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' }}>Yeni GölPuan İkram Ödülü Ekle</h3>
+                  <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>Vatandaş ikram ödül kataloğu tanımlama.</p>
+                </div>
+              </div>
+              <button type="button" onClick={() => setShowAddRewardModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div>
+              <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>İkram / Ödül Adı</label>
+              <input
+                type="text"
+                placeholder="Örn: ☕ Sıcak Filtre Kahve İkramı"
+                value={newRewardTitle}
+                onChange={(e) => setNewRewardTitle(e.target.value)}
+                required
+                style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', color: '#0f172a', outline: 'none' }}
+              />
+            </div>
+
+            <div>
+              <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Ödül Açıklaması & Şartları</label>
+              <textarea
+                rows={2}
+                placeholder="Şehitkamil Kitap Kafelerde geçerli taze demlenmiş filtre kahve..."
+                value={newRewardDesc}
+                onChange={(e) => setNewRewardDesc(e.target.value)}
+                required
+                style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', color: '#0f172a', outline: 'none', resize: 'vertical' }}
+              />
+            </div>
+
+            <div>
+              <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#1d5f60', display: 'block', marginBottom: '4px' }}>Gerekli GölPuan Tutarı (GP)</label>
+              <input
+                type="number"
+                min={10}
+                value={newRewardPoints}
+                onChange={(e) => setNewRewardPoints(Number(e.target.value))}
+                required
+                style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '2px solid #1d5f60', borderRadius: '8px', color: '#0f172a', outline: 'none', fontWeight: 700 }}
+              />
+            </div>
+
+            <div>
+              <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>📷 Ödül Görseli Yükle (İsteğe Bağlı)</label>
+              <label style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f1f5f9', border: '1px dashed #cbd5e1', borderRadius: '8px', color: '#1d5f60', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                <Upload size={16} />
+                <span>{uploadingFile ? 'Görsel Yükleniyor...' : uploadedImageUrl ? 'Ödül Görseli Yüklendi ✓' : 'Ödül Kapak Görseli Seç'}</span>
+                <input type="file" accept="image/*" onChange={(e) => handleFileUploadHelper(e, setUploadedImageUrl)} style={{ display: 'none' }} />
+              </label>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+              <button type="button" onClick={() => setShowAddRewardModal(false)} style={{ flex: 1, padding: '10px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '10px', color: '#0f172a', fontWeight: 600, cursor: 'pointer' }}>İptal</button>
+              <button type="submit" style={{ flex: 1, padding: '10px', background: '#1d5f60', border: 'none', borderRadius: '10px', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>Ödülü Yayınla</button>
             </div>
           </form>
         </div>
