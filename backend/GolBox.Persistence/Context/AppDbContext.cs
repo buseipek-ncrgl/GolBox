@@ -39,6 +39,8 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<NotificationRecord> Notifications => Set<NotificationRecord>();
     public DbSet<Coupon> Coupons => Set<Coupon>();
     public DbSet<StaffUser> StaffUsers => Set<StaffUser>();
+    public DbSet<FieldDrop> FieldDrops => Set<FieldDrop>();
+    public DbSet<UserFieldCapture> UserFieldCaptures => Set<UserFieldCapture>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

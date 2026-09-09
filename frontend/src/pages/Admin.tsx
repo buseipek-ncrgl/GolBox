@@ -39,7 +39,7 @@ export const Admin: React.FC = () => {
   // 14 Core Specification Sidebar Modules
   const [activeMenu, setActiveMenu] = useState<
     'overview' | 'users' | 'cafes' | 'products' | 'points' | 
-    'qr' | 'rewards' | 'ismarliyor' | 'campaigns' | 'events' | 
+    'qr' | 'rewards' | 'fieldDrops' | 'ismarliyor' | 'campaigns' | 'events' | 
     'notifications' | 'reports' | 'roles' | 'audit'
   >('overview');
 
@@ -155,6 +155,57 @@ export const Admin: React.FC = () => {
   const [newIsmTargetCriteria, setNewIsmTargetCriteria] = useState('Gençler'); // Gençler, Öğrenciler, Emekliler, Herkese Açık
   const [newIsmProofUrl, setNewIsmProofUrl] = useState('');
 
+  const [fieldDropsList, setFieldDropsList] = useState<any[]>([]);
+  const [fieldCapturesList, setFieldCapturesList] = useState<any[]>([]);
+  const [showFieldDropModal, setShowFieldDropModal] = useState(false);
+  const [editingFieldDropId, setEditingFieldDropId] = useState<string | null>(null);
+  const [selectedFieldDropId, setSelectedFieldDropId] = useState<string | null>(null);
+  const [fdTitle, setFdTitle] = useState('');
+  const [fdDescription, setFdDescription] = useState('');
+  const [fdLat, setFdLat] = useState(37.0662);
+  const [fdLng, setFdLng] = useState(37.3781);
+  const [fdRadius, setFdRadius] = useState(40);
+  const [fdPoints, setFdPoints] = useState(25);
+  const [fdStock, setFdStock] = useState<number | ''>(100);
+  const [fdPerUser, setFdPerUser] = useState(1);
+  const [fdCafeId, setFdCafeId] = useState('');
+  const [fdRewardId, setFdRewardId] = useState('');
+  const [fdImageUrl, setFdImageUrl] = useState('');
+  const [fdModelUrl, setFdModelUrl] = useState('');
+  const [fdActive, setFdActive] = useState(true);
+  const [fdStartsAt, setFdStartsAt] = useState('');
+  const [fdEndsAt, setFdEndsAt] = useState('');
+  const [savingFieldDrop, setSavingFieldDrop] = useState(false);
+
+  const toLocalInput = (value?: string) => {
+    if (!value) return '';
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return '';
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
+  const resetFieldDropForm = () => {
+    const start = new Date();
+    const end = new Date(Date.now() + 30 * 86400000);
+    setEditingFieldDropId(null);
+    setFdTitle('');
+    setFdDescription('');
+    setFdLat(37.0662);
+    setFdLng(37.3781);
+    setFdRadius(40);
+    setFdPoints(25);
+    setFdStock(100);
+    setFdPerUser(1);
+    setFdCafeId('');
+    setFdRewardId('');
+    setFdImageUrl('');
+    setFdModelUrl('');
+    setFdActive(true);
+    setFdStartsAt(toLocalInput(start.toISOString()));
+    setFdEndsAt(toLocalInput(end.toISOString()));
+  };
+
   const fetchData = async () => {
     setLoading(true);
     setError(null);
@@ -200,6 +251,21 @@ export const Admin: React.FC = () => {
       } else if (activeMenu === 'rewards') {
         const r = await api.getRewards();
         setRewardsList(extractArray(r));
+      } else if (activeMenu === 'fieldDrops') {
+        const [drops, cafes, rewards] = await Promise.all([
+          api.getFieldDrops(),
+          api.getCafes().catch(() => []),
+          api.getRewards().catch(() => []),
+        ]);
+        setFieldDropsList(extractArray(drops));
+        setCafesList(extractArray(cafes));
+        setRewardsList(extractArray(rewards));
+        if (selectedFieldDropId) {
+          const captures = await api.getFieldDropCaptures(selectedFieldDropId).catch(() => []);
+          setFieldCapturesList(extractArray(captures));
+        } else {
+          setFieldCapturesList([]);
+        }
       } else if (activeMenu === 'campaigns') {
         const c = await api.getCampaigns();
         setCampaignsList(extractArray(c));
@@ -224,7 +290,7 @@ export const Admin: React.FC = () => {
 
   useEffect(() => {
     fetchData();
-  }, [activeMenu, newProdCafeId]);
+  }, [activeMenu, newProdCafeId, selectedFieldDropId]);
 
   // Global Live Filtering Logic
   const getFilteredList = (list: any[]) => {
@@ -639,6 +705,119 @@ export const Admin: React.FC = () => {
     setSuccess(`📊 ${type.toUpperCase()} Rapor Dışa Aktarımı Başlatıldı. Dosya indiriliyor...`);
   };
 
+  const openCreateFieldDrop = () => {
+    resetFieldDropForm();
+    setShowFieldDropModal(true);
+  };
+
+  const openEditFieldDrop = (drop: any) => {
+    setEditingFieldDropId(drop.id);
+    setFdTitle(drop.title || '');
+    setFdDescription(drop.description || '');
+    setFdLat(Number(drop.latitude) || 37.0662);
+    setFdLng(Number(drop.longitude) || 37.3781);
+    setFdRadius(Number(drop.radiusMeters) || 40);
+    setFdPoints(Number(drop.pointsGranted) || 0);
+    setFdStock(drop.totalStock ?? '');
+    setFdPerUser(Number(drop.perUserLimit) || 1);
+    setFdCafeId(drop.cafeId || '');
+    setFdRewardId(drop.catalogRewardId || '');
+    setFdImageUrl(drop.imageUrl || '');
+    setFdModelUrl(drop.modelGlbUrl || '');
+    setFdActive(drop.isActive !== false);
+    setFdStartsAt(toLocalInput(drop.startsAt));
+    setFdEndsAt(toLocalInput(drop.endsAt));
+    setShowFieldDropModal(true);
+  };
+
+  const handleSaveFieldDrop = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!fdTitle.trim()) {
+      setError('Saha hediyesi başlığı zorunludur.');
+      return;
+    }
+    if (fdRadius < 10 || fdRadius > 500) {
+      setError('Yarıçap 10 ile 500 metre arasında olmalıdır.');
+      return;
+    }
+    setSavingFieldDrop(true);
+    setError(null);
+    try {
+      const payload = {
+        title: fdTitle.trim(),
+        description: fdDescription.trim(),
+        latitude: Number(fdLat),
+        longitude: Number(fdLng),
+        radiusMeters: Number(fdRadius),
+        pointsGranted: Number(fdPoints),
+        totalStock: fdStock === '' ? null : Number(fdStock),
+        perUserLimit: Number(fdPerUser) || 1,
+        cafeId: fdCafeId || null,
+        catalogRewardId: fdRewardId || null,
+        imageUrl: fdImageUrl || undefined,
+        modelGlbUrl: fdModelUrl || undefined,
+        isActive: fdActive,
+        startsAt: fdStartsAt ? new Date(fdStartsAt).toISOString() : undefined,
+        endsAt: fdEndsAt ? new Date(fdEndsAt).toISOString() : undefined
+      };
+      const res = editingFieldDropId
+        ? await api.updateFieldDrop(editingFieldDropId, payload)
+        : await api.createFieldDrop(payload);
+      if (!createdId(res) && !editingFieldDropId) {
+        throw new Error('Saha hediyesi kaydedildi ancak kimlik dönmedi.');
+      }
+      setSuccess(editingFieldDropId ? 'Saha hediyesi güncellendi.' : 'Saha hediyesi yayınlandı.');
+      setShowFieldDropModal(false);
+      resetFieldDropForm();
+      fetchData();
+    } catch (err: any) {
+      setError(err.message || 'Saha hediyesi kaydedilemedi.');
+    } finally {
+      setSavingFieldDrop(false);
+    }
+  };
+
+  const handleDeleteFieldDrop = async (id: string) => {
+    if (!window.confirm('Bu saha hediyesini kaldırmak istediğinize emin misiniz?')) return;
+    try {
+      await api.deleteFieldDrop(id);
+      if (selectedFieldDropId === id) {
+        setSelectedFieldDropId(null);
+        setFieldCapturesList([]);
+      }
+      setSuccess('Saha hediyesi kaldırıldı.');
+      fetchData();
+    } catch (err: any) {
+      setError(err.message || 'Saha hediyesi silinemedi.');
+    }
+  };
+
+  const handleToggleFieldDrop = async (drop: any) => {
+    try {
+      await api.updateFieldDrop(drop.id, {
+        title: drop.title,
+        description: drop.description,
+        latitude: drop.latitude,
+        longitude: drop.longitude,
+        radiusMeters: drop.radiusMeters,
+        pointsGranted: drop.pointsGranted,
+        totalStock: drop.totalStock,
+        perUserLimit: drop.perUserLimit,
+        cafeId: drop.cafeId,
+        catalogRewardId: drop.catalogRewardId,
+        imageUrl: drop.imageUrl,
+        modelGlbUrl: drop.modelGlbUrl,
+        isActive: !drop.isActive,
+        startsAt: drop.startsAt,
+        endsAt: drop.endsAt
+      });
+      setSuccess(drop.isActive ? 'Saha hediyesi durduruldu.' : 'Saha hediyesi yayına alındı.');
+      fetchData();
+    } catch (err: any) {
+      setError(err.message || 'Durum güncellenemedi.');
+    }
+  };
+
   const getMenuLabel = (key: string) => {
     const labels: Record<string, string> = {
       overview: 'Genel Bakış Dashboard',
@@ -648,6 +827,7 @@ export const Admin: React.FC = () => {
       points: 'GölPuan Kuralları & Defteri',
       qr: 'QR İşlemleri & Güvenlik',
       rewards: 'İkramlar & Ödüller',
+      fieldDrops: 'Saha Hediyeleri',
       ismarliyor: 'Ismarlıyor Başvuruları',
       campaigns: 'Kampanyalar & İndirimler',
       events: 'Etkinlikler & Görevler (Gamification)',
@@ -731,6 +911,7 @@ export const Admin: React.FC = () => {
                 { id: 'points', label: 'GölPuan Defteri', icon: History },
                 { id: 'qr', label: 'QR İşlemleri', icon: CreditCard },
                 { id: 'rewards', label: 'Ödüller & İkramlar', icon: Award },
+                { id: 'fieldDrops', label: 'Saha Hediyeleri', icon: MapPin },
                 { id: 'ismarliyor', label: 'Ismarlıyor', icon: Gift }
               ]
             },
@@ -1271,6 +1452,82 @@ export const Admin: React.FC = () => {
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {activeMenu === 'fieldDrops' && (
+            <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+                <div>
+                  <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Saha Hediyeleri</h1>
+                  <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '4px' }}>Konuma hediye bırakın. Vatandaş oraya gidince toplar. Katalog ödülü ve Ismarlıyor buradan ayrıdır.</p>
+                </div>
+                <button
+                  onClick={openCreateFieldDrop}
+                  style={{
+                    background: 'linear-gradient(135deg, #1d5f60, #0284c7)',
+                    color: '#ffffff',
+                    border: 'none',
+                    padding: '0.7rem 1.35rem',
+                    borderRadius: '12px',
+                    fontWeight: 800,
+                    fontSize: '0.9rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    boxShadow: '0 4px 14px rgba(29, 95, 96, 0.25)'
+                  }}
+                >
+                  <MapPin size={18} />
+                  <span>+ Konuma Hediye Bırak</span>
+                </button>
+              </div>
+
+              {getFilteredList(fieldDropsList).length === 0 ? (
+                <div style={{ background: '#fff', border: '1px dashed #cbd5e1', borderRadius: '16px', padding: '2rem', color: '#64748b' }}>
+                  Henüz saha hediyesi yok. Sağ üstten konum pin’i oluşturun.
+                </div>
+              ) : getFilteredList(fieldDropsList).map((drop: any) => (
+                <div key={drop.id} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '1.25rem', boxShadow: '0 4px 20px -2px rgba(0,0,0,0.03)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800 }}>{drop.title}</h3>
+                      <p style={{ margin: '6px 0 0', fontSize: '0.85rem', color: '#64748b' }}>{drop.description}</p>
+                      <div style={{ marginTop: '8px', fontSize: '0.8rem', color: '#475569' }}>
+                        {drop.cafeName ? `Tesis: ${drop.cafeName} · ` : ''}
+                        {Number(drop.latitude).toFixed(5)}, {Number(drop.longitude).toFixed(5)} · {drop.radiusMeters} m yarıçap
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
+                      <span style={{ background: '#fef3c7', color: '#b45309', padding: '4px 10px', borderRadius: '100px', fontWeight: 800, fontSize: '0.85rem' }}>+{drop.pointsGranted} GP</span>
+                      <span style={{ background: drop.isActive ? '#dcfce7' : '#fee2e2', color: drop.isActive ? '#15803d' : '#b91c1c', padding: '3px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 700 }}>
+                        {drop.isActive ? 'Yayında' : 'Durduruldu'}
+                      </span>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '1rem' }}>
+                    <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Toplanan: {drop.capturedCount || 0}{drop.totalStock != null ? ` / ${drop.totalStock}` : ''}</span>
+                    <button onClick={() => setSelectedFieldDropId(drop.id)} style={{ marginLeft: 'auto', padding: '6px 10px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f8fafc', fontWeight: 700, cursor: 'pointer' }}>Toplayanlar</button>
+                    <button onClick={() => handleToggleFieldDrop(drop)} style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', fontWeight: 700, cursor: 'pointer' }}>{drop.isActive ? 'Durdur' : 'Yayınla'}</button>
+                    <button onClick={() => openEditFieldDrop(drop)} style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', fontWeight: 700, cursor: 'pointer' }}>Düzenle</button>
+                    <button onClick={() => handleDeleteFieldDrop(drop.id)} style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid #fecaca', background: '#fef2f2', color: '#b91c1c', fontWeight: 700, cursor: 'pointer' }}>Kaldır</button>
+                  </div>
+                  {selectedFieldDropId === drop.id && (
+                    <div style={{ marginTop: '1rem', borderTop: '1px solid #f1f5f9', paddingTop: '0.85rem' }}>
+                      <div style={{ fontWeight: 800, fontSize: '0.85rem', marginBottom: '0.5rem' }}>Toplayan vatandaşlar</div>
+                      {fieldCapturesList.length === 0 ? (
+                        <div style={{ fontSize: '0.8rem', color: '#64748b' }}>Henüz toplayan yok.</div>
+                      ) : fieldCapturesList.map((cap: any) => (
+                        <div key={cap.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', padding: '6px 0', borderBottom: '1px solid #f8fafc' }}>
+                          <span>{cap.userFullName} · {cap.userEmail}</span>
+                          <span>+{cap.pointsGranted} GP · {Math.round(cap.distanceMeters)} m</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           )}
 
@@ -2226,6 +2483,90 @@ export const Admin: React.FC = () => {
             <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
               <button type="button" onClick={() => setShowAddEventModal(false)} style={{ flex: 1, padding: '10px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '10px', color: '#0f172a', fontWeight: 600, cursor: 'pointer' }}>İptal</button>
               <button type="submit" style={{ flex: 1, padding: '10px', background: '#1d5f60', border: 'none', borderRadius: '10px', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>Etkinliği Yayınla</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {showFieldDropModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <form onSubmit={handleSaveFieldDrop} style={{ width: '640px', maxHeight: '90vh', overflowY: 'auto', background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '20px', padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '0.9rem', boxShadow: '0 20px 40px rgba(0,0,0,0.1)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800 }}>{editingFieldDropId ? 'Saha Hediyesini Düzenle' : 'Konuma Hediye Bırak'}</h3>
+              <button type="button" onClick={() => setShowFieldDropModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}><X size={20} /></button>
+            </div>
+            <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569' }}>Başlık
+              <input required value={fdTitle} onChange={(e) => setFdTitle(e.target.value)} style={{ width: '100%', marginTop: 4, padding: '0.65rem', border: '1px solid #cbd5e1', borderRadius: 8 }} />
+            </label>
+            <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569' }}>Açıklama
+              <textarea value={fdDescription} onChange={(e) => setFdDescription(e.target.value)} rows={2} style={{ width: '100%', marginTop: 4, padding: '0.65rem', border: '1px solid #cbd5e1', borderRadius: 8 }} />
+            </label>
+            <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569' }}>Bağlı tesis (opsiyonel)
+              <select value={fdCafeId} onChange={(e) => {
+                const id = e.target.value;
+                setFdCafeId(id);
+                const cafe = cafesList.find((c: any) => c.id === id);
+                if (cafe?.latitude != null) setFdLat(Number(cafe.latitude));
+                if (cafe?.longitude != null) setFdLng(Number(cafe.longitude));
+              }} style={{ width: '100%', marginTop: 4, padding: '0.65rem', border: '1px solid #cbd5e1', borderRadius: 8 }}>
+                <option value="">Serbest konum</option>
+                {extractArray(cafesList).map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.6rem' }}>
+              <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569' }}>Enlem
+                <input required type="number" step="0.000001" value={fdLat} onChange={(e) => setFdLat(Number(e.target.value))} style={{ width: '100%', marginTop: 4, padding: '0.65rem', border: '1px solid #cbd5e1', borderRadius: 8 }} />
+              </label>
+              <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569' }}>Boylam
+                <input required type="number" step="0.000001" value={fdLng} onChange={(e) => setFdLng(Number(e.target.value))} style={{ width: '100%', marginTop: 4, padding: '0.65rem', border: '1px solid #cbd5e1', borderRadius: 8 }} />
+              </label>
+              <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569' }}>Yarıçap (m)
+                <input required type="number" min={10} max={500} value={fdRadius} onChange={(e) => setFdRadius(Number(e.target.value))} style={{ width: '100%', marginTop: 4, padding: '0.65rem', border: '1px solid #cbd5e1', borderRadius: 8 }} />
+              </label>
+            </div>
+            <iframe
+              title="Konum önizleme"
+              src={`https://www.openstreetmap.org/export/embed.html?bbox=${fdLng-0.01}%2C${fdLat-0.01}%2C${fdLng+0.01}%2C${fdLat+0.01}&layer=mapnik&marker=${fdLat}%2C${fdLng}`}
+              style={{ width: '100%', height: 180, border: '1px solid #e2e8f0', borderRadius: 12 }}
+            />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.6rem' }}>
+              <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569' }}>GölPuan
+                <input required type="number" min={0} value={fdPoints} onChange={(e) => setFdPoints(Number(e.target.value))} style={{ width: '100%', marginTop: 4, padding: '0.65rem', border: '1px solid #cbd5e1', borderRadius: 8 }} />
+              </label>
+              <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569' }}>Stok (boş = sınırsız)
+                <input type="number" min={1} value={fdStock} onChange={(e) => setFdStock(e.target.value === '' ? '' : Number(e.target.value))} style={{ width: '100%', marginTop: 4, padding: '0.65rem', border: '1px solid #cbd5e1', borderRadius: 8 }} />
+              </label>
+              <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569' }}>Kişi başı limit
+                <input required type="number" min={1} value={fdPerUser} onChange={(e) => setFdPerUser(Number(e.target.value))} style={{ width: '100%', marginTop: 4, padding: '0.65rem', border: '1px solid #cbd5e1', borderRadius: 8 }} />
+              </label>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
+              <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569' }}>Başlangıç
+                <input type="datetime-local" value={fdStartsAt} onChange={(e) => setFdStartsAt(e.target.value)} style={{ width: '100%', marginTop: 4, padding: '0.65rem', border: '1px solid #cbd5e1', borderRadius: 8 }} />
+              </label>
+              <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569' }}>Bitiş
+                <input type="datetime-local" value={fdEndsAt} onChange={(e) => setFdEndsAt(e.target.value)} style={{ width: '100%', marginTop: 4, padding: '0.65rem', border: '1px solid #cbd5e1', borderRadius: 8 }} />
+              </label>
+            </div>
+            <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569' }}>Katalog ödülü (opsiyonel)
+              <select value={fdRewardId} onChange={(e) => setFdRewardId(e.target.value)} style={{ width: '100%', marginTop: 4, padding: '0.65rem', border: '1px solid #cbd5e1', borderRadius: 8 }}>
+                <option value="">Yalnızca GölPuan ver</option>
+                {extractArray(rewardsList).map((r: any) => <option key={r.id} value={r.id}>{r.title} ({rewardPoints(r)} GP)</option>)}
+              </select>
+            </label>
+            <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569' }}>3D model URL (GLB, sonraki adım)
+              <input value={fdModelUrl} onChange={(e) => setFdModelUrl(e.target.value)} placeholder="https://.../hediye.glb" style={{ width: '100%', marginTop: 4, padding: '0.65rem', border: '1px solid #cbd5e1', borderRadius: 8 }} />
+            </label>
+            <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569' }}>Görsel
+              <input type="file" accept="image/*" onChange={(e) => handleFileUploadHelper(e, setFdImageUrl)} />
+            </label>
+            {fdImageUrl && <img src={fdImageUrl} alt="" style={{ height: 80, objectFit: 'cover', borderRadius: 8 }} />}
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem', fontWeight: 700 }}>
+              <input type="checkbox" checked={fdActive} onChange={(e) => setFdActive(e.target.checked)} /> Yayında
+            </label>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button type="button" onClick={() => setShowFieldDropModal(false)} style={{ flex: 1, padding: 10, background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: 10, fontWeight: 700, cursor: 'pointer' }}>İptal</button>
+              <button type="submit" disabled={savingFieldDrop} style={{ flex: 1, padding: 10, background: '#1d5f60', border: 'none', borderRadius: 10, color: '#fff', fontWeight: 700, cursor: 'pointer' }}>{savingFieldDrop ? 'Kaydediliyor...' : 'Kaydet'}</button>
             </div>
           </form>
         </div>

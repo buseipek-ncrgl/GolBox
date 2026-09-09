@@ -246,6 +246,29 @@ export const api = {
       body: JSON.stringify(data),
     }),
   getReportsSummary: () => request<any>('/reports/summary'),
+  getFieldDrops: () => request<any>('/field-drops'),
+  getFieldDropCaptures: (id: string) => request<any>(`/field-drops/${id}/captures`),
+  createFieldDrop: (data: any) =>
+    request<any>('/field-drops', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateFieldDrop: (id: string, data: any) =>
+    request<any>(`/field-drops/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  deleteFieldDrop: (id: string) =>
+    request<any>(`/field-drops/${id}`, {
+      method: 'DELETE',
+    }),
+  captureFieldDrop: (id: string, data: any) =>
+    request<any>(`/field-drops/${id}/capture`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  getNearbyFieldDrops: (latitude: number, longitude: number) =>
+    request<any>(`/field-drops/nearby?latitude=${latitude}&longitude=${longitude}`),
   uploadFile: async (file: File) => {
     const token = localStorage.getItem('token');
     const formData = new FormData();

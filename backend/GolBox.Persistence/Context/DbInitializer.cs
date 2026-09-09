@@ -555,6 +555,47 @@ public static class DbInitializer
 
             await context.SaveChangesAsync();
         }
+
+        if (!await context.FieldDrops.AnyAsync(d => d.OrganizationId == orgId))
+        {
+            context.FieldDrops.AddRange(
+                new FieldDrop
+                {
+                    Id = Guid.Parse("dddddddd-dddd-dddd-dddd-ddddddddddd1"),
+                    OrganizationId = orgId,
+                    CafeId = Guid.Parse("33333333-3333-3333-3333-333333333333"),
+                    Title = "Merkez Kitap Kafe GölPuan Kutusu",
+                    Description = "Merkez Kitap Kafe bahçesinde bırakılan saha hediyesi. Yaklaşıp kamerayla al.",
+                    Latitude = 37.0750m,
+                    Longitude = 37.3825m,
+                    RadiusMeters = 40,
+                    PointsGranted = 25,
+                    TotalStock = 100,
+                    PerUserLimit = 1,
+                    StartsAt = DateTime.UtcNow.AddDays(-1),
+                    EndsAt = DateTime.UtcNow.AddDays(60),
+                    IsActive = true
+                },
+                new FieldDrop
+                {
+                    Id = Guid.Parse("dddddddd-dddd-dddd-dddd-ddddddddddd2"),
+                    OrganizationId = orgId,
+                    CafeId = Guid.Parse("33333333-3333-3333-3333-444444444444"),
+                    Title = "Şehitkamil Meydan Rozeti",
+                    Description = "Belediye meydanına bırakılan 3D rozet. Konuma gelince toplanır.",
+                    Latitude = 37.0662m,
+                    Longitude = 37.3781m,
+                    RadiusMeters = 50,
+                    PointsGranted = 40,
+                    TotalStock = 50,
+                    PerUserLimit = 1,
+                    StartsAt = DateTime.UtcNow.AddDays(-1),
+                    EndsAt = DateTime.UtcNow.AddDays(60),
+                    IsActive = true
+                }
+            );
+            await context.SaveChangesAsync();
+        }
     }
 
     private static async System.Threading.Tasks.Task EnsureProviderSchemaAsync(AppDbContext context)
@@ -679,6 +720,51 @@ public static class DbInitializer
                 BranchId TEXT NULL,
                 IsActive INTEGER NOT NULL,
                 LastLoginDate TEXT NULL,
+                CreatedDate TEXT NOT NULL,
+                CreatedBy TEXT NULL,
+                UpdatedDate TEXT NULL,
+                UpdatedBy TEXT NULL,
+                DeletedDate TEXT NULL,
+                DeletedBy TEXT NULL,
+                IsDeleted INTEGER NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS FieldDrops (
+                Id TEXT NOT NULL PRIMARY KEY,
+                OrganizationId TEXT NOT NULL,
+                CafeId TEXT NULL,
+                CatalogRewardId TEXT NULL,
+                Title TEXT NOT NULL,
+                Description TEXT NOT NULL,
+                Latitude TEXT NOT NULL,
+                Longitude TEXT NOT NULL,
+                RadiusMeters INTEGER NOT NULL,
+                PointsGranted INTEGER NOT NULL,
+                TotalStock INTEGER NULL,
+                CapturedCount INTEGER NOT NULL,
+                PerUserLimit INTEGER NOT NULL,
+                StartsAt TEXT NOT NULL,
+                EndsAt TEXT NOT NULL,
+                ImageUrl TEXT NULL,
+                ModelGlbUrl TEXT NULL,
+                IsActive INTEGER NOT NULL,
+                CreatedDate TEXT NOT NULL,
+                CreatedBy TEXT NULL,
+                UpdatedDate TEXT NULL,
+                UpdatedBy TEXT NULL,
+                DeletedDate TEXT NULL,
+                DeletedBy TEXT NULL,
+                IsDeleted INTEGER NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS UserFieldCaptures (
+                Id TEXT NOT NULL PRIMARY KEY,
+                OrganizationId TEXT NOT NULL,
+                FieldDropId TEXT NOT NULL,
+                UserId TEXT NOT NULL,
+                CapturedLatitude TEXT NOT NULL,
+                CapturedLongitude TEXT NOT NULL,
+                AccuracyMeters REAL NULL,
+                PointsGranted INTEGER NOT NULL,
+                DistanceMeters REAL NOT NULL,
                 CreatedDate TEXT NOT NULL,
                 CreatedBy TEXT NULL,
                 UpdatedDate TEXT NULL,

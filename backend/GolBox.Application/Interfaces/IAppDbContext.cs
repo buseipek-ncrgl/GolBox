@@ -30,6 +30,8 @@ public interface IAppDbContext
     DbSet<NotificationRecord> Notifications { get; }
     DbSet<Coupon> Coupons { get; }
     DbSet<StaffUser> StaffUsers { get; }
+    DbSet<FieldDrop> FieldDrops { get; }
+    DbSet<UserFieldCapture> UserFieldCaptures { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

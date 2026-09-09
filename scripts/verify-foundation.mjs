@@ -117,6 +117,79 @@ async function main() {
     assert(Array.isArray(json.data.items), 'ledger items missing');
   });
 
+  await check('existing admin modules still load', async () => {
+    for (const path of ['/users', '/cafes', '/menu-items', '/orders', '/rewards', '/campaigns', '/activities', '/notifications', '/auditlogs', '/dashboard/overview']) {
+      const { status, json } = await req(path, { token });
+      assert(status === 200 && json?.success !== false, `${path} failed ${status} ${JSON.stringify(json)}`);
+    }
+  });
+
+  let dropId;
+  await check('admin lists and creates field drops', async () => {
+    const list = await req('/field-drops', { token });
+    assert(list.status === 200 && Array.isArray(list.json.data) && list.json.data.length >= 2, `seed drops missing ${JSON.stringify(list.json)}`);
+    const created = await req('/field-drops', {
+      method: 'POST',
+      token,
+      body: {
+        title: 'Test Pin',
+        description: 'Doğrulama pini',
+        latitude: 37.07,
+        longitude: 37.38,
+        radiusMeters: 40,
+        pointsGranted: 15,
+        totalStock: 5,
+        perUserLimit: 1,
+        isActive: true,
+      },
+    });
+    assert(created.status === 200 && created.json.success && created.json.data.id, `create drop failed ${JSON.stringify(created.json)}`);
+    dropId = created.json.data.id;
+    const updated = await req(`/field-drops/${dropId}`, {
+      method: 'PUT',
+      token,
+      body: {
+        title: 'Test Pin Güncel',
+        description: 'Doğrulama pini',
+        latitude: 37.07,
+        longitude: 37.38,
+        radiusMeters: 40,
+        pointsGranted: 15,
+        totalStock: 5,
+        perUserLimit: 1,
+        isActive: true,
+      },
+    });
+    assert(updated.status === 200 && updated.json.success, `update drop failed ${JSON.stringify(updated.json)}`);
+  });
+
+  await check('capture rejects out of range then accepts in range once', async () => {
+    const citizenLogin = await req('/auth/login', {
+      method: 'POST',
+      body: { email: 'user@golbox.com', password: 'User123!' },
+    });
+    assert(citizenLogin.json?.data?.accessToken, 'citizen login failed');
+    const citizenToken = citizenLogin.json.data.accessToken;
+    const far = await req(`/field-drops/${dropId}/capture`, {
+      method: 'POST',
+      token: citizenToken,
+      body: { latitude: 36.0, longitude: 36.0 },
+    });
+    assert(far.json?.success === false, `expected out-of-range reject, got ${JSON.stringify(far.json)}`);
+    const near = await req(`/field-drops/${dropId}/capture`, {
+      method: 'POST',
+      token: citizenToken,
+      body: { latitude: 37.07, longitude: 37.38 },
+    });
+    assert(near.status === 200 && near.json.success, `in-range capture failed ${JSON.stringify(near.json)}`);
+    const again = await req(`/field-drops/${dropId}/capture`, {
+      method: 'POST',
+      token: citizenToken,
+      body: { latitude: 37.07, longitude: 37.38 },
+    });
+    assert(again.json?.success === false, `expected duplicate reject, got ${JSON.stringify(again.json)}`);
+  });
+
   if (failures.length) {
     console.error(`\n${failures.length} foundation check(s) failed.`);
     process.exit(1);
