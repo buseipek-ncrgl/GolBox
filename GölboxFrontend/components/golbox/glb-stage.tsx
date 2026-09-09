@@ -80,10 +80,18 @@ export function GlbStage({
       object.position.sub(center)
       const longest = Math.max(size.x, size.y, size.z, 0.001)
       object.scale.setScalar(1.25 / longest)
+      object.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          child.material = new THREE.MeshStandardMaterial({
+            color: 0xd4a017,
+            metalness: 0.62,
+            roughness: 0.3,
+          })
+        }
+      })
     }
 
-    canvas.style.opacity = "0"
-    canvas.style.pointerEvents = "none"
+    canvas.style.display = "none"
 
     loadTimer = window.setTimeout(() => {
       if (!cancelled && !model) onError()
@@ -97,6 +105,7 @@ export function GlbStage({
         model = gltf.scene
         fit(model)
         scene.add(model)
+        canvas.style.display = "block"
         canvas.style.opacity = "1"
       },
       undefined,
