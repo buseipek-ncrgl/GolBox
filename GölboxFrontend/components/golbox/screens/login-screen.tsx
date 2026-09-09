@@ -4,7 +4,7 @@ import React, { useState } from "react"
 import { useGolbox } from "@/lib/golbox-context"
 import { LogIn, UserPlus, ShieldCheck } from "lucide-react"
 
-export function LoginScreen() {
+export function LoginScreen({ onClose }: { onClose?: () => void }) {
   const { login, register, loading } = useGolbox()
   const [isRegister, setIsRegister] = useState(false)
   const [email, setEmail] = useState("")
@@ -41,8 +41,13 @@ export function LoginScreen() {
         </div>
         <h2 className="font-serif text-2xl font-bold text-foreground">GölBox Gaziantep Şehitkamil</h2>
         <p className="mt-1.5 text-center text-xs text-muted-foreground px-4">
-          Şehitkamil Belediyesi Akıllı Şehir & Sadakat Portalı.
+          Şehitkamil Belediyesi sadakat uygulaması.
         </p>
+        {onClose && (
+          <button type="button" onClick={onClose} className="mt-3 text-sm font-medium text-primary">
+            Haritaya dön
+          </button>
+        )}
       </div>
 
       <div className="mb-4">

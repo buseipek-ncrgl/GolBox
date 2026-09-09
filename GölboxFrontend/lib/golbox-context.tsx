@@ -106,6 +106,7 @@ interface GolboxContextType {
   uploadFile: (file: File) => Promise<string | null>
   refreshData: () => Promise<void>
   loadNearbyFieldDrops: (latitude: number, longitude: number) => Promise<void>
+  captureFieldDrop: (id: string, latitude: number, longitude: number) => Promise<boolean>
 }
 
 const GolboxContext = createContext<GolboxContextType | null>(null)
@@ -459,6 +460,38 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
     }
   }, [token])
 
+  const captureFieldDrop = useCallback(async (id: string, latitude: number, longitude: number) => {
+    if (!token) {
+      showToast("Toplamak için giriş yapın.")
+      return false
+    }
+    setLoading(true)
+    try {
+      const res = await fetch(`${API_BASE_URL}/field-drops/${id}/capture`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ latitude, longitude })
+      })
+      const data = await res.json()
+      if (res.ok && data.success) {
+        const points = data.data?.pointsGranted ?? 0
+        showToast(points ? `Saha hediyesi alındı. +${points} GP` : "Saha hediyesi alındı.")
+        await refreshData()
+        await loadNearbyFieldDrops(latitude, longitude)
+        setLoading(false)
+        return true
+      }
+      showToast(data.message || "Bu hediye alınamadı.")
+    } catch {
+      showToast("Toplama isteği gönderilemedi.")
+    }
+    setLoading(false)
+    return false
+  }, [token, showToast, refreshData, loadNearbyFieldDrops])
+
   return (
     <GolboxContext.Provider
       value={{
@@ -477,7 +510,8 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
         claimReward,
         uploadFile,
         refreshData,
-        loadNearbyFieldDrops
+        loadNearbyFieldDrops,
+        captureFieldDrop
       }}
     >
       {children}

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { MapPin, Navigation } from "lucide-react"
 import { useGolbox } from "@/lib/golbox-context"
+import { LoginScreen } from "@/components/golbox/screens/login-screen"
 
 const SEHITKAMIL = { lat: 37.0662, lng: 37.3781 }
 
@@ -18,10 +19,17 @@ function formatDistance(meters: number) {
 }
 
 export function MapScreen() {
-  const { fieldDrops, loadNearbyFieldDrops } = useGolbox()
+  const { fieldDrops, loadNearbyFieldDrops, captureFieldDrop, token, loading } = useGolbox()
   const [origin, setOrigin] = useState(SEHITKAMIL)
   const [usingFallback, setUsingFallback] = useState(true)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [showLogin, setShowLogin] = useState(false)
+  const [capturedIds, setCapturedIds] = useState<string[]>([])
+  const [busyId, setBusyId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (token) setShowLogin(false)
+  }, [token])
 
   useEffect(() => {
     let cancelled = false
@@ -65,14 +73,29 @@ export function MapScreen() {
   const mapLat = selected ? Number(selected.latitude) : origin.lat
   const mapLng = selected ? Number(selected.longitude) : origin.lng
 
+  const handleCapture = async (dropId: string) => {
+    if (!token) {
+      setShowLogin(true)
+      return
+    }
+    setBusyId(dropId)
+    const ok = await captureFieldDrop(dropId, origin.lat, origin.lng)
+    if (ok) setCapturedIds((prev) => (prev.includes(dropId) ? prev : [...prev, dropId]))
+    setBusyId(null)
+  }
+
+  if (showLogin && !token) {
+    return <LoginScreen onClose={() => setShowLogin(false)} />
+  }
+
   return (
     <div className="gol-fade-up flex h-full flex-col px-5 pb-4 pt-3">
       <header className="mb-3 space-y-1">
         <h1 className="font-serif text-2xl text-foreground">Saha haritası</h1>
         <p className="text-sm text-muted-foreground">
           {usingFallback
-            ? "Konum alınamadı. Şehitkamil merkezi gösteriliyor. Admin durdurursa pin düşer."
-            : "Yayındaki saha hediyeleri. Admin durdurursa haritadan düşer."}
+            ? "Konum alınamadı. Şehitkamil merkezi kullanılıyor. Yarıçap içinde Al çalışır."
+            : "Yarıçapa girince Al. Dışarıda veya ikinci kez alınmaz."}
         </p>
       </header>
 
@@ -92,33 +115,57 @@ export function MapScreen() {
         ) : (
           fieldDrops.map((drop) => {
             const active = (selected?.id ?? "") === drop.id
+            const already = capturedIds.includes(drop.id)
+            const remaining = Math.max(0, Number(drop.distanceMeters) - Number(drop.radiusMeters))
             return (
               <li key={drop.id}>
-                <button
-                  type="button"
-                  onClick={() => setSelectedId(drop.id)}
-                  className={`flex w-full items-start gap-3 rounded-3xl border p-4 text-left transition-colors ${
+                <div
+                  className={`rounded-3xl border p-4 ${
                     active ? "border-primary bg-card" : "border-border bg-card"
                   }`}
                 >
-                  <span className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-2xl bg-secondary text-primary">
-                    <MapPin className="size-5" strokeWidth={2} />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block font-semibold text-card-foreground">{drop.title}</span>
-                    <span className="mt-0.5 line-clamp-2 block text-sm text-muted-foreground">
-                      {drop.description}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedId(drop.id)}
+                    className="flex w-full items-start gap-3 text-left"
+                  >
+                    <span className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-2xl bg-secondary text-primary">
+                      <MapPin className="size-5" strokeWidth={2} />
                     </span>
-                    <span className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-                      <Navigation className="size-3.5" />
-                      {formatDistance(Number(drop.distanceMeters))}
-                      <span>· {drop.radiusMeters} m yarıçap</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block font-semibold text-card-foreground">{drop.title}</span>
+                      <span className="mt-0.5 line-clamp-2 block text-sm text-muted-foreground">
+                        {drop.description}
+                      </span>
+                      <span className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                        <Navigation className="size-3.5" />
+                        {formatDistance(Number(drop.distanceMeters))}
+                        <span>· {drop.radiusMeters} m yarıçap</span>
+                      </span>
                     </span>
-                  </span>
-                  <span className="shrink-0 rounded-full bg-accent/20 px-2.5 py-1 text-xs font-semibold text-accent-foreground">
-                    +{drop.pointsGranted} GP
-                  </span>
-                </button>
+                    <span className="shrink-0 rounded-full bg-accent/20 px-2.5 py-1 text-xs font-semibold text-accent-foreground">
+                      +{drop.pointsGranted} GP
+                    </span>
+                  </button>
+                  <div className="mt-3">
+                    {already ? (
+                      <p className="text-sm font-medium text-primary">Toplandı</p>
+                    ) : drop.inRange ? (
+                      <button
+                        type="button"
+                        disabled={loading || busyId === drop.id}
+                        onClick={() => handleCapture(drop.id)}
+                        className="w-full rounded-2xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+                      >
+                        {busyId === drop.id ? "Alınıyor..." : token ? "Al" : "Giriş yap ve al"}
+                      </button>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        Henüz yeterince yakın değilsiniz. Kalan yaklaşık {Math.ceil(remaining)} m.
+                      </p>
+                    )}
+                  </div>
+                </div>
               </li>
             )
           })
