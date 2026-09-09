@@ -67,7 +67,7 @@ public class ApprovalRequestsController : BaseApiController
             request.Note ?? "Onay merkezi işlemi gerçekleştirildi"
         );
 
-        return Ok(Result<object>.Ok(null, $"Onay talebi '{approval.Status}' olarak güncellendi."));
+        return Ok(Result<object>.Ok(new { id, status = approval.Status }, $"Onay talebi '{approval.Status}' olarak güncellendi."));
     }
 
     public class ApprovalActionRequest

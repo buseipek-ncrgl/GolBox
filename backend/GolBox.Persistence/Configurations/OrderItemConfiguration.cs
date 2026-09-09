@@ -32,6 +32,6 @@ public class OrderItemConfiguration : IEntityTypeConfiguration<OrderItem>
 
         // Global query filter for soft delete
         builder.HasQueryFilter(x => !x.IsDeleted);
-        builder.HasIndex(x => x.IsDeleted).HasFilter("[IsDeleted] = 0");
+        builder.HasIndex(x => x.IsDeleted).HasFilter("IsDeleted = 0");
     }
 }

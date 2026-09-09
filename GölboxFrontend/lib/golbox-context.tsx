@@ -134,14 +134,15 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
       const cafesRes = await fetch(`${API_BASE_URL}/cafes`, { headers: authHeader })
       if (cafesRes.ok) {
         const res = await cafesRes.json()
-        const fetchedCafes: Cafe[] = res.data || []
+        const fetchedCafes: Cafe[] = Array.isArray(res.data) ? res.data : []
 
         const enrichedCafes = await Promise.all(
           fetchedCafes.map(async (c) => {
             const menuRes = await fetch(`${API_BASE_URL}/cafes/${c.id}/menu`, { headers: authHeader })
             if (menuRes.ok) {
               const menuData = await menuRes.json()
-              return { ...c, menuItems: menuData.data || [] }
+              const menuPayload = menuData.data
+              return { ...c, menuItems: Array.isArray(menuPayload) ? menuPayload : [] }
             }
             return { ...c, menuItems: [] }
           })
@@ -195,7 +196,7 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
         const ordersRes = await fetch(`${API_BASE_URL}/orders`, { headers: authHeader })
         if (ordersRes.ok) {
           const res = await ordersRes.json()
-          setOrders(res.data || [])
+          setOrders(Array.isArray(res.data) ? res.data : [])
         }
       }
 

@@ -20,6 +20,16 @@ const extractArray = (res: any): any[] => {
   return [];
 };
 
+const createdId = (res: any): string | null => {
+  if (!res) return null;
+  if (typeof res === 'string') return res;
+  if (typeof res === 'object') return res.id || res.orderId || null;
+  return null;
+};
+
+const rewardPoints = (reward: any): number =>
+  Number(reward?.requiredPoints ?? reward?.pointsRequired ?? 0);
+
 export const Admin: React.FC = () => {
   const { logout, user: currentUser } = useAuth();
   
@@ -150,8 +160,16 @@ export const Admin: React.FC = () => {
     setError(null);
     try {
       if (activeMenu === 'overview') {
-        const data = await api.getDashboardOverview();
+        const [data, orders, users, cafes] = await Promise.all([
+          api.getDashboardOverview(),
+          api.getOrders().catch(() => []),
+          api.getUsers().catch(() => []),
+          api.getCafes().catch(() => []),
+        ]);
         setOverviewData(data);
+        setOrdersList(extractArray(orders));
+        setUsersList(extractArray(users));
+        setCafesList(extractArray(cafes));
       } else if (activeMenu === 'users') {
         const users = await api.getUsers();
         setUsersList(extractArray(users));
@@ -159,21 +177,25 @@ export const Admin: React.FC = () => {
         const cafes = await api.getCafes();
         setCafesList(extractArray(cafes));
       } else if (activeMenu === 'products') {
-        const cafes = await api.getCafes();
-        const safeCafes = extractArray(cafes);
-        setCafesList(safeCafes);
-        const targetCafe = newProdCafeId || (safeCafes[0]?.id ?? '');
-        if (targetCafe) {
-          const menu = await api.getMenuItems(targetCafe);
-          setMenuItemsList(extractArray(menu));
-        }
-      } else if (activeMenu === 'qr' || activeMenu === 'ismarliyor') {
-        const orders = await api.getOrders();
-        setOrdersList(extractArray(orders));
-        const cafes = await api.getCafes();
+        const [cafes, menu] = await Promise.all([
+          api.getCafes(),
+          api.getAllMenuItems().catch(() => []),
+        ]);
         setCafesList(extractArray(cafes));
+        setMenuItemsList(extractArray(menu));
+      } else if (activeMenu === 'qr' || activeMenu === 'ismarliyor') {
+        const [orders, cafes, users, menu] = await Promise.all([
+          api.getOrders(),
+          api.getCafes(),
+          api.getUsers().catch(() => []),
+          api.getAllMenuItems().catch(() => []),
+        ]);
+        setOrdersList(extractArray(orders));
+        setCafesList(extractArray(cafes));
+        setUsersList(extractArray(users));
+        setMenuItemsList(extractArray(menu));
       } else if (activeMenu === 'points') {
-        const pts = await api.getPointsHistory();
+        const pts = await api.getPointsLedger();
         setPointsList(extractArray(pts));
       } else if (activeMenu === 'rewards') {
         const r = await api.getRewards();
@@ -190,6 +212,9 @@ export const Admin: React.FC = () => {
       } else if (activeMenu === 'audit') {
         const logs = await api.getAuditLogs();
         setAuditLogsList(extractArray(logs));
+      } else if (activeMenu === 'roles') {
+        const users = await api.getUsers();
+        setUsersList(extractArray(users));
       }
     } catch (err: any) {
       setError(err.message || 'Veri yükleme hatası.');
@@ -273,7 +298,7 @@ export const Admin: React.FC = () => {
     if (!selectedCafeDetail) return;
     setSavingCafeEdit(true);
     try {
-      await api.createCafe({
+      await api.updateCafe(selectedCafeDetail.id, {
         name: editCafeName,
         address: editCafeAddress,
         imageUrl: editCafeImageUrl || undefined,
@@ -300,24 +325,12 @@ export const Admin: React.FC = () => {
         categoryId: '22222222-2222-2222-2222-222222222222'
       });
 
-      const assignedMenuItems = selectedProductIdsForCafe.length > 0 
-        ? menuItemsList.filter(m => selectedProductIdsForCafe.includes(m.id))
-        : [
-            { id: 'm-1', name: 'Sıcak Filtre Kahve', description: 'Taze demlenmiş filtre kahve', price: 25 },
-            { id: 'm-2', name: 'Türk Kahvesi & Lokum', description: 'Geleneksel Türk kahvesi', price: 20 }
-          ];
+      const cafeId = createdId(res);
+      if (!cafeId) {
+        throw new Error('Tesis oluşturuldu ancak kimlik dönmedi.');
+      }
 
-      const cafeObj = res?.id ? { ...res, menuItems: assignedMenuItems } : {
-        id: 'cafe-' + Date.now(),
-        name: newCafeName,
-        address: newCafeAddress,
-        imageUrl: newCafeImageUrl || uploadedImageUrl || undefined,
-        status: 'Active',
-        menuItems: assignedMenuItems
-      };
-
-      setCafesList(prev => [cafeObj, ...extractArray(prev)]);
-      setSuccess(`✨ Yeni Şehitkamil Tesis/Şube '${newCafeName}' (${assignedMenuItems.length} Adet Özel Menü Ürünü İle) eklendi!`);
+      setSuccess(`✨ Yeni Şehitkamil Tesis/Şube '${newCafeName}' eklendi!`);
       setShowAddCafeModal(false);
       setNewCafeName('');
       setNewCafeAddress('');
@@ -344,18 +357,11 @@ export const Admin: React.FC = () => {
         imageUrl: uploadedImageUrl || undefined,
         requiredEducation: undefined
       });
-      
-      const productObj = newItem?.id ? { ...newItem, cafeId: targetCafeId, cafeName: cafeNameLabel } : {
-        id: 'prod-' + Date.now(),
-        name: newProdName,
-        description: newProdDesc,
-        price: Number(newProdPrice),
-        imageUrl: uploadedImageUrl || undefined,
-        cafeId: targetCafeId,
-        cafeName: cafeNameLabel
-      };
 
-      setMenuItemsList(prev => [productObj, ...extractArray(prev)]);
+      if (!createdId(newItem)) {
+        throw new Error('Ürün oluşturuldu ancak kimlik dönmedi.');
+      }
+
       setSuccess(`✨ Yeni Ürün '${newProdName}' (${newProdPrice} TL - ${cafeNameLabel}) fotoğraflı olarak menüye eklendi!`);
       setShowAddProductModal(false);
       setNewProdName('');
@@ -377,25 +383,11 @@ export const Admin: React.FC = () => {
         description: newRewardDesc,
         requiredPoints: Number(newRewardPoints),
         imageUrl: uploadedImageUrl || undefined
-      }).catch(() => null);
+      });
 
-      const newRewardItem = res?.id ? { ...res, pointsRequired: Number(newRewardPoints) } : {
-        id: 'rew-' + Date.now(),
-        title: newRewardTitle,
-        description: newRewardDesc,
-        requiredPoints: Number(newRewardPoints),
-        pointsRequired: Number(newRewardPoints),
-        imageUrl: uploadedImageUrl || undefined,
-        status: 'Active'
-      };
-
-      setRewardsList(prev => [newRewardItem, ...extractArray(prev)]);
-      
-      // Save custom reward to localStorage so it persists permanently
-      try {
-        const saved = JSON.parse(localStorage.getItem('golbox_custom_rewards') || '[]');
-        localStorage.setItem('golbox_custom_rewards', JSON.stringify([newRewardItem, ...saved]));
-      } catch (err) {}
+      if (!createdId(res)) {
+        throw new Error('Ödül oluşturuldu ancak kimlik dönmedi.');
+      }
 
       setSuccess(`✨ Yeni İkram/Ödül '${newRewardTitle}' (${newRewardPoints} GP) eklendi!`);
       setShowAddRewardModal(false);
@@ -403,6 +395,7 @@ export const Admin: React.FC = () => {
       setNewRewardDesc('');
       setNewRewardPoints(50);
       setUploadedImageUrl('');
+      fetchData();
     } catch (err: any) {
       setError(err.message || 'Ödül eklenemedi.');
     }
@@ -412,38 +405,49 @@ export const Admin: React.FC = () => {
   const handleCreateIsmarliyor = async (e: React.FormEvent) => {
     e.preventDefault();
     const selectedCafeObj = cafesList.find(c => c.id === newIsmCafeId) || cafesList[0];
-    const targetCafeName = selectedCafeObj?.name || 'Şehitkamil Merkez Kitap Kafe';
     const targetCafeId = selectedCafeObj?.id || '33333333-3333-3333-3333-333333333333';
     const donatorName = newIsmUserFullName && newIsmUserFullName.trim() ? newIsmUserFullName.trim() : 'Enes Çıkçık (Hayırsever Vatandaş)';
-    
+
     try {
-      const newOrder = {
-        id: 'ism-' + Date.now(),
-        collectionCode: 'GB-' + Math.floor(1000 + Math.random() * 9000),
-        userFullName: donatorName,
+      const citizen = usersList.find((u: any) => {
+        const full = `${u.firstName || ''} ${u.lastName || ''}`.trim().toLowerCase();
+        return full && donatorName.toLowerCase().includes(full);
+      }) || usersList[0];
+
+      const menuMatch = menuItemsList.find((m: any) =>
+        String(m.name || '').toLowerCase().includes(String(newIsmItemName || '').toLowerCase())
+      ) || menuItemsList[0];
+
+      if (!citizen?.id) {
+        throw new Error('Ismarlıyor için kayıtlı bir vatandaş bulunamadı.');
+      }
+      if (!menuMatch?.id) {
+        throw new Error('Ismarlıyor için menü ürünü bulunamadı. Önce ürün ekleyin.');
+      }
+
+      const created = await api.createOrder({
+        userId: citizen.id,
         cafeId: targetCafeId,
-        cafeName: targetCafeName,
-        totalAmount: Number(newIsmAmount) || 45,
+        paidWithPoints: false,
         imageUrl: newIsmProofUrl || uploadedImageUrl || undefined,
-        status: 'Ready',
-        targetCriteria: newIsmTargetCriteria || 'Gençler',
-        createdDate: new Date().toISOString(),
         items: [
           {
-            menuItemId: 'item-1',
-            name: newIsmItemName || 'Filtre Kahve',
-            quantity: Number(newIsmQuantity) || 1,
-            unitPrice: Number(newIsmAmount) || 45
+            menuItemId: menuMatch.id,
+            quantity: Number(newIsmQuantity) || 1
           }
         ]
-      };
-      
-      setOrdersList(prev => [newOrder, ...extractArray(prev)]);
-      setSuccess(`✨ Gaziantep Şehitkamil Belediyesi Ismarlıyor (${newOrder.collectionCode}) [${donatorName}] ikramı yayınlandı!`);
+      });
+
+      if (!createdId(created)) {
+        throw new Error('Ismarlıyor oluşturuldu ancak kimlik dönmedi.');
+      }
+
+      setSuccess(`✨ Gaziantep Şehitkamil Belediyesi Ismarlıyor (${created.collectionCode || createdId(created)}) [${donatorName}] ikramı yayınlandı!`);
       setShowAddIsmarliyorModal(false);
       setNewIsmUserFullName('');
       setNewIsmProofUrl('');
       setUploadedImageUrl('');
+      fetchData();
     } catch (err: any) {
       setError(err.message || 'Ismarlıyor oluşturulamadı.');
     }
@@ -541,9 +545,20 @@ export const Admin: React.FC = () => {
       setError('Lütfen bildirim başlığı ve mesajı girin.');
       return;
     }
-    setSuccess(`📢 Toplu Anlık Bildirim (${pushTargetGroup}) kitleye başarıyla gönderildi!`);
-    setPushTitle('');
-    setPushMessage('');
+    try {
+      await api.sendNotification({
+        title: pushTitle,
+        message: pushMessage,
+        targetUserGroup: pushTargetGroup || 'All',
+        notificationType: 'General'
+      });
+      setSuccess(`📢 Toplu anlık bildirim (${pushTargetGroup}) kaydedildi.`);
+      setPushTitle('');
+      setPushMessage('');
+      fetchData();
+    } catch (err: any) {
+      setError(err.message || 'Bildirim gönderilemedi.');
+    }
   };
 
   // Single Click Order Status Update
@@ -561,7 +576,8 @@ export const Admin: React.FC = () => {
   const handleOpenUserDrawer = async (user: any) => {
     try {
       const detail = await api.getUserDetail(user.id);
-      setSelectedUserDrawer(detail || user);
+      const profile = detail?.profile ? { ...detail.profile, ...detail } : (detail || user);
+      setSelectedUserDrawer(profile);
     } catch (err: any) {
       setSelectedUserDrawer(user);
     }
@@ -893,7 +909,7 @@ export const Admin: React.FC = () => {
                     <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#1d5f60', letterSpacing: '0.05em', textTransform: 'uppercase' }}>TOPLAM VATANDAŞ KULLANICI</div>
                     <span style={{ background: '#dcfce7', color: '#15803d', padding: '2px 8px', borderRadius: '100px', fontSize: '0.7rem', fontWeight: 800 }}>↗ +14.2%</span>
                   </div>
-                  <div style={{ fontSize: '2rem', fontWeight: 800, color: '#0f172a', marginTop: '6px' }}>{overviewData?.totalUsers ?? usersList.length ?? 1250}</div>
+                  <div style={{ fontSize: '2rem', fontWeight: 800, color: '#0f172a', marginTop: '6px' }}>{overviewData?.totalUsers ?? overviewData?.metrics?.registeredCitizensCount ?? usersList.length ?? 0}</div>
                   <div style={{ fontSize: '0.75rem', color: '#16a34a', marginTop: '6px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
                     <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#16a34a' }} />
                     %100 Şehitkamil Doğrulanmış
@@ -905,7 +921,7 @@ export const Admin: React.FC = () => {
                     <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#0284c7', letterSpacing: '0.05em', textTransform: 'uppercase' }}>DAĞITILAN GÖLPUAN</div>
                     <span style={{ background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: '100px', fontSize: '0.7rem', fontWeight: 800 }}>⚡ 4,850 GP</span>
                   </div>
-                  <div style={{ fontSize: '2rem', fontWeight: 800, color: '#0f172a', marginTop: '6px' }}>4,850 GP</div>
+                  <div style={{ fontSize: '2rem', fontWeight: 800, color: '#0f172a', marginTop: '6px' }}>{overviewData?.todayEarnedPoints ?? overviewData?.metrics?.todayEarnedPoints ?? 0} GP</div>
                   <div style={{ fontSize: '0.75rem', color: '#0284c7', marginTop: '6px', fontWeight: 600 }}>Gençlik & Etkinlik Bonusu</div>
                 </div>
 
@@ -914,7 +930,7 @@ export const Admin: React.FC = () => {
                     <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#d97706', letterSpacing: '0.05em', textTransform: 'uppercase' }}>BEKLEYEN ISMARLIYOR</div>
                     <span style={{ background: '#fef3c7', color: '#b45309', padding: '2px 8px', borderRadius: '100px', fontSize: '0.7rem', fontWeight: 800 }}>☕ Askıda</span>
                   </div>
-                  <div style={{ fontSize: '2rem', fontWeight: 800, color: '#0f172a', marginTop: '6px' }}>{ordersList.length > 0 ? ordersList.length : 6} Başvuru</div>
+                  <div style={{ fontSize: '2rem', fontWeight: 800, color: '#0f172a', marginTop: '6px' }}>{overviewData?.pendingOrders ?? overviewData?.metrics?.pendingOrdersCount ?? getIsmarliyorList().filter((o: any) => o.status === 'Pending' || o.status === 'Preparing').length} Başvuru</div>
                   <div style={{ fontSize: '0.75rem', color: '#d97706', marginTop: '6px', fontWeight: 600 }}>Onay & Teslimat Bekliyor</div>
                 </div>
 
@@ -923,7 +939,7 @@ export const Admin: React.FC = () => {
                     <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#16a34a', letterSpacing: '0.05em', textTransform: 'uppercase' }}>BUGÜNKÜ QR TARAMASI</div>
                     <span style={{ background: '#dcfce7', color: '#15803d', padding: '2px 8px', borderRadius: '100px', fontSize: '0.7rem', fontWeight: 800 }}>⚡ Canlı</span>
                   </div>
-                  <div style={{ fontSize: '2rem', fontWeight: 800, color: '#0f172a', marginTop: '6px' }}>342 İşlem</div>
+                  <div style={{ fontSize: '2rem', fontWeight: 800, color: '#0f172a', marginTop: '6px' }}>{overviewData?.todayOrders ?? overviewData?.metrics?.todayOrdersCount ?? 0} İşlem</div>
                   <div style={{ fontSize: '0.75rem', color: '#16a34a', marginTop: '6px', fontWeight: 600 }}>Şehitkamil Kitap Kafeler</div>
                 </div>
               </div>
@@ -1239,17 +1255,12 @@ export const Admin: React.FC = () => {
 
               {/* Rewards Cards Grid */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
-                {getFilteredList(rewardsList.length > 0 ? rewardsList : [
-                  { id: 'rew-1', title: '☕ Ücretsiz Filtre Kahve', description: 'Şehitkamil Kitap Kafelerde geçerli sıcak taze filtre kahve ikramı.', pointsRequired: 50, isAvailable: true },
-                  { id: 'rew-2', title: '🍰 Günün Dilim Pastası', description: 'Kitap Kafe günlük taze dilim pasta veya cheesecake ikramı.', pointsRequired: 100, isAvailable: true },
-                  { id: 'rew-3', title: '🥐 Sıcak Kruvasan & Taze Çay', description: 'Taze fırınlanmış kruvasan ve sınırsız demli çay ikramı.', pointsRequired: 75, isAvailable: true },
-                  { id: 'rew-4', title: '📚 %50 Kitap Satın Alma İndirim Kuponu', description: 'Gençlik Merkezleri ve Kitap Kafe kütüphanelerinde %50 indirim.', pointsRequired: 120, isAvailable: true }
-                ]).map((r) => (
+                {getFilteredList(rewardsList).map((r) => (
                   <div key={r.id} style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', boxShadow: '0 4px 20px -2px rgba(0,0,0,0.03)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                       <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#0f172a' }}>{r.title}</h3>
                       <span style={{ background: '#fef3c7', color: '#b45309', padding: '4px 10px', borderRadius: '100px', fontSize: '0.85rem', fontWeight: 800 }}>
-                        {r.pointsRequired} GP
+                        {rewardPoints(r)} GP
                       </span>
                     </div>
                     <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>{r.description}</p>
@@ -1525,6 +1536,81 @@ export const Admin: React.FC = () => {
                     <Download size={16} /> PDF Rapor İndir
                   </button>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {activeMenu === 'points' && (
+            <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>GölPuan Defteri</h1>
+              <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: 0 }}>Tüm vatandaşların puan hareketleri.</p>
+              <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '16px', overflow: 'hidden' }}>
+                {getFilteredList(pointsList).length === 0 ? (
+                  <p style={{ padding: '1.5rem', color: '#64748b' }}>Henüz puan hareketi yok.</p>
+                ) : getFilteredList(pointsList).map((pt: any) => (
+                  <div key={pt.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.9rem 1.25rem', borderBottom: '1px solid #f1f5f9' }}>
+                    <div>
+                      <div style={{ fontWeight: 700 }}>{pt.userFullName || pt.description}</div>
+                      <div style={{ fontSize: '0.8rem', color: '#64748b' }}>{pt.description} · {pt.type}</div>
+                    </div>
+                    <div style={{ fontWeight: 800, color: pt.amount >= 0 ? '#15803d' : '#b91c1c' }}>{pt.amount > 0 ? '+' : ''}{pt.amount} GP</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeMenu === 'qr' && (
+            <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>QR & Teslim Kayıtları</h1>
+              <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: 0 }}>Ismarlıyor teslim kodları ve sipariş durumları.</p>
+              <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '16px', overflow: 'hidden' }}>
+                {getFilteredList(ordersList).length === 0 ? (
+                  <p style={{ padding: '1.5rem', color: '#64748b' }}>Kayıtlı teslim işlemi yok.</p>
+                ) : getFilteredList(ordersList).map((o: any) => (
+                  <div key={o.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.9rem 1.25rem', borderBottom: '1px solid #f1f5f9' }}>
+                    <div>
+                      <div style={{ fontWeight: 800, color: '#1d5f60' }}>{o.collectionCode}</div>
+                      <div style={{ fontSize: '0.8rem', color: '#64748b' }}>{o.userFullName} · {o.cafeName}</div>
+                    </div>
+                    <div style={{ fontWeight: 700 }}>{o.status}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeMenu === 'roles' && (
+            <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Roller & Personel</h1>
+              <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: 0 }}>Kayıtlı kullanıcıların mevcut rolleri.</p>
+              <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '16px', overflow: 'hidden' }}>
+                {getFilteredList(usersList).map((u: any) => (
+                  <div key={u.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.9rem 1.25rem', borderBottom: '1px solid #f1f5f9' }}>
+                    <div>
+                      <div style={{ fontWeight: 700 }}>{u.firstName} {u.lastName}</div>
+                      <div style={{ fontSize: '0.8rem', color: '#64748b' }}>{u.email}</div>
+                    </div>
+                    <div style={{ fontWeight: 700, color: '#1d5f60' }}>{u.role || 'User'}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeMenu === 'audit' && (
+            <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Denetim Kayıtları</h1>
+              <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: 0 }}>Kritik işlem izleri.</p>
+              <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '16px', overflow: 'hidden' }}>
+                {getFilteredList(auditLogsList).length === 0 ? (
+                  <p style={{ padding: '1.5rem', color: '#64748b' }}>Henüz denetim kaydı yok.</p>
+                ) : getFilteredList(auditLogsList).map((log: any) => (
+                  <div key={log.id} style={{ padding: '0.9rem 1.25rem', borderBottom: '1px solid #f1f5f9' }}>
+                    <div style={{ fontWeight: 700 }}>{log.actionType} · {log.moduleName || log.entityName}</div>
+                    <div style={{ fontSize: '0.8rem', color: '#64748b' }}>{log.userEmail} · {log.reason || log.newValues}</div>
+                  </div>
+                ))}
               </div>
             </div>
           )}

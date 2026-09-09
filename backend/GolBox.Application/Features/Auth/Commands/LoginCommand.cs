@@ -40,40 +40,10 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, Result<AuthDto>
 
         if (user == null)
         {
-            if (request.Email.ToLower().Contains("admin") || request.Email.ToLower().Contains("staff") || request.Email.ToLower().Contains("user"))
-            {
-                var org = await _context.Organizations.FirstOrDefaultAsync(cancellationToken) ?? new Organization
-                {
-                    Id = Guid.Parse("11111111-1111-1111-1111-111111111111"),
-                    Name = "Gaziantep Şehitkamil Belediyesi"
-                };
-
-                user = new User
-                {
-                    Id = Guid.NewGuid(),
-                    OrganizationId = org.Id,
-                    Email = request.Email,
-                    NormalizedEmail = request.Email.ToUpper(),
-                    PasswordHash = _passwordHasher.Hash(request.Password),
-                    FirstName = request.Email.Contains("staff") ? "Kasa" : "Mehmet",
-                    LastName = request.Email.Contains("staff") ? "Personeli" : "Yılmaz (Admin)",
-                    PointsBalance = 500
-                };
-                _context.Users.Add(user);
-                await _context.SaveChangesAsync(cancellationToken);
-            }
-            else
-            {
-                return Result<AuthDto>.Fail("Geçersiz e-posta adresi veya şifre.");
-            }
+            return Result<AuthDto>.Fail("Geçersiz e-posta adresi veya şifre.");
         }
 
-        var isPasswordValid = _passwordHasher.Verify(request.Password, user.PasswordHash) 
-                              || request.Password == "123456" 
-                              || request.Password == "Admin123!" 
-                              || request.Password == "Staff123!";
-
-        if (!isPasswordValid)
+        if (!_passwordHasher.Verify(request.Password, user.PasswordHash))
         {
             return Result<AuthDto>.Fail("Geçersiz e-posta adresi veya şifre.");
         }
@@ -102,12 +72,12 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, Result<AuthDto>
             user.LastName,
             user.Email,
             user.PointsBalance,
-            new List<string> { "User" }
+            new List<string> { string.IsNullOrWhiteSpace(user.Role) ? "User" : user.Role }
         );
 
         var authDto = new AuthDto(
             accessToken,
-            900, // 15 mins in seconds
+            28800, // 8 hours in seconds, matches Jwt:ExpiresMinutes
             rawRefreshToken,
             userDto
         );

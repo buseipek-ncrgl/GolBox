@@ -1,10 +1,12 @@
 using System.Threading.Tasks;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using GolBox.Application.Features.Auth.Commands;
 
 namespace GolBox.Api.Controllers;
 
+[AllowAnonymous]
 public class AuthController : BaseApiController
 {
     private readonly IMediator _mediator;

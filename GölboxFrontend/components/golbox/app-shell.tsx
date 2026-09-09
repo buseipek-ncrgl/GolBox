@@ -3,7 +3,6 @@
 import { useState } from "react"
 import { Signal, Wifi, BatteryFull } from "lucide-react"
 import type { TabId } from "@/lib/golbox-data"
-import { GolToastProvider } from "@/components/golbox/gol-toast"
 import { BottomNav } from "@/components/golbox/bottom-nav"
 import { CafeDetailSheet } from "@/components/golbox/cafe-detail-sheet"
 import { HomeScreen } from "@/components/golbox/screens/home-screen"
@@ -35,22 +34,20 @@ export function AppShell() {
   }
 
   return (
-    <GolToastProvider>
-      <div className="relative flex h-full flex-col">
-        <StatusBar />
+    <div className="relative flex h-full flex-col">
+      <StatusBar />
 
-        <main className="no-scrollbar flex-1 overflow-y-auto">
-          {tab === "home" && <HomeScreen onNavigate={goto} onOpenCafe={setOpenCafe} />}
-          {tab === "cafes" && <CafesScreen onOpenCafe={setOpenCafe} />}
-          {tab === "qr" && <QrScreen />}
-          {tab === "ismarliyor" && <IsmarliyorScreen onNavigate={goto} />}
-          {tab === "profile" && <ProfileScreen />}
-        </main>
+      <main className="no-scrollbar flex-1 overflow-y-auto">
+        {tab === "home" && <HomeScreen onNavigate={goto} onOpenCafe={setOpenCafe} />}
+        {tab === "cafes" && <CafesScreen onOpenCafe={setOpenCafe} />}
+        {tab === "qr" && <QrScreen />}
+        {tab === "ismarliyor" && <IsmarliyorScreen onNavigate={goto} />}
+        {tab === "profile" && <ProfileScreen />}
+      </main>
 
-        <BottomNav active={tab} onChange={goto} />
+      <BottomNav active={tab} onChange={goto} />
 
-        {openCafe && <CafeDetailSheet cafeId={openCafe} onClose={() => setOpenCafe(null)} />}
-      </div>
-    </GolToastProvider>
+      {openCafe && <CafeDetailSheet cafeId={openCafe} onClose={() => setOpenCafe(null)} />}
+    </div>
   )
 }

@@ -12,7 +12,7 @@ public class UserActivityConfiguration : IEntityTypeConfiguration<UserActivity>
 
         // Soft delete index
         builder.HasIndex(ua => ua.IsDeleted)
-            .HasFilter("[IsDeleted] = 0");
+            .HasFilter("IsDeleted = 0");
 
         // Relationships
         builder.HasOne(ua => ua.User)

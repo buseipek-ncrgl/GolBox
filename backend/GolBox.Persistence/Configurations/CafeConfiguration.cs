@@ -26,9 +26,12 @@ public class CafeConfiguration : IEntityTypeConfiguration<Cafe>
             .HasColumnType("decimal(18,10)")
             .IsRequired();
 
+        builder.Property(c => c.ImageUrl)
+            .HasMaxLength(1000);
+
         // Soft delete index
         builder.HasIndex(c => c.IsDeleted)
-            .HasFilter("[IsDeleted] = 0");
+            .HasFilter("IsDeleted = 0");
 
         // Relationships
         builder.HasOne(c => c.Organization)

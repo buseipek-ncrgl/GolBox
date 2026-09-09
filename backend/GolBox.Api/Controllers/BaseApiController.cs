@@ -13,9 +13,6 @@ public abstract class BaseApiController : ControllerBase
 
         if (result.Success)
         {
-            if (result.Data == null)
-                return NoContent();
-
             return Ok(result);
         }
 

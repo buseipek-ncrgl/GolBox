@@ -19,6 +19,7 @@ public class User : BaseEntity
     public int PointsBalance { get; set; } = 0;
     public int? Age { get; set; }
     public string? EducationLevel { get; set; }
+    public string Role { get; set; } = "User"; // User, Staff, Admin
 
     // Navigations
     public virtual Organization Organization { get; set; } = null!;

@@ -24,7 +24,7 @@ public class UserRewardConfiguration : IEntityTypeConfiguration<UserReward>
 
         // Soft delete index
         builder.HasIndex(ur => ur.IsDeleted)
-            .HasFilter("[IsDeleted] = 0");
+            .HasFilter("IsDeleted = 0");
 
         // Relationships
         builder.HasOne(ur => ur.User)

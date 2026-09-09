@@ -53,6 +53,6 @@ public class TasksController : BaseApiController
         task.DeletedDate = DateTime.UtcNow;
         
         await _context.SaveChangesAsync();
-        return Ok(GolBox.Application.Common.Result<object>.Ok(null, "Görev başarıyla silindi."));
+        return Ok(GolBox.Application.Common.Result<object>.Ok(new { id }, "Görev başarıyla silindi."));
     }
 }

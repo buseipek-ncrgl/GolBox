@@ -55,7 +55,7 @@ public class CampaignsController : BaseApiController
         _context.Campaigns.Add(campaign);
         await _context.SaveChangesAsync();
 
-        return Ok(Result<object>.Ok(campaign.Id, "Kampanya başarıyla oluşturuldu."));
+        return Ok(Result<object>.Ok(new { id = campaign.Id }, "Kampanya başarıyla oluşturuldu."));
     }
 
     public class CreateCampaignRequest

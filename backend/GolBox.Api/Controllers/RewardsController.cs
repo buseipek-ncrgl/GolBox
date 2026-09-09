@@ -61,7 +61,7 @@ public class RewardsController : BaseApiController
         _context.Rewards.Add(reward);
         await _context.SaveChangesAsync();
 
-        return Ok(Result<Guid>.Ok(reward.Id));
+        return Ok(Result<object>.Ok(new { id = reward.Id }, "Ödül başarıyla oluşturuldu."));
     }
 
     [HttpDelete("{id}")]
@@ -75,7 +75,7 @@ public class RewardsController : BaseApiController
         reward.DeletedDate = DateTime.UtcNow;
         
         await _context.SaveChangesAsync();
-        return Ok(Result<object>.Ok(null, "Ödül başarıyla silindi."));
+        return Ok(Result<object>.Ok(new { id }, "Ödül başarıyla silindi."));
     }
 }
 

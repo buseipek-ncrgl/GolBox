@@ -25,8 +25,6 @@ async function request<T>(
   });
 
   if (response.status === 401) {
-    // Optional: Refresh token rotation can be implemented here, 
-    // for now we clear and redirect if token is expired
     localStorage.removeItem('token');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
@@ -34,7 +32,15 @@ async function request<T>(
     throw new Error('Oturum süresi doldu. Lütfen tekrar giriş yapın.');
   }
 
-  const result: ApiResponse<T> = await response.json();
+  const raw = await response.text();
+  if (!raw) {
+    if (!response.ok) {
+      throw new Error('Bir hata oluştu.');
+    }
+    return undefined as T;
+  }
+
+  const result: ApiResponse<T> = JSON.parse(raw);
 
   if (!result.success || !response.ok) {
     let errorMsg = result.message || 'Bir hata oluştu.';
@@ -70,21 +76,23 @@ export const api = {
 
   // Profile
   getUsers: () => request<any>('/users'),
-  getProfile: () => request<any>('/users/profile'),
+  getProfile: () => request<any>('/users/me'),
   updateProfile: (data: any) =>
-    request<any>('/users/profile', {
+    request<any>('/users/me', {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
   changePassword: (data: any) =>
     request<any>('/users/change-password', {
-      method: 'POST',
+      method: 'PUT',
       body: JSON.stringify(data),
     }),
 
   // Points
   getPointsHistory: (page = 1, pageSize = 10) =>
     request<any>(`/points?page=${page}&pageSize=${pageSize}`),
+  getPointsLedger: (page = 1, pageSize = 50) =>
+    request<any>(`/points/ledger?page=${page}&pageSize=${pageSize}`),
   grantPoints: (command: any) =>
     request<any>('/points/grant', {
       method: 'POST',
@@ -148,6 +156,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+  updateCafe: (id: string, data: any) =>
+    request<any>(`/cafes/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
   deleteCafe: (id: string) =>
     request<any>(`/cafes/${id}`, {
       method: 'DELETE',
@@ -155,6 +168,7 @@ export const api = {
 
   // MenuItems
   getMenuItems: (cafeId: string) => request<any>(`/cafes/${cafeId}/menu`),
+  getAllMenuItems: () => request<any>('/menu-items'),
   createMenuItem: (cafeId: string, data: any) =>
     request<any>(`/cafes/${cafeId}/menu`, {
       method: 'POST',

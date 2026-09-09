@@ -27,23 +27,30 @@ public class TokenService : ITokenService
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
+        var role = string.IsNullOrWhiteSpace(user.Role) ? "User" : user.Role;
+        var expiresMinutes = 480;
+        if (int.TryParse(jwtSettings["ExpiresMinutes"], out var parsedExpires) && parsedExpires > 0)
+        {
+            expiresMinutes = parsedExpires;
+        }
+
         var claims = new List<Claim>
         {
             new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+            new(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new(JwtRegisteredClaimNames.Email, user.Email),
+            new(ClaimTypes.Email, user.Email),
             new("firstName", user.FirstName),
             new("lastName", user.LastName),
-            new("org_id", user.OrganizationId.ToString())
+            new("org_id", user.OrganizationId.ToString()),
+            new(ClaimTypes.Role, role)
         };
-
-        // Standard role claim - since identity roles can be added, for now let's set "User" role by default
-        claims.Add(new Claim(ClaimTypes.Role, "User"));
 
         var token = new JwtSecurityToken(
             issuer: jwtSettings["Issuer"],
             audience: jwtSettings["Audience"],
             claims: claims,
-            expires: DateTime.UtcNow.AddMinutes(15), // Access token expiration time: 15 mins
+            expires: DateTime.UtcNow.AddMinutes(expiresMinutes),
             signingCredentials: creds
         );
 

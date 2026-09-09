@@ -31,7 +31,6 @@ public class UsersController : BaseApiController
     public async Task<IActionResult> GetAllUsers()
     {
         var users = await _context.Users
-            .Where(u => u.Email != "admin@golbox.gov.tr")
             .Select(u => new
             {
                 u.Id,
@@ -43,6 +42,7 @@ public class UsersController : BaseApiController
                 u.EducationLevel,
                 u.PhoneNumber,
                 u.CreatedDate,
+                u.Role,
                 VerificationStatus = "Doğrulanmış",
                 AccountStatus = "Aktif"
             })
@@ -81,22 +81,37 @@ public class UsersController : BaseApiController
             .Select(ua => new { ua.ActivityId, Title = ua.Activity.Title, Points = ua.Activity.PointsReward, ua.CreatedDate })
             .ToListAsync();
 
+        var profile = new
+        {
+            user.Id,
+            user.Email,
+            user.FirstName,
+            user.LastName,
+            user.PhoneNumber,
+            user.PointsBalance,
+            user.Age,
+            user.EducationLevel,
+            user.CreatedDate,
+            user.Role,
+            VerificationStatus = "Doğrulanmış",
+            AccountStatus = "Aktif"
+        };
+
         return Ok(Result<object>.Ok(new
         {
-            profile = new
-            {
-                user.Id,
-                user.Email,
-                user.FirstName,
-                user.LastName,
-                user.PhoneNumber,
-                user.PointsBalance,
-                user.Age,
-                user.EducationLevel,
-                user.CreatedDate,
-                VerificationStatus = "Doğrulanmış",
-                AccountStatus = "Aktif"
-            },
+            profile.Id,
+            profile.Email,
+            profile.FirstName,
+            profile.LastName,
+            profile.PhoneNumber,
+            profile.PointsBalance,
+            profile.Age,
+            profile.EducationLevel,
+            profile.CreatedDate,
+            profile.Role,
+            profile.VerificationStatus,
+            profile.AccountStatus,
+            profile,
             pointHistory,
             ordersHistory,
             userTasks,
@@ -115,11 +130,14 @@ public class UsersController : BaseApiController
             return BadRequest(Result<object>.Fail("İşlem nedeni ve açıklama girilmesi zorunludur."));
         }
 
-        int previousBalance = user.PointsBalance;
-        int deltaAmount = request.ActionType == "Deduct" ? -Math.Abs(request.Amount) : Math.Abs(request.Amount);
+        var actionType = string.IsNullOrWhiteSpace(request.ActionType) ? "Add" : request.ActionType;
+        if (actionType is "Reward" or "Coupon" or "Reverse")
+            actionType = "Add";
 
-        // Check deduction validity
-        if (request.ActionType == "Deduct" && user.PointsBalance + deltaAmount < 0)
+        int previousBalance = user.PointsBalance;
+        int deltaAmount = actionType == "Deduct" ? -Math.Abs(request.Amount) : Math.Abs(request.Amount);
+
+        if (actionType == "Deduct" && user.PointsBalance + deltaAmount < 0)
         {
             return BadRequest(Result<object>.Fail($"Yetersiz bakiye. Kullanıcının mevcut bakiyesi: {user.PointsBalance} GP."));
         }
@@ -132,8 +150,8 @@ public class UsersController : BaseApiController
             OrganizationId = user.OrganizationId,
             UserId = user.Id,
             Amount = deltaAmount,
-            Type = request.ActionType == "Add" ? "ManualAddition" : request.ActionType == "Deduct" ? "ManualDeduction" : "Reversal",
-            Description = $"[Manuel İşlem: {request.ActionType}] Nedeni: {request.Reason}. Açıklama: {request.Description}",
+            Type = actionType == "Add" ? "ManualAddition" : actionType == "Deduct" ? "ManualDeduction" : "Reversal",
+            Description = $"[Manuel İşlem: {actionType}] Nedeni: {request.Reason}. Açıklama: {request.Description}",
             CreatedDate = DateTime.UtcNow
         };
 
@@ -146,7 +164,7 @@ public class UsersController : BaseApiController
             _context,
             adminUser?.Email ?? "admin@golbox.gov.tr",
             "SuperAdmin",
-            $"Point_{request.ActionType}",
+            $"Point_{actionType}",
             "Users",
             "User",
             user.Id.ToString(),
@@ -159,6 +177,7 @@ public class UsersController : BaseApiController
     }
 
     [HttpGet("me")]
+    [HttpGet("profile")]
     public async Task<IActionResult> GetProfile()
     {
         var result = await _mediator.Send(new GetUserProfileQuery());
@@ -166,6 +185,7 @@ public class UsersController : BaseApiController
     }
 
     [HttpPut("me")]
+    [HttpPut("profile")]
     public async Task<IActionResult> UpdateProfile([FromBody] UpdateUserProfileCommand command)
     {
         var result = await _mediator.Send(command);
@@ -173,6 +193,7 @@ public class UsersController : BaseApiController
     }
 
     [HttpPut("change-password")]
+    [HttpPost("change-password")]
     public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordCommand command)
     {
         var result = await _mediator.Send(command);

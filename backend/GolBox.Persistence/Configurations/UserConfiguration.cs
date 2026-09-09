@@ -39,17 +39,21 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
             .IsRequired()
             .HasDefaultValue(0);
 
+        builder.Property(u => u.Role)
+            .IsRequired()
+            .HasMaxLength(32)
+            .HasDefaultValue("User");
+
         // Unique compound index: Email must be unique per Organization
         builder.HasIndex(u => new { u.Email, u.OrganizationId })
             .IsUnique();
 
         // Soft delete filtered index
         builder.HasIndex(u => u.IsDeleted)
-            .HasFilter("[IsDeleted] = 0");
+            .HasFilter("IsDeleted = 0");
 
         // Multi-tenant indexes
-        builder.HasIndex(u => new { u.OrganizationId, u.IsDeleted })
-            .IncludeProperties(u => new { u.FirstName, u.LastName, u.PointsBalance });
+        builder.HasIndex(u => new { u.OrganizationId, u.IsDeleted });
 
         // Relationships
         builder.HasMany(u => u.RefreshTokens)

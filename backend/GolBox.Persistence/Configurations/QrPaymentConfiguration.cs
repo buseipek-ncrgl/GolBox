@@ -28,7 +28,7 @@ public class QrPaymentConfiguration : IEntityTypeConfiguration<QrPayment>
 
         // Soft delete index
         builder.HasIndex(qp => qp.IsDeleted)
-            .HasFilter("[IsDeleted] = 0");
+            .HasFilter("IsDeleted = 0");
 
         // Relationships
         builder.HasOne(qp => qp.User)

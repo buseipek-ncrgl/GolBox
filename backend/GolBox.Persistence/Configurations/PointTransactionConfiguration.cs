@@ -26,12 +26,11 @@ public class PointTransactionConfiguration : IEntityTypeConfiguration<PointTrans
 
         // Soft delete index
         builder.HasIndex(pt => pt.IsDeleted)
-            .HasFilter("[IsDeleted] = 0");
+            .HasFilter("IsDeleted = 0");
 
         // Indexes for performance
         builder.HasIndex(pt => new { pt.UserId, pt.CreatedDate });
-        builder.HasIndex(pt => new { pt.UserId, pt.OrganizationId })
-            .IncludeProperties(pt => new { pt.Amount, pt.Type, pt.CreatedDate });
+        builder.HasIndex(pt => new { pt.UserId, pt.OrganizationId });
 
         // Relationships
         builder.HasOne(pt => pt.User)

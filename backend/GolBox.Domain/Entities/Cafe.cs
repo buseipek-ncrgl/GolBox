@@ -12,6 +12,7 @@ public class Cafe : BaseEntity
     public decimal Longitude { get; set; }
     public Guid CategoryId { get; set; }
     public bool IsActive { get; set; } = true;
+    public string? ImageUrl { get; set; }
 
     // Navigations
     public virtual Organization Organization { get; set; } = null!;

@@ -27,7 +27,7 @@ public class TaskConfiguration : IEntityTypeConfiguration<Task>
 
         // Soft delete index
         builder.HasIndex(t => t.IsDeleted)
-            .HasFilter("[IsDeleted] = 0");
+            .HasFilter("IsDeleted = 0");
 
         // Relationships
         builder.HasOne(t => t.Organization)

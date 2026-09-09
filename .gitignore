@@ -20,6 +20,6 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# OS ignores
-.DS_Store
-Thumbs.db
+# Local SQLite runtime database
+**/golbox.db
+**/golbox.db-*

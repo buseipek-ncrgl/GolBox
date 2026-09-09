@@ -16,7 +16,7 @@ public class CafeCategoryConfiguration : IEntityTypeConfiguration<CafeCategory>
 
         // Soft delete index
         builder.HasIndex(cc => cc.IsDeleted)
-            .HasFilter("[IsDeleted] = 0");
+            .HasFilter("IsDeleted = 0");
 
         // Relationships
         builder.HasOne(cc => cc.Organization)

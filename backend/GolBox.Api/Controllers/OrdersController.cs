@@ -35,7 +35,7 @@ public class OrdersController : BaseApiController
 
         var query = _context.Orders.AsQueryable();
 
-        if (currentUser != null && currentUser.Email != "admin@golbox.gov.tr")
+        if (currentUser != null && currentUser.Role != "Admin" && currentUser.Role != "Staff" && currentUser.Email != "admin@golbox.gov.tr")
         {
             query = query.Where(o => o.UserId == currentUserId);
         }
@@ -84,7 +84,7 @@ public class OrdersController : BaseApiController
         if (order == null)
             return NotFound(Result<object>.Fail("Sipariş bulunamadı."));
 
-        order.Status = request.Status;
+        order.Status = OrderStatuses.Canonicalize(request.Status);
         order.UpdatedDate = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
@@ -98,7 +98,7 @@ public class OrdersController : BaseApiController
             collectionCode = order.CollectionCode
         });
 
-        return Ok(Result<object>.Ok(null, $"Sipariş durumu '{request.Status}' olarak güncellendi."));
+        return Ok(Result<object>.Ok(new { id = order.Id, status = order.Status }, $"Sipariş durumu '{order.Status}' olarak güncellendi."));
     }
 
     [HttpPost]
@@ -196,10 +196,11 @@ public class OrdersController : BaseApiController
 
         return Ok(Result<object>.Ok(new
         {
-            OrderId = order.Id,
-            order.CollectionCode,
-            order.Status,
-            order.TotalAmount
+            id = order.Id,
+            orderId = order.Id,
+            collectionCode = order.CollectionCode,
+            status = order.Status,
+            totalAmount = order.TotalAmount
         }, "Ön siparişiniz başarıyla alındı."));
     }
 }

@@ -161,7 +161,7 @@ export const Login: React.FC = () => {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
             <button
               type="button"
-              onClick={() => handleQuickFill('admin@golbox.gov.tr', '123456')}
+              onClick={() => handleQuickFill('admin@golbox.gov.tr', 'Admin123!')}
               style={{
                 background: email === 'admin@golbox.gov.tr' ? '#1d5f60' : 'rgba(255, 255, 255, 0.04)',
                 color: '#ffffff',
@@ -179,7 +179,7 @@ export const Login: React.FC = () => {
 
             <button
               type="button"
-              onClick={() => handleQuickFill('staff@golbox.gov.tr', '123456')}
+              onClick={() => handleQuickFill('staff@golbox.gov.tr', 'Staff123!')}
               style={{
                 background: email === 'staff@golbox.gov.tr' ? '#1d5f60' : 'rgba(255, 255, 255, 0.04)',
                 color: '#ffffff',

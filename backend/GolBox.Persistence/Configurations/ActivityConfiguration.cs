@@ -28,7 +28,7 @@ public class ActivityConfiguration : IEntityTypeConfiguration<Activity>
 
         // Soft delete index
         builder.HasIndex(a => a.IsDeleted)
-            .HasFilter("[IsDeleted] = 0");
+            .HasFilter("IsDeleted = 0");
 
         // Relationships
         builder.HasOne(a => a.Organization)

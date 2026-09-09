@@ -23,7 +23,7 @@ public class RefreshTokenConfiguration : IEntityTypeConfiguration<RefreshToken>
 
         // Soft delete index
         builder.HasIndex(t => t.IsDeleted)
-            .HasFilter("[IsDeleted] = 0");
+            .HasFilter("IsDeleted = 0");
 
         // Self relationship for replaced token
         builder.HasOne(t => t.ReplacedByToken)

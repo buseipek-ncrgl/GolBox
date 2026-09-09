@@ -30,7 +30,7 @@ public class RewardConfiguration : IEntityTypeConfiguration<Reward>
 
         // Soft delete index
         builder.HasIndex(r => r.IsDeleted)
-            .HasFilter("[IsDeleted] = 0");
+            .HasFilter("IsDeleted = 0");
 
         // Relationships
         builder.HasOne(r => r.Organization)

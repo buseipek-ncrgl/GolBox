@@ -21,6 +21,7 @@ public class CafesController : BaseApiController
     }
 
     [HttpGet]
+    [AllowAnonymous]
     public async Task<IActionResult> GetCafes()
     {
         var cafes = await _context.Cafes
@@ -36,6 +37,7 @@ public class CafesController : BaseApiController
             c.Latitude,
             c.Longitude,
             c.IsActive,
+            c.ImageUrl,
             CategoryId = c.CategoryId,
             CategoryName = c.Category?.Name ?? "Genel",
             c.OrganizationId
@@ -47,14 +49,12 @@ public class CafesController : BaseApiController
     [HttpPost]
     public async Task<IActionResult> CreateCafe([FromBody] CreateCafeRequest request)
     {
-        // Get default CategoryId if not provided
         var categoryId = request.CategoryId;
         if (categoryId == Guid.Empty)
         {
             var defaultCategory = await _context.CafeCategories.FirstOrDefaultAsync();
             if (defaultCategory == null)
             {
-                // Create a default category
                 defaultCategory = new CafeCategory
                 {
                     Id = Guid.NewGuid(),
@@ -76,13 +76,42 @@ public class CafesController : BaseApiController
             Latitude = request.Latitude,
             Longitude = request.Longitude,
             CategoryId = categoryId,
+            ImageUrl = request.ImageUrl,
             IsActive = true
         };
 
         _context.Cafes.Add(cafe);
         await _context.SaveChangesAsync();
 
-        return Ok(Result<Guid>.Ok(cafe.Id));
+        return Ok(Result<object>.Ok(new { id = cafe.Id }, "Tesis başarıyla oluşturuldu."));
+    }
+
+    [HttpPut("{id}")]
+    public async Task<IActionResult> UpdateCafe(Guid id, [FromBody] UpdateCafeRequest request)
+    {
+        var cafe = await _context.Cafes.FindAsync(id);
+        if (cafe == null)
+            return NotFound(Result<object>.Fail("Kafe bulunamadı."));
+
+        if (!string.IsNullOrWhiteSpace(request.Name))
+            cafe.Name = request.Name;
+        if (!string.IsNullOrWhiteSpace(request.Address))
+            cafe.Address = request.Address;
+        if (request.ImageUrl != null)
+            cafe.ImageUrl = request.ImageUrl;
+        if (request.Latitude.HasValue)
+            cafe.Latitude = request.Latitude.Value;
+        if (request.Longitude.HasValue)
+            cafe.Longitude = request.Longitude.Value;
+        if (request.CategoryId.HasValue && request.CategoryId.Value != Guid.Empty)
+            cafe.CategoryId = request.CategoryId.Value;
+        if (request.IsActive.HasValue)
+            cafe.IsActive = request.IsActive.Value;
+
+        cafe.UpdatedDate = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+
+        return Ok(Result<object>.Ok(new { id = cafe.Id }, "Tesis başarıyla güncellendi."));
     }
 
     [HttpDelete("{id}")]
@@ -94,9 +123,9 @@ public class CafesController : BaseApiController
 
         cafe.IsDeleted = true;
         cafe.DeletedDate = DateTime.UtcNow;
-        
+
         await _context.SaveChangesAsync();
-        return Ok(Result<object>.Ok(null, "Kafe başarıyla silindi."));
+        return Ok(Result<object>.Ok(new { id }, "Kafe başarıyla silindi."));
     }
 }
 
@@ -105,7 +134,19 @@ public class CreateCafeRequest
     public Guid OrganizationId { get; set; } = Guid.Parse("11111111-1111-1111-1111-111111111111");
     public string Name { get; set; } = string.Empty;
     public string Address { get; set; } = string.Empty;
-    public decimal Latitude { get; set; } = 40.0m;
-    public decimal Longitude { get; set; } = 32.0m;
+    public decimal Latitude { get; set; } = 37.0750m;
+    public decimal Longitude { get; set; } = 37.3825m;
     public Guid CategoryId { get; set; }
+    public string? ImageUrl { get; set; }
+}
+
+public class UpdateCafeRequest
+{
+    public string? Name { get; set; }
+    public string? Address { get; set; }
+    public decimal? Latitude { get; set; }
+    public decimal? Longitude { get; set; }
+    public Guid? CategoryId { get; set; }
+    public string? ImageUrl { get; set; }
+    public bool? IsActive { get; set; }
 }

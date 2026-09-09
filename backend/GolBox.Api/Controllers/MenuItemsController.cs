@@ -22,6 +22,7 @@ public class MenuItemsController : BaseApiController
     }
 
     [HttpGet]
+    [AllowAnonymous]
     public async Task<IActionResult> GetMenuItems(Guid cafeId)
     {
         var items = await _context.MenuItems
@@ -70,7 +71,7 @@ public class MenuItemsController : BaseApiController
         _context.MenuItems.Add(menuItem);
         await _context.SaveChangesAsync();
 
-        return Ok(Result<Guid>.Ok(menuItem.Id));
+        return Ok(Result<object>.Ok(new { id = menuItem.Id }, "Ürün başarıyla eklendi."));
     }
 
     [HttpDelete("{id}")]
@@ -86,7 +87,7 @@ public class MenuItemsController : BaseApiController
         menuItem.DeletedDate = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
-        return Ok(Result<object>.Ok(null, "Ürün başarıyla silindi."));
+        return Ok(Result<object>.Ok(new { id }, "Ürün başarıyla silindi."));
     }
 }
 

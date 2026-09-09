@@ -26,6 +26,6 @@ public class SettingConfiguration : IEntityTypeConfiguration<Setting>
 
         // Soft delete index
         builder.HasIndex(s => s.IsDeleted)
-            .HasFilter("[IsDeleted] = 0");
+            .HasFilter("IsDeleted = 0");
     }
 }

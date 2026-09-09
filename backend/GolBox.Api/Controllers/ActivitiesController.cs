@@ -56,7 +56,7 @@ public class ActivitiesController : BaseApiController
         _context.Activities.Add(activity);
         await _context.SaveChangesAsync();
 
-        return Ok(Result<Guid>.Ok(activity.Id));
+        return Ok(Result<object>.Ok(new { id = activity.Id }, "Etkinlik başarıyla oluşturuldu."));
     }
 
     [HttpDelete("{id}")]
@@ -70,7 +70,7 @@ public class ActivitiesController : BaseApiController
         activity.DeletedDate = DateTime.UtcNow;
         
         await _context.SaveChangesAsync();
-        return Ok(Result<object>.Ok(null, "Etkinlik başarıyla silindi."));
+        return Ok(Result<object>.Ok(new { id }, "Etkinlik başarıyla silindi."));
     }
 }
 

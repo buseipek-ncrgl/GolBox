@@ -63,8 +63,7 @@ public class RegisterCommandHandler : IRequestHandler<RegisterCommand, Result<Gu
             EmailConfirmed = false,
             PhoneNumberConfirmed = false,
             PointsBalance = 0,
-            Age = request.Age,
-            EducationLevel = request.EducationLevel
+            Role = "User"
         };
 
         _context.Users.Add(user);

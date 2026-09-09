@@ -36,7 +36,10 @@ public class DashboardController : BaseApiController
 
         var activeBranchesCount = await _context.Cafes.CountAsync(c => c.IsActive && !c.IsDeleted);
         var todayOrdersCount = await _context.Orders.CountAsync(o => o.CreatedDate >= today);
-        var pendingOrdersCount = await _context.Orders.CountAsync(o => o.Status == "Pending" || o.Status == "Onay bekliyor");
+        var pendingOrdersCount = await _context.Orders.CountAsync(o =>
+            o.Status == OrderStatuses.Pending ||
+            o.Status == OrderStatuses.Preparing ||
+            o.Status == "Onay bekliyor");
 
         var todayEarnedPoints = await _context.PointTransactions
             .Where(pt => pt.CreatedDate >= today && pt.Amount > 0)
@@ -113,7 +116,13 @@ public class DashboardController : BaseApiController
                 longPendingOrders,
                 criticalApprovals,
                 highValuePointTransactions
-            }
+            },
+            totalUsers = registeredCitizensCount,
+            activeBranches = activeBranchesCount,
+            todayOrders = todayOrdersCount,
+            pendingOrders = pendingOrdersCount,
+            todayEarnedPoints,
+            todaySpentPoints
         }));
     }
 }

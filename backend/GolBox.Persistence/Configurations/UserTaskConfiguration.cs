@@ -13,7 +13,7 @@ public class UserTaskConfiguration : IEntityTypeConfiguration<UserTask>
 
         // Soft delete index
         builder.HasIndex(ut => ut.IsDeleted)
-            .HasFilter("[IsDeleted] = 0");
+            .HasFilter("IsDeleted = 0");
 
         // Compounded index for quick completion checks
         builder.HasIndex(ut => new { ut.UserId, ut.TaskId });

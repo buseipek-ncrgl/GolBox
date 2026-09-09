@@ -30,7 +30,7 @@ public class OrganizationConfiguration : IEntityTypeConfiguration<Organization>
 
         // Soft delete filtered index
         builder.HasIndex(o => o.IsDeleted)
-            .HasFilter("[IsDeleted] = 0");
+            .HasFilter("IsDeleted = 0");
 
         // Relationships
         builder.HasMany(o => o.Users)

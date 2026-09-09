@@ -12,6 +12,7 @@ public static class DbInitializer
     public static async System.Threading.Tasks.Task SeedAsync(AppDbContext context, IPasswordHasher passwordHasher)
     {
         await context.Database.EnsureCreatedAsync();
+        await EnsureProviderSchemaAsync(context);
 
         if (context.Database.IsSqlServer())
         {
@@ -169,8 +170,8 @@ public static class DbInitializer
             var organization = new Organization
             {
                 Id = Guid.Parse("11111111-1111-1111-1111-111111111111"),
-                Name = "Gölbaşı Belediyesi",
-                ThemeColor = "#FF6600",
+                Name = "Gaziantep Şehitkamil Belediyesi",
+                ThemeColor = "#1d5f60",
                 LogoUrl = "https://golbasi.bel.tr/logo.png",
                 TimeZone = "Europe/Istanbul"
             };
@@ -179,6 +180,13 @@ public static class DbInitializer
         }
 
         var orgId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var existingOrg = await context.Organizations.FindAsync(orgId);
+        if (existingOrg != null && existingOrg.Name != "Gaziantep Şehitkamil Belediyesi")
+        {
+            existingOrg.Name = "Gaziantep Şehitkamil Belediyesi";
+            existingOrg.ThemeColor = "#1d5f60";
+            await context.SaveChangesAsync();
+        }
 
         // 2. Seed Settings
         if (!await context.Settings.AnyAsync(s => s.OrganizationId == orgId))
@@ -211,9 +219,10 @@ public static class DbInitializer
                     OrganizationId = orgId,
                     CategoryId = category.Id,
                     Name = "Merkez Kitap Kafe",
-                    Address = "Gölbaşı Merkez, Ankara",
-                    Latitude = 39.7915m,
-                    Longitude = 32.8085m,
+                    Address = "İncilipınar Mah. Muammer Aksoy Bulv. No:12, Şehitkamil / Gaziantep",
+                    Latitude = 37.0750m,
+                    Longitude = 37.3825m,
+                    ImageUrl = "/cafes/golkafe-merkez.png",
                     IsActive = true
                 },
                 new Cafe
@@ -221,10 +230,11 @@ public static class DbInitializer
                     Id = Guid.Parse("33333333-3333-3333-3333-444444444444"),
                     OrganizationId = orgId,
                     CategoryId = category.Id,
-                    Name = "Mogan Gölü Kitap Kafe",
-                    Address = "Mogan Gölü Sahil Yolu, Ankara",
-                    Latitude = 39.7825m,
-                    Longitude = 32.7955m,
+                    Name = "Şehitkamil Gençlik Kitap Kafe",
+                    Address = "Atatürk Mah. 15. Sok. No:4, Şehitkamil / Gaziantep",
+                    Latitude = 37.0662m,
+                    Longitude = 37.3781m,
+                    ImageUrl = "/cafes/golkafe-sahil.png",
                     IsActive = true
                 }
             );
@@ -243,7 +253,8 @@ public static class DbInitializer
                 PasswordHash = passwordHasher.Hash("Admin123!"),
                 FirstName = "Mehmet",
                 LastName = "Yılmaz",
-                PointsBalance = 0
+                PointsBalance = 0,
+                Role = "Admin"
             };
 
             var testUser = new User
@@ -255,12 +266,53 @@ public static class DbInitializer
                 PasswordHash = passwordHasher.Hash("User123!"),
                 FirstName = "Ahmet",
                 LastName = "Kaya",
-                PointsBalance = 150, // Give some default points for testing rewards
+                PointsBalance = 150,
                 Age = 16,
-                EducationLevel = "Lise"
+                EducationLevel = "Lise",
+                Role = "User"
             };
 
-            context.Users.AddRange(adminUser, testUser);
+            var staffUser = new User
+            {
+                Id = Guid.Parse("77777777-7777-7777-7777-999999999999"),
+                OrganizationId = orgId,
+                Email = "staff@golbox.gov.tr",
+                NormalizedEmail = "STAFF@GOLBOX.GOV.TR",
+                PasswordHash = passwordHasher.Hash("Staff123!"),
+                FirstName = "Ayşe",
+                LastName = "Demir",
+                PointsBalance = 0,
+                Role = "Staff"
+            };
+
+            context.Users.AddRange(adminUser, testUser, staffUser);
+            await context.SaveChangesAsync();
+        }
+        else
+        {
+            var admin = await context.Users.FirstOrDefaultAsync(u => u.Email == "admin@golbox.gov.tr");
+            if (admin != null && admin.Role != "Admin")
+            {
+                admin.Role = "Admin";
+            }
+
+            var hasStaff = await context.Users.AnyAsync(u => u.Email == "staff@golbox.gov.tr");
+            if (!hasStaff)
+            {
+                context.Users.Add(new User
+                {
+                    Id = Guid.Parse("77777777-7777-7777-7777-999999999999"),
+                    OrganizationId = orgId,
+                    Email = "staff@golbox.gov.tr",
+                    NormalizedEmail = "STAFF@GOLBOX.GOV.TR",
+                    PasswordHash = passwordHasher.Hash("Staff123!"),
+                    FirstName = "Ayşe",
+                    LastName = "Demir",
+                    PointsBalance = 0,
+                    Role = "Staff"
+                });
+            }
+
             await context.SaveChangesAsync();
         }
 
@@ -502,6 +554,178 @@ public static class DbInitializer
             );
 
             await context.SaveChangesAsync();
+        }
+    }
+
+    private static async System.Threading.Tasks.Task EnsureProviderSchemaAsync(AppDbContext context)
+    {
+        if (!context.Database.IsSqlite())
+            return;
+
+        await AddSqliteColumnIfMissingAsync(context, "Cafes", "ImageUrl", "TEXT");
+        await AddSqliteColumnIfMissingAsync(context, "Users", "Role", "TEXT NOT NULL DEFAULT 'User'");
+
+        await context.Database.ExecuteSqlRawAsync(@"
+            CREATE TABLE IF NOT EXISTS ApprovalRequests (
+                Id TEXT NOT NULL PRIMARY KEY,
+                RequestType TEXT NOT NULL,
+                RequesterUserId TEXT NOT NULL,
+                RequesterEmail TEXT NOT NULL,
+                BranchId TEXT NULL,
+                TargetEntityId TEXT NULL,
+                OldValue TEXT NULL,
+                NewValue TEXT NULL,
+                Reason TEXT NOT NULL,
+                Status TEXT NOT NULL,
+                ApproverUserId TEXT NULL,
+                ApproverEmail TEXT NULL,
+                ApprovalNote TEXT NULL,
+                CreatedDate TEXT NOT NULL,
+                CreatedBy TEXT NULL,
+                UpdatedDate TEXT NULL,
+                UpdatedBy TEXT NULL,
+                DeletedDate TEXT NULL,
+                DeletedBy TEXT NULL,
+                IsDeleted INTEGER NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS AuditLogs (
+                Id TEXT NOT NULL PRIMARY KEY,
+                UserId TEXT NULL,
+                UserEmail TEXT NOT NULL,
+                UserRole TEXT NOT NULL,
+                ActionType TEXT NOT NULL,
+                ModuleName TEXT NOT NULL,
+                EntityName TEXT NOT NULL,
+                EntityId TEXT NULL,
+                OldValues TEXT NULL,
+                NewValues TEXT NULL,
+                Reason TEXT NULL,
+                IpAddress TEXT NULL,
+                CreatedDate TEXT NOT NULL,
+                CreatedBy TEXT NULL,
+                UpdatedDate TEXT NULL,
+                UpdatedBy TEXT NULL,
+                DeletedDate TEXT NULL,
+                DeletedBy TEXT NULL,
+                IsDeleted INTEGER NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS Campaigns (
+                Id TEXT NOT NULL PRIMARY KEY,
+                OrganizationId TEXT NOT NULL,
+                Title TEXT NOT NULL,
+                Description TEXT NOT NULL,
+                ImageUrl TEXT NULL,
+                CampaignType TEXT NOT NULL,
+                StartDate TEXT NOT NULL,
+                EndDate TEXT NOT NULL,
+                TargetUserGroup TEXT NOT NULL,
+                CafeId TEXT NULL,
+                MenuItemId TEXT NULL,
+                TotalUsageLimit INTEGER NULL,
+                PerUserLimit INTEGER NULL,
+                CurrentUsageCount INTEGER NOT NULL,
+                IsActive INTEGER NOT NULL,
+                CreatedDate TEXT NOT NULL,
+                CreatedBy TEXT NULL,
+                UpdatedDate TEXT NULL,
+                UpdatedBy TEXT NULL,
+                DeletedDate TEXT NULL,
+                DeletedBy TEXT NULL,
+                IsDeleted INTEGER NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS Notifications (
+                Id TEXT NOT NULL PRIMARY KEY,
+                OrganizationId TEXT NOT NULL,
+                Title TEXT NOT NULL,
+                Message TEXT NOT NULL,
+                ImageUrl TEXT NULL,
+                NotificationType TEXT NOT NULL,
+                TargetUserGroup TEXT NOT NULL,
+                TargetUserId TEXT NULL,
+                ScheduledDate TEXT NULL,
+                SentDate TEXT NULL,
+                Status TEXT NOT NULL,
+                SentCount INTEGER NOT NULL,
+                CreatedDate TEXT NOT NULL,
+                CreatedBy TEXT NULL,
+                UpdatedDate TEXT NULL,
+                UpdatedBy TEXT NULL,
+                DeletedDate TEXT NULL,
+                DeletedBy TEXT NULL,
+                IsDeleted INTEGER NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS Coupons (
+                Id TEXT NOT NULL PRIMARY KEY,
+                CouponCode TEXT NOT NULL,
+                UserId TEXT NOT NULL,
+                RewardId TEXT NOT NULL,
+                Status TEXT NOT NULL,
+                ExpiryDate TEXT NOT NULL,
+                UsedCafeId TEXT NULL,
+                UsedDate TEXT NULL,
+                CreatedDate TEXT NOT NULL,
+                CreatedBy TEXT NULL,
+                UpdatedDate TEXT NULL,
+                UpdatedBy TEXT NULL,
+                DeletedDate TEXT NULL,
+                DeletedBy TEXT NULL,
+                IsDeleted INTEGER NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS StaffUsers (
+                Id TEXT NOT NULL PRIMARY KEY,
+                UserId TEXT NOT NULL,
+                RegistrationNumber TEXT NOT NULL,
+                Role TEXT NOT NULL,
+                BranchId TEXT NULL,
+                IsActive INTEGER NOT NULL,
+                LastLoginDate TEXT NULL,
+                CreatedDate TEXT NOT NULL,
+                CreatedBy TEXT NULL,
+                UpdatedDate TEXT NULL,
+                UpdatedBy TEXT NULL,
+                DeletedDate TEXT NULL,
+                DeletedBy TEXT NULL,
+                IsDeleted INTEGER NOT NULL
+            );
+        ");
+    }
+
+    private static async System.Threading.Tasks.Task AddSqliteColumnIfMissingAsync(
+        AppDbContext context,
+        string table,
+        string column,
+        string definition)
+    {
+        await context.Database.OpenConnectionAsync();
+        try
+        {
+            var connection = context.Database.GetDbConnection();
+            await using var command = connection.CreateCommand();
+            command.CommandText = $"PRAGMA table_info({table})";
+            var exists = false;
+            await using (var reader = await command.ExecuteReaderAsync())
+            {
+                while (await reader.ReadAsync())
+                {
+                    var name = reader["name"]?.ToString();
+                    if (string.Equals(name, column, StringComparison.OrdinalIgnoreCase))
+                    {
+                        exists = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!exists)
+            {
+#pragma warning disable EF1002
+                await context.Database.ExecuteSqlRawAsync($"ALTER TABLE \"{table}\" ADD COLUMN \"{column}\" {definition}");
+#pragma warning restore EF1002
+            }
+        }
+        finally
+        {
+            await context.Database.CloseConnectionAsync();
         }
     }
 }
