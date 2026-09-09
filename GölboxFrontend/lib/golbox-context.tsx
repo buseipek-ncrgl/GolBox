@@ -153,12 +153,20 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
   const refreshData = useCallback(async () => {
     const authHeader: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {}
     try {
-      // 1. Fetch profile if token exists
+      // 1. Fetch profile and collected field boxes first so Home/Profile
+      // do not wait on cafe menus.
       if (token) {
         const profileRes = await fetch(`${API_BASE_URL}/users/me`, { headers: authHeader })
         if (profileRes.ok) {
           const res = await profileRes.json()
           if (res.data) setUser(res.data)
+        }
+
+        const mineRes = await fetch(`${API_BASE_URL}/field-drops/mine`, { headers: authHeader })
+        if (mineRes.ok) {
+          const mineJson = await mineRes.json()
+          const payload = mineJson.data
+          setMyCaptures(Array.isArray(payload) ? payload : Array.isArray(payload?.items) ? payload.items : [])
         }
       }
 
@@ -256,12 +264,6 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
           const res = await pointsRes.json()
           const items = res.data?.items || res.data || []
           setPointTransactions(items)
-        }
-
-        const mineRes = await fetch(`${API_BASE_URL}/field-drops/mine`, { headers: authHeader })
-        if (mineRes.ok) {
-          const mineJson = await mineRes.json()
-          setMyCaptures(Array.isArray(mineJson.data) ? mineJson.data : [])
         }
       }
 
@@ -495,7 +497,8 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
         return
       }
       const json = await res.json()
-      setMyCaptures(Array.isArray(json.data) ? json.data : [])
+      const payload = json.data
+      setMyCaptures(Array.isArray(payload) ? payload : Array.isArray(payload?.items) ? payload.items : [])
     } catch {
       setMyCaptures([])
     }

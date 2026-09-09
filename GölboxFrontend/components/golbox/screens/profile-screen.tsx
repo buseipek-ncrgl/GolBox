@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Bell, ChevronRight, CreditCard, Gift, HelpCircle, LogOut, Settings, Shield } from "lucide-react"
 import { activity, user as mockUser } from "@/lib/golbox-data"
 import { useGolToast } from "@/components/golbox/gol-toast"
@@ -23,8 +23,12 @@ function formatWhen(iso: string) {
 
 export function ProfileScreen() {
   const notify = useGolToast()
-  const { user, token, myCaptures, pointTransactions, logout } = useGolbox()
+  const { user, token, myCaptures, pointTransactions, logout, loadMyCaptures } = useGolbox()
   const [showLogin, setShowLogin] = useState(false)
+
+  useEffect(() => {
+    if (token) void loadMyCaptures()
+  }, [token, loadMyCaptures])
 
   const displayName = user ? `${user.firstName} ${user.lastName}`.trim() : mockUser.fullName
   const points = user?.pointsBalance ?? mockUser.points
