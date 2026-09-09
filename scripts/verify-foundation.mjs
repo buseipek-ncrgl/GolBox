@@ -198,6 +198,9 @@ async function main() {
       body: { latitude: 37.07, longitude: 37.38 },
     });
     assert(again.json?.success === false, `expected duplicate reject, got ${JSON.stringify(again.json)}`);
+    const mine = await req('/field-drops/mine', { token: citizenToken });
+    assert(mine.status === 200 && Array.isArray(mine.json.data), `mine failed ${JSON.stringify(mine.json)}`);
+    assert(mine.json.data.some((c) => c.dropId === dropId || c.fieldDropId === dropId), 'captured drop missing from mine');
   });
 
   if (failures.length) {

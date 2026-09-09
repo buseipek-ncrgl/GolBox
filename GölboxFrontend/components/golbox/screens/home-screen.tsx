@@ -1,9 +1,19 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import Image from "next/image"
-import { ArrowRight, Coffee, MapPin, QrCode } from "lucide-react"
+import { ArrowRight, Coffee, Gift, MapPin, QrCode } from "lucide-react"
 import { UserCard } from "@/components/golbox/user-card"
 import { activity, cafes, todayHighlight, type TabId } from "@/lib/golbox-data"
+import { useGolbox } from "@/lib/golbox-context"
+
+const SEHITKAMIL = { lat: 37.0662, lng: 37.3781 }
+
+function formatDistance(meters: number) {
+  if (!Number.isFinite(meters)) return "—"
+  if (meters < 1000) return `${Math.round(meters)} m`
+  return `${(meters / 1000).toFixed(1)} km`
+}
 
 export function HomeScreen({
   onNavigate,
@@ -12,13 +22,71 @@ export function HomeScreen({
   onNavigate: (tab: TabId) => void
   onOpenCafe: (id: string) => void
 }) {
+  const { fieldDrops, loadNearbyFieldDrops } = useGolbox()
+  const [usingFallback, setUsingFallback] = useState(true)
   const nearest = cafes[0]
+  const nearbyDrop = fieldDrops[0] ?? null
+
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      loadNearbyFieldDrops(SEHITKAMIL.lat, SEHITKAMIL.lng)
+      return
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setUsingFallback(false)
+        loadNearbyFieldDrops(pos.coords.latitude, pos.coords.longitude)
+      },
+      () => {
+        setUsingFallback(true)
+        loadNearbyFieldDrops(SEHITKAMIL.lat, SEHITKAMIL.lng)
+      },
+      { enableHighAccuracy: true, timeout: 8000 }
+    )
+  }, [loadNearbyFieldDrops])
 
   return (
     <div className="gol-fade-up space-y-6 px-5 pb-6 pt-3">
       <UserCard />
 
-      {/* Bugün seni bekleyen tek fırsat */}
+      <section aria-label="Yakındaki saha hediyesi" className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-foreground">Yakındaki saha hediyesi</h2>
+          <button onClick={() => onNavigate("map")} className="text-sm font-medium text-primary">
+            Harita
+          </button>
+        </div>
+        {nearbyDrop ? (
+          <button
+            type="button"
+            onClick={() => onNavigate("map")}
+            className="flex w-full items-center gap-3 rounded-3xl border border-border bg-card p-4 text-left"
+          >
+            <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-secondary text-primary">
+              <Gift className="size-6" strokeWidth={2} />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-semibold text-card-foreground">{nearbyDrop.title}</span>
+              <span className="mt-0.5 block text-sm text-muted-foreground">
+                {formatDistance(Number(nearbyDrop.distanceMeters))}
+                {nearbyDrop.inRange ? " · yarıçap içindesiniz" : ""}
+                {usingFallback ? " · Şehitkamil merkezi" : ""}
+              </span>
+              <span className="mt-1 block text-[11px] text-muted-foreground">
+                Katalog ödülü ve Ismarlıyor buradan ayrıdır.
+              </span>
+            </span>
+            <span className="shrink-0 rounded-full bg-accent/20 px-2.5 py-1 text-xs font-semibold text-accent-foreground">
+              +{nearbyDrop.pointsGranted} GP
+            </span>
+          </button>
+        ) : (
+          <p className="rounded-3xl border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
+            Yakında yayında saha hediyesi yok.
+          </p>
+        )}
+      </section>
+
       <section aria-label="Bugün seni bekleyen">
         <button
           onClick={() => onNavigate("qr")}
@@ -40,7 +108,6 @@ export function HomeScreen({
         </button>
       </section>
 
-      {/* En yakın şube önerisi */}
       <section aria-label="Sana en yakın şube" className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-foreground">Sana en yakın</h2>
@@ -81,7 +148,6 @@ export function HomeScreen({
         </button>
       </section>
 
-      {/* Sessiz özet: son hareketler (rapor değil, kısa) */}
       <section aria-label="Son hareketler" className="space-y-3">
         <h2 className="text-sm font-semibold text-foreground">Son hareketler</h2>
         <ul className="divide-y divide-border overflow-hidden rounded-3xl border border-border bg-card">
@@ -105,13 +171,12 @@ export function HomeScreen({
         </ul>
       </section>
 
-      {/* Tek QR kısayolu */}
       <button
         onClick={() => onNavigate("qr")}
         className="flex w-full items-center justify-center gap-2 rounded-full bg-foreground py-3.5 text-sm font-semibold text-background"
       >
         <QrCode className="size-4.5" strokeWidth={2.2} />
-        QR'ımı göster
+        QR&apos;ımı göster
       </button>
     </div>
   )

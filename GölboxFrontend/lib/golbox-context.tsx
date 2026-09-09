@@ -82,6 +82,16 @@ export interface FieldDropNearby {
   distanceMeters: number
 }
 
+export interface FieldDropCapture {
+  id: string
+  dropId: string
+  title: string
+  pointsGranted: number
+  distanceMeters: number
+  createdDate: string
+  imageUrl?: string | null
+}
+
 export interface PointTransaction {
   id: string
   amount: number
@@ -98,6 +108,7 @@ interface GolboxContextType {
   rewards: Reward[]
   pointTransactions: PointTransaction[]
   fieldDrops: FieldDropNearby[]
+  myCaptures: FieldDropCapture[]
   loading: boolean
   login: (email: string, password: string) => Promise<boolean>
   logout: () => void
@@ -107,6 +118,7 @@ interface GolboxContextType {
   uploadFile: (file: File) => Promise<string | null>
   refreshData: () => Promise<void>
   loadNearbyFieldDrops: (latitude: number, longitude: number) => Promise<void>
+  loadMyCaptures: () => Promise<void>
   captureFieldDrop: (id: string, latitude: number, longitude: number) => Promise<boolean>
 }
 
@@ -126,6 +138,7 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
   const [rewards, setRewards] = useState<Reward[]>([])
   const [pointTransactions, setPointTransactions] = useState<PointTransaction[]>([])
   const [fieldDrops, setFieldDrops] = useState<FieldDropNearby[]>([])
+  const [myCaptures, setMyCaptures] = useState<FieldDropCapture[]>([])
   const [loading, setLoading] = useState(false)
   const showToast = useGolToast()
 
@@ -244,6 +257,12 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
           const items = res.data?.items || res.data || []
           setPointTransactions(items)
         }
+
+        const mineRes = await fetch(`${API_BASE_URL}/field-drops/mine`, { headers: authHeader })
+        if (mineRes.ok) {
+          const mineJson = await mineRes.json()
+          setMyCaptures(Array.isArray(mineJson.data) ? mineJson.data : [])
+        }
       }
 
     } catch (e) {
@@ -261,6 +280,7 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
       setRewards([])
       setPointTransactions([])
       setFieldDrops([])
+      setMyCaptures([])
     }
   }, [token, refreshData])
 
@@ -461,6 +481,26 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
     }
   }, [token])
 
+  const loadMyCaptures = useCallback(async () => {
+    if (!token) {
+      setMyCaptures([])
+      return
+    }
+    try {
+      const res = await fetch(`${API_BASE_URL}/field-drops/mine`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (!res.ok) {
+        setMyCaptures([])
+        return
+      }
+      const json = await res.json()
+      setMyCaptures(Array.isArray(json.data) ? json.data : [])
+    } catch {
+      setMyCaptures([])
+    }
+  }, [token])
+
   const captureFieldDrop = useCallback(async (id: string, latitude: number, longitude: number) => {
     if (!token) {
       showToast("Toplamak için giriş yapın.")
@@ -482,6 +522,7 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
         showToast(points ? `Saha hediyesi alındı. +${points} GP` : "Saha hediyesi alındı.")
         await refreshData()
         await loadNearbyFieldDrops(latitude, longitude)
+        await loadMyCaptures()
         setLoading(false)
         return true
       }
@@ -491,7 +532,7 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
     }
     setLoading(false)
     return false
-  }, [token, showToast, refreshData, loadNearbyFieldDrops])
+  }, [token, showToast, refreshData, loadNearbyFieldDrops, loadMyCaptures])
 
   return (
     <GolboxContext.Provider
@@ -503,6 +544,7 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
         rewards,
         pointTransactions,
         fieldDrops,
+        myCaptures,
         loading,
         login,
         logout,
@@ -512,6 +554,7 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
         uploadFile,
         refreshData,
         loadNearbyFieldDrops,
+        loadMyCaptures,
         captureFieldDrop
       }}
     >

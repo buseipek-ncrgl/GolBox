@@ -78,6 +78,32 @@ public class FieldDropsController : BaseApiController
         return Ok(Result<object>.Ok(nearby));
     }
 
+    [HttpGet("mine")]
+    public async Task<IActionResult> GetMine()
+    {
+        var userId = _currentUser.UserId;
+        if (userId == null || userId == Guid.Empty)
+            return Unauthorized(Result<object>.Fail("Oturum doğrulanamadı."));
+
+        var captures = await _context.UserFieldCaptures
+            .Include(c => c.FieldDrop)
+            .Where(c => c.UserId == userId.Value)
+            .OrderByDescending(c => c.CreatedDate)
+            .Select(c => new
+            {
+                c.Id,
+                dropId = c.FieldDropId,
+                title = c.FieldDrop.Title,
+                c.PointsGranted,
+                c.DistanceMeters,
+                c.CreatedDate,
+                imageUrl = c.FieldDrop.ImageUrl
+            })
+            .ToListAsync();
+
+        return Ok(Result<object>.Ok(captures));
+    }
+
     [HttpGet("{id}")]
     public async Task<IActionResult> GetFieldDrop(Guid id)
     {

@@ -100,7 +100,7 @@ export function MapScreen() {
   }
 
   if (showLogin && !token) {
-    return <LoginScreen onClose={() => setShowLogin(false)} />
+        return <LoginScreen onClose={() => setShowLogin(false)} closeLabel="Haritaya dön" />
   }
 
   return (
