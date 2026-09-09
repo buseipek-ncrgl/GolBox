@@ -30,6 +30,32 @@ const createdId = (res: any): string | null => {
 const rewardPoints = (reward: any): number =>
   Number(reward?.requiredPoints ?? reward?.pointsRequired ?? 0);
 
+const emptyNote = (text: string) => (
+  <div style={{ background: '#fff', border: '1px dashed #cbd5e1', borderRadius: '16px', padding: '2rem', color: '#64748b' }}>{text}</div>
+);
+
+const campaignTypeLabel = (type?: string) => {
+  const map: Record<string, string> = {
+    FixedBonus: 'Sabit bonus',
+    DoublePoints: 'Çift puan',
+    ProductDiscount: 'Ürün indirimi',
+    FirstOrderBonus: 'İlk sipariş',
+    BranchSpecial: 'Şube özel',
+    TargetGroupSpecial: 'Hedef kitle'
+  };
+  return (type && map[type]) || type || '—';
+};
+
+const targetGroupLabel = (group?: string) => {
+  const map: Record<string, string> = {
+    All: 'Tüm vatandaşlar',
+    HighSchool: 'Lise',
+    University: 'Üniversite',
+    AgeGroup: 'Yaş grubu'
+  };
+  return (group && map[group]) || group || '—';
+};
+
 export const Admin: React.FC = () => {
   const { logout, user: currentUser } = useAuth();
   const adminName = [currentUser?.firstName, currentUser?.lastName].filter(Boolean).join(' ') || currentUser?.email || 'Yönetici';
@@ -55,6 +81,7 @@ export const Admin: React.FC = () => {
 
   // Dashboard Overview state
   const [overviewData, setOverviewData] = useState<any>(null);
+  const [reportsSummary, setReportsSummary] = useState<any>(null);
 
   // Data lists
   const [usersList, setUsersList] = useState<any[]>([]);
@@ -215,16 +242,18 @@ export const Admin: React.FC = () => {
     setError(null);
     try {
       if (activeMenu === 'overview') {
-        const [data, orders, users, cafes] = await Promise.all([
+        const [data, orders, users, cafes, menu] = await Promise.all([
           api.getDashboardOverview(),
           api.getOrders().catch(() => []),
           api.getUsers().catch(() => []),
           api.getCafes().catch(() => []),
+          api.getAllMenuItems().catch(() => []),
         ]);
         setOverviewData(data);
         setOrdersList(extractArray(orders));
         setUsersList(extractArray(users));
         setCafesList(extractArray(cafes));
+        setMenuItemsList(extractArray(menu));
       } else if (activeMenu === 'users') {
         const users = await api.getUsers();
         setUsersList(extractArray(users));
@@ -285,6 +314,21 @@ export const Admin: React.FC = () => {
       } else if (activeMenu === 'roles') {
         const users = await api.getUsers();
         setUsersList(extractArray(users));
+      } else if (activeMenu === 'reports') {
+        const [summary, users, pts, orders, drops, rewards] = await Promise.all([
+          api.getReportsSummary(),
+          api.getUsers().catch(() => []),
+          api.getPointsLedger(1, 200).catch(() => []),
+          api.getOrders().catch(() => []),
+          api.getFieldDrops().catch(() => []),
+          api.getRewards().catch(() => []),
+        ]);
+        setReportsSummary(summary);
+        setUsersList(extractArray(users));
+        setPointsList(extractArray(pts));
+        setOrdersList(extractArray(orders));
+        setFieldDropsList(extractArray(drops));
+        setRewardsList(extractArray(rewards));
       }
     } catch (err: any) {
       setError(err.message || 'Veri yükleme hatası.');
@@ -294,7 +338,7 @@ export const Admin: React.FC = () => {
 
   useEffect(() => {
     fetchData();
-  }, [activeMenu, newProdCafeId, selectedFieldDropId]);
+  }, [activeMenu, selectedFieldDropId]);
 
   // Global Live Filtering Logic
   const getFilteredList = (list: any[]) => {
@@ -419,8 +463,14 @@ export const Admin: React.FC = () => {
     const targetCafeObj = cafesList.find(c => c.id === targetCafeId);
     const cafeNameLabel = targetCafeId === 'ALL' ? 'Tüm Şubelerde Geçerli' : (targetCafeObj?.name || 'Göl Kafe Şubesi');
 
+    const cafeId = targetCafeId === 'ALL' ? cafesList[0]?.id : targetCafeId;
+    if (!cafeId) {
+      setError('Ürün eklemek için önce bir tesis ekleyin.');
+      return;
+    }
+
     try {
-      const newItem = await api.createMenuItem(targetCafeId === 'ALL' ? (cafesList[0]?.id ?? '33333333-3333-3333-3333-333333333333') : targetCafeId, {
+      const newItem = await api.createMenuItem(cafeId, {
         name: newProdName,
         description: newProdDesc,
         price: Number(newProdPrice),
@@ -1093,7 +1143,7 @@ export const Admin: React.FC = () => {
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem' }}>
                 <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '1.5rem' }}>
                   <h3 style={{ margin: '0 0 1rem', fontSize: '1.1rem', fontWeight: 800, color: '#0f172a' }}>Bekleyen Ismarlıyor</h3>
-                  {getIsmarliyorList().length === 0 ? (
+                  {ordersList.filter((o: any) => o.status === 'Pending' || o.status === 'Preparing' || o.status === 'Submitted' || o.status === 'Created').length === 0 ? (
                     <p style={{ margin: 0, color: '#64748b', fontSize: '0.85rem' }}>Bekleyen kayıt yok.</p>
                   ) : (
                   <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
@@ -1107,7 +1157,7 @@ export const Admin: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {getIsmarliyorList().slice(0, 4).map(o => (
+                      {ordersList.filter((o: any) => o.status === 'Pending' || o.status === 'Preparing' || o.status === 'Submitted' || o.status === 'Created').slice(0, 4).map(o => (
                         <tr key={o.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                           <td style={{ padding: '0.75rem 0.65rem', fontWeight: 800, color: '#b45309' }}>{o.collectionCode}</td>
                           <td style={{ padding: '0.75rem 0.65rem', fontWeight: 700 }}>{o.userFullName}</td>
@@ -1165,7 +1215,11 @@ export const Admin: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {getFilteredList(usersList).map((u) => (
+                    {getFilteredList(usersList).length === 0 ? (
+                      <tr>
+                        <td colSpan={7} style={{ padding: '1.5rem', color: '#64748b' }}>Vatandaş kaydı yok.</td>
+                      </tr>
+                    ) : getFilteredList(usersList).map((u) => (
                       <tr key={u.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                         <td style={{ padding: '0.85rem 1rem' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
@@ -1180,7 +1234,7 @@ export const Admin: React.FC = () => {
                         </td>
                         <td style={{ padding: '0.85rem 1rem', color: '#64748b' }}>
                           <div>{u.email}</div>
-                          <div style={{ fontSize: '0.725rem', color: '#94a3b8' }}>{u.phone || '—'}</div>
+                          <div style={{ fontSize: '0.725rem', color: '#94a3b8' }}>{u.phoneNumber || u.phone || '—'}</div>
                         </td>
                         <td style={{ padding: '0.85rem 1rem', fontWeight: 600 }}>{u.age ?? '—'}</td>
                         <td style={{ padding: '0.85rem 1rem' }}>
@@ -1230,6 +1284,7 @@ export const Admin: React.FC = () => {
                 </button>
               </div>
 
+              {getFilteredList(cafesList).length === 0 ? emptyNote('Kafe kaydı yok.') : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem' }}>
                 {getFilteredList(cafesList).map((c) => (
                   <div
@@ -1256,7 +1311,9 @@ export const Admin: React.FC = () => {
                     <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#0f172a' }}>{c.name}</h3>
-                        <span style={{ background: '#dcfce7', color: '#15803d', padding: '3px 8px', borderRadius: '100px', fontSize: '0.7rem', fontWeight: 700 }}>Aktif Şube</span>
+                        <span style={{ background: c.isActive === false ? '#fee2e2' : '#dcfce7', color: c.isActive === false ? '#b91c1c' : '#15803d', padding: '3px 8px', borderRadius: '100px', fontSize: '0.7rem', fontWeight: 700 }}>
+                          {c.isActive === false ? 'Pasif' : 'Aktif'}
+                        </span>
                       </div>
                       <div style={{ fontSize: '0.8rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px' }}>
                         <MapPin size={14} /> <span>{c.address}</span>
@@ -1265,6 +1322,7 @@ export const Admin: React.FC = () => {
                   </div>
                 ))}
               </div>
+              )}
             </div>
           )}
 
@@ -1317,8 +1375,14 @@ export const Admin: React.FC = () => {
               </div>
 
               {/* Pro Product Cards Grid */}
+              {(() => {
+                const productRows = getFilteredList(menuItemsList).filter((item: any) =>
+                  !newProdCafeId || newProdCafeId === 'ALL' ? true : item.cafeId === newProdCafeId
+                );
+                if (productRows.length === 0) return emptyNote('Ürün kaydı yok.');
+                return (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
-                {getFilteredList(menuItemsList).map((item) => (
+                {productRows.map((item) => (
                   <div key={item.id} style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 4px 20px -2px rgba(0,0,0,0.03)' }}>
                     {item.imageUrl ? (
                       <img src={item.imageUrl} alt={item.name} style={{ width: '100%', height: '150px', objectFit: 'cover' }} />
@@ -1340,13 +1404,15 @@ export const Admin: React.FC = () => {
 
                       <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
                         <span style={{ fontSize: '0.725rem', background: '#dcfce7', color: '#15803d', padding: '3px 8px', borderRadius: '6px', fontWeight: 700 }}>
-                          {item.cafeId === 'ALL' || !item.cafeId ? 'Tüm Şubelerde Geçerli' : (item.cafeName ? `${item.cafeName}` : 'Seçili Şubede')}
+                          {item.cafeName || 'Tesis'}
                         </span>
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
+                );
+              })()}
             </div>
           )}
 
@@ -1384,6 +1450,7 @@ export const Admin: React.FC = () => {
               </div>
 
               {/* Rewards Cards Grid */}
+              {getFilteredList(rewardsList).length === 0 ? emptyNote('Ödül kaydı yok.') : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
                 {getFilteredList(rewardsList).map((r) => (
                   <div key={r.id} style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', boxShadow: '0 4px 20px -2px rgba(0,0,0,0.03)' }}>
@@ -1395,12 +1462,12 @@ export const Admin: React.FC = () => {
                     </div>
                     <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>{r.description}</p>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', paddingTop: '0.5rem', borderTop: '1px solid #f1f5f9' }}>
-                      <span style={{ background: '#dcfce7', color: '#15803d', padding: '3px 8px', borderRadius: '6px', fontSize: '0.725rem', fontWeight: 700 }}>Aktif İkram</span>
-                      <span style={{ fontSize: '0.725rem', color: '#1d5f60', fontWeight: 700 }}>Tüm Şubelerde</span>
+                      <span style={{ background: '#dcfce7', color: '#15803d', padding: '3px 8px', borderRadius: '6px', fontSize: '0.725rem', fontWeight: 700 }}>{r.status || 'Kayıtlı'}</span>
                     </div>
                   </div>
                 ))}
               </div>
+              )}
             </div>
           )}
 
@@ -1559,13 +1626,17 @@ export const Admin: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {getIsmarliyorList().map((o) => (
+                    {getIsmarliyorList().length === 0 ? (
+                      <tr>
+                        <td colSpan={7} style={{ padding: '1.5rem', color: '#64748b' }}>Ismarlıyor kaydı yok.</td>
+                      </tr>
+                    ) : getIsmarliyorList().map((o) => (
                       <tr key={o.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                         <td style={{ padding: '0.85rem 1rem', fontWeight: 800, color: '#d97706' }}>{o.collectionCode}</td>
                         <td style={{ padding: '0.85rem 1rem', fontWeight: 700, color: '#0f172a' }}>{o.userFullName}</td>
                         <td style={{ padding: '0.85rem 1rem' }}>
                           <span style={{ background: '#e0f2fe', color: '#0369a1', padding: '3px 10px', borderRadius: '100px', fontSize: '0.75rem', fontWeight: 700 }}>
-                            {o.targetCriteria || 'Gençler (18-25 Yaş)'}
+                            {o.targetCriteria || '—'}
                           </span>
                         </td>
                         <td style={{ padding: '0.85rem 1rem' }}>{o.cafeName} ({o.totalAmount} TL)</td>
@@ -1580,7 +1651,7 @@ export const Admin: React.FC = () => {
                         </td>
                         <td style={{ padding: '0.85rem 1rem' }}>
                           <span style={{ padding: '4px 10px', borderRadius: '100px', fontSize: '0.75rem', fontWeight: 700, background: o.status === 'Delivered' ? '#dcfce7' : '#fef3c7', color: o.status === 'Delivered' ? '#15803d' : '#b45309' }}>
-                            {o.status === 'Delivered' ? 'Tamamlandı' : 'Yayında (Hazır)'}
+                            {o.status || '—'}
                           </span>
                         </td>
                         <td style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>
@@ -1634,6 +1705,7 @@ export const Admin: React.FC = () => {
               </div>
 
               {/* Campaigns Grid */}
+              {getFilteredList(campaignsList).length === 0 ? emptyNote('Kampanya kaydı yok.') : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem' }}>
                 {getFilteredList(campaignsList).map((c) => (
                   <div key={c.id} style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 4px 20px -2px rgba(0,0,0,0.03)' }}>
@@ -1651,22 +1723,23 @@ export const Admin: React.FC = () => {
                           <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: '#64748b' }}>{c.description}</p>
                         </div>
                         <span style={{ background: '#dcfce7', color: '#15803d', padding: '4px 10px', borderRadius: '100px', fontSize: '0.8rem', fontWeight: 800 }}>
-                          {c.valueLabel || c.discountRate || '%20 İndirim'}
+                          {campaignTypeLabel(c.campaignType)}
                         </span>
                       </div>
 
                       <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginTop: 'auto' }}>
                         <span style={{ fontSize: '0.725rem', background: '#e0f2fe', color: '#0369a1', padding: '3px 8px', borderRadius: '6px', fontWeight: 700 }}>
-                          {c.targetGroupLabel || c.targetCriteria || 'Öğrencilere Özel'}
+                          {targetGroupLabel(c.targetUserGroup)}
                         </span>
                         <span style={{ fontSize: '0.725rem', background: '#fef3c7', color: '#b45309', padding: '3px 8px', borderRadius: '6px', fontWeight: 700 }}>
-                          {c.startDate ? new Date(c.startDate).toLocaleDateString('tr-TR') : 'Bugün'} - {c.endDate ? new Date(c.endDate).toLocaleDateString('tr-TR') : '14 Gün'}
+                          {c.startDate ? new Date(c.startDate).toLocaleDateString('tr-TR') : '—'} - {c.endDate ? new Date(c.endDate).toLocaleDateString('tr-TR') : '—'}
                         </span>
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
+              )}
             </div>
           )}
 
@@ -1686,6 +1759,7 @@ export const Admin: React.FC = () => {
                 </button>
               </div>
 
+              {getFilteredList(eventsList).length === 0 ? emptyNote('Etkinlik kaydı yok.') : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.25rem' }}>
                 {getFilteredList(eventsList).map((e) => (
                   <div key={e.id} style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', boxShadow: '0 4px 20px -2px rgba(0,0,0,0.03)' }}>
@@ -1694,10 +1768,11 @@ export const Admin: React.FC = () => {
                       <span style={{ background: '#fef3c7', color: '#b45309', padding: '3px 10px', borderRadius: '100px', fontSize: '0.75rem', fontWeight: 800 }}>+{e.pointsReward} GP</span>
                     </div>
                     <p style={{ margin: 0, fontSize: '0.825rem', color: '#64748b' }}>{e.description}</p>
-                    <div style={{ fontSize: '0.75rem', color: '#0369a1', fontWeight: 600 }}>Konum: {e.location || 'Şehitkamil Gençlik Merkezi'}</div>
+                    <div style={{ fontSize: '0.75rem', color: '#0369a1', fontWeight: 600 }}>Konum: {e.location || '—'}</div>
                   </div>
                 ))}
               </div>
+              )}
             </div>
           )}
 
@@ -1724,6 +1799,16 @@ export const Admin: React.FC = () => {
                   <Send size={16} /> Toplu Anlık Bildirim Gönder
                 </button>
               </form>
+              {getFilteredList(notificationsList).length === 0 ? emptyNote('Gönderilmiş bildirim kaydı yok.') : (
+                <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '16px', overflow: 'hidden' }}>
+                  {getFilteredList(notificationsList).map((n: any) => (
+                    <div key={n.id} style={{ padding: '0.9rem 1.25rem', borderBottom: '1px solid #f1f5f9' }}>
+                      <div style={{ fontWeight: 700 }}>{n.title}</div>
+                      <div style={{ fontSize: '0.8rem', color: '#64748b' }}>{n.message} · {n.status || '—'} · {n.sentCount ?? 0} alıcı</div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -1743,9 +1828,10 @@ export const Admin: React.FC = () => {
               </div>
               <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '16px', overflow: 'hidden' }}>
                 {[
-                  ['Vatandaş', usersList.length],
-                  ['GölPuan hareketi', pointsList.length],
-                  ['Ismarlıyor / sipariş', ordersList.length],
+                  ['Vatandaş', reportsSummary?.citizens?.totalUsers ?? usersList.length],
+                  ['GölPuan kazanılan', reportsSummary?.points?.totalEarnedPoints ?? 0],
+                  ['GölPuan harcanan', reportsSummary?.points?.totalSpentPoints ?? 0],
+                  ['Ismarlıyor / sipariş', reportsSummary?.orders?.totalOrders ?? ordersList.length],
                   ['Saha hediyesi', fieldDropsList.length],
                   ['Ödül', rewardsList.length]
                 ].map(([label, count]) => (
@@ -1803,7 +1889,9 @@ export const Admin: React.FC = () => {
               <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Roller & Personel</h1>
               <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: 0 }}>Kayıtlı kullanıcıların mevcut rolleri.</p>
               <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '16px', overflow: 'hidden' }}>
-                {getFilteredList(usersList).map((u: any) => (
+                {getFilteredList(usersList).length === 0 ? (
+                  <p style={{ padding: '1.5rem', color: '#64748b' }}>Kullanıcı kaydı yok.</p>
+                ) : getFilteredList(usersList).map((u: any) => (
                   <div key={u.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.9rem 1.25rem', borderBottom: '1px solid #f1f5f9' }}>
                     <div>
                       <div style={{ fontWeight: 700 }}>{u.firstName} {u.lastName}</div>

@@ -118,7 +118,7 @@ async function main() {
   });
 
   await check('existing admin modules still load', async () => {
-    for (const path of ['/users', '/cafes', '/menu-items', '/orders', '/rewards', '/campaigns', '/activities', '/notifications', '/auditlogs', '/dashboard/overview']) {
+    for (const path of ['/users', '/cafes', '/menu-items', '/orders', '/rewards', '/campaigns', '/activities', '/notifications', '/auditlogs', '/dashboard/overview', '/reports/summary', '/staff', '/settings', '/field-drops', '/points/ledger', '/approvals', '/analytics/admin', '/tasks']) {
       const { status, json } = await req(path, { token });
       assert(status === 200 && json?.success !== false, `${path} failed ${status} ${JSON.stringify(json)}`);
     }
