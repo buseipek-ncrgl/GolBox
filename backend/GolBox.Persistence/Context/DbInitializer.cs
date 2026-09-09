@@ -591,6 +591,7 @@ public static class DbInitializer
                     PerUserLimit = 1,
                     StartsAt = DateTime.UtcNow.AddDays(-1),
                     EndsAt = DateTime.UtcNow.AddDays(60),
+                    ModelGlbUrl = "/models/golbox-rozet.glb",
                     IsActive = true
                 }
             );
@@ -773,6 +774,13 @@ public static class DbInitializer
                 DeletedBy TEXT NULL,
                 IsDeleted INTEGER NOT NULL
             );
+        ");
+
+        await context.Database.ExecuteSqlRawAsync(@"
+            UPDATE FieldDrops
+            SET ModelGlbUrl = '/models/golbox-rozet.glb'
+            WHERE lower(Id) = 'dddddddd-dddd-dddd-dddd-ddddddddddd2'
+              AND (ModelGlbUrl IS NULL OR ModelGlbUrl = '');
         ");
     }
 

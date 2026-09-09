@@ -1453,6 +1453,9 @@ export const Admin: React.FC = () => {
                       <span style={{ background: drop.isActive ? '#dcfce7' : '#fee2e2', color: drop.isActive ? '#15803d' : '#b91c1c', padding: '3px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 700 }}>
                         {drop.isActive ? 'Yayında' : 'Durduruldu'}
                       </span>
+                      {drop.modelGlbUrl ? (
+                        <span style={{ background: '#ecfdf5', color: '#1d5f60', padding: '3px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 700 }}>3D GLB</span>
+                      ) : null}
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '1rem' }}>
@@ -2469,8 +2472,9 @@ export const Admin: React.FC = () => {
                 {extractArray(rewardsList).map((r: any) => <option key={r.id} value={r.id}>{r.title} ({rewardPoints(r)} GP)</option>)}
               </select>
             </label>
-            <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569' }}>3D model URL (GLB, sonraki adım)
-              <input value={fdModelUrl} onChange={(e) => setFdModelUrl(e.target.value)} placeholder="https://.../hediye.glb" style={{ width: '100%', marginTop: 4, padding: '0.65rem', border: '1px solid #cbd5e1', borderRadius: 8 }} />
+            <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569' }}>3D model URL (GLB)
+              <input value={fdModelUrl} onChange={(e) => setFdModelUrl(e.target.value)} placeholder="https://.../hediye.glb veya /models/hediye.glb" style={{ width: '100%', marginTop: 4, padding: '0.65rem', border: '1px solid #cbd5e1', borderRadius: 8 }} />
+              <span style={{ display: 'block', marginTop: 4, fontWeight: 500, color: '#64748b' }}>Boş bırakılabilir. Boşsa vatandaş uygulaması çökmez; GPS Al çalışır. ARKit kullanılmaz.</span>
             </label>
             <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569' }}>Görsel
               <input type="file" accept="image/*" onChange={(e) => handleFileUploadHelper(e, setFdImageUrl)} />

@@ -127,6 +127,10 @@ async function main() {
   await check('nearby field drops are public and only live', async () => {
     const { status, json } = await req('/field-drops/nearby?latitude=37.0662&longitude=37.3781');
     assert(status === 200 && json?.success && Array.isArray(json.data), `nearby failed ${status} ${JSON.stringify(json)}`);
+    const first = json.data[0];
+    if (first) {
+      assert(Object.prototype.hasOwnProperty.call(first, 'modelGlbUrl'), 'nearby missing modelGlbUrl');
+    }
   });
 
   let dropId;
@@ -146,6 +150,7 @@ async function main() {
         totalStock: 5,
         perUserLimit: 1,
         isActive: true,
+        modelGlbUrl: '',
       },
     });
     assert(created.status === 200 && created.json.success && created.json.data.id, `create drop failed ${JSON.stringify(created.json)}`);

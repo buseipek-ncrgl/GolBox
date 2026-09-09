@@ -12,7 +12,10 @@ export default function Page() {
         </p>
       </div>
 
-      <div className="relative h-svh w-full overflow-hidden bg-background sm:h-[812px] sm:max-w-[390px] sm:rounded-[3rem] sm:border-8 sm:border-foreground sm:shadow-[0_40px_90px_-30px_rgba(29,95,96,0.5)]">
+      <div
+        data-golbox-shell
+        className="relative h-svh w-full overflow-hidden bg-background sm:h-[812px] sm:max-w-[390px] sm:rounded-[3rem] sm:border-8 sm:border-foreground sm:shadow-[0_40px_90px_-30px_rgba(29,95,96,0.5)]"
+      >
         <div className="pointer-events-none absolute left-1/2 top-0 z-30 hidden h-6 w-36 -translate-x-1/2 rounded-b-2xl bg-foreground sm:block" />
         <GolToastProvider>
           <GolboxProvider>

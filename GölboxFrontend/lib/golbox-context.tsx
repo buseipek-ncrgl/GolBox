@@ -76,6 +76,7 @@ export interface FieldDropNearby {
   radiusMeters: number
   pointsGranted: number
   imageUrl?: string
+  modelGlbUrl?: string | null
   remainingStock: number | null
   inRange: boolean
   distanceMeters: number

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import { MapPin, Navigation } from "lucide-react"
 import { useGolbox } from "@/lib/golbox-context"
 import { LoginScreen } from "@/components/golbox/screens/login-screen"
+import { CaptureOverlay } from "@/components/golbox/capture-overlay"
 
 const SEHITKAMIL = { lat: 37.0662, lng: 37.3781 }
 
@@ -26,6 +27,7 @@ export function MapScreen() {
   const [showLogin, setShowLogin] = useState(false)
   const [capturedIds, setCapturedIds] = useState<string[]>([])
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [pendingDropId, setPendingDropId] = useState<string | null>(null)
 
   useEffect(() => {
     if (token) setShowLogin(false)
@@ -73,14 +75,27 @@ export function MapScreen() {
   const mapLat = selected ? Number(selected.latitude) : origin.lat
   const mapLng = selected ? Number(selected.longitude) : origin.lng
 
-  const handleCapture = async (dropId: string) => {
+  const pendingDrop = useMemo(
+    () => fieldDrops.find((d) => d.id === pendingDropId) ?? null,
+    [fieldDrops, pendingDropId]
+  )
+
+  const openCapture = (dropId: string) => {
     if (!token) {
       setShowLogin(true)
       return
     }
-    setBusyId(dropId)
-    const ok = await captureFieldDrop(dropId, origin.lat, origin.lng)
-    if (ok) setCapturedIds((prev) => (prev.includes(dropId) ? prev : [...prev, dropId]))
+    setPendingDropId(dropId)
+  }
+
+  const confirmCapture = async () => {
+    if (!pendingDrop) return
+    setBusyId(pendingDrop.id)
+    const ok = await captureFieldDrop(pendingDrop.id, origin.lat, origin.lng)
+    if (ok) {
+      setCapturedIds((prev) => (prev.includes(pendingDrop.id) ? prev : [...prev, pendingDrop.id]))
+      setPendingDropId(null)
+    }
     setBusyId(null)
   }
 
@@ -154,7 +169,7 @@ export function MapScreen() {
                       <button
                         type="button"
                         disabled={loading || busyId === drop.id}
-                        onClick={() => handleCapture(drop.id)}
+                        onClick={() => openCapture(drop.id)}
                         className="w-full rounded-2xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
                       >
                         {busyId === drop.id ? "Alınıyor..." : token ? "Al" : "Giriş yap ve al"}
@@ -171,6 +186,15 @@ export function MapScreen() {
           })
         )}
       </ul>
+
+      {pendingDrop && (
+        <CaptureOverlay
+          drop={pendingDrop}
+          busy={busyId === pendingDrop.id}
+          onConfirm={confirmCapture}
+          onClose={() => setPendingDropId(null)}
+        />
+      )}
     </div>
   )
 }
