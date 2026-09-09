@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../store/AuthContext';
 import { api } from '../services/api';
-import { ShieldCheck, LogIn, AlertCircle, Eye, EyeOff, Lock, Mail, Building2, Sparkles, Shield } from 'lucide-react';
+import { LogIn, AlertCircle, Eye, EyeOff, Lock, Mail, Shield } from 'lucide-react';
 
 export const Login: React.FC = () => {
   const { login } = useAuth();
@@ -41,7 +41,7 @@ export const Login: React.FC = () => {
       justifyContent: 'center',
       background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)',
       padding: '1.5rem',
-      fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      fontFamily: 'Manrope, system-ui, sans-serif',
       position: 'relative',
       overflow: 'hidden'
     }}>
@@ -85,7 +85,7 @@ export const Login: React.FC = () => {
             border: '1px solid rgba(29, 95, 96, 0.4)',
             padding: '0.35rem 0.85rem',
             borderRadius: '100px',
-            color: '#38bdf8',
+            color: '#94a3b8',
             fontSize: '0.725rem',
             fontWeight: 700,
             letterSpacing: '0.04em',
@@ -101,16 +101,17 @@ export const Login: React.FC = () => {
             height: '56px',
             margin: '0 auto 1rem auto',
             borderRadius: '16px',
-            background: 'linear-gradient(135deg, #1d5f60 0%, #0284c7 100%)',
+            background: '#1d5f60',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             color: '#ffffff',
-            fontWeight: 900,
+            fontWeight: 800,
             fontSize: '1.25rem',
+            fontFamily: 'Fraunces, Georgia, serif',
             boxShadow: '0 10px 20px -5px rgba(29, 95, 96, 0.4)'
           }}>
-            ŠB
+            ŞB
           </div>
 
           <h1 style={{
@@ -145,7 +146,7 @@ export const Login: React.FC = () => {
             fontSize: '0.675rem',
             fontWeight: 700,
             textTransform: 'uppercase',
-            color: '#38bdf8',
+            color: '#94a3b8',
             letterSpacing: '0.06em',
             marginBottom: '0.5rem',
             textAlign: 'center',
@@ -154,8 +155,7 @@ export const Login: React.FC = () => {
             justifyContent: 'center',
             gap: '0.35rem'
           }}>
-            <Sparkles size={12} />
-            <span>Hızlı Giriş Seçeneği</span>
+            <span>Hızlı giriş</span>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
@@ -165,7 +165,7 @@ export const Login: React.FC = () => {
               style={{
                 background: email === 'admin@golbox.gov.tr' ? '#1d5f60' : 'rgba(255, 255, 255, 0.04)',
                 color: '#ffffff',
-                border: email === 'admin@golbox.gov.tr' ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.08)',
+                border: email === 'admin@golbox.gov.tr' ? '1px solid #1d5f60' : '1px solid rgba(255, 255, 255, 0.08)',
                 borderRadius: '8px',
                 padding: '0.5rem',
                 fontSize: '0.75rem',
@@ -174,7 +174,7 @@ export const Login: React.FC = () => {
                 transition: 'all 0.15s ease'
               }}
             >
-              👑 Süper Admin
+              Admin
             </button>
 
             <button
@@ -183,7 +183,7 @@ export const Login: React.FC = () => {
               style={{
                 background: email === 'staff@golbox.gov.tr' ? '#1d5f60' : 'rgba(255, 255, 255, 0.04)',
                 color: '#ffffff',
-                border: email === 'staff@golbox.gov.tr' ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.08)',
+                border: email === 'staff@golbox.gov.tr' ? '1px solid #1d5f60' : '1px solid rgba(255, 255, 255, 0.08)',
                 borderRadius: '8px',
                 padding: '0.5rem',
                 fontSize: '0.75rem',
@@ -192,7 +192,7 @@ export const Login: React.FC = () => {
                 transition: 'all 0.15s ease'
               }}
             >
-              ☕ Kasa Personeli
+              Personel
             </button>
           </div>
         </div>

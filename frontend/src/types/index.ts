@@ -5,6 +5,11 @@ export interface User {
   firstName: string;
   lastName: string;
   pointsBalance: number;
+  role?: string;
+  roles?: string[];
+  phone?: string;
+  age?: number;
+  educationLevel?: string;
 }
 
 export interface Organization {

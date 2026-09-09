@@ -1,24 +1,21 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-
 :root {
-  /* GölBox Corporate SaaS Light Design System Tokens */
-  --bg-app: #f8fafc;              /* Cool Slate Light background */
-  --bg-surface: #ffffff;          /* Pure White for cards & tables */
-  --bg-subtle: #f1f5f9;           /* Secondary slate for hover/inputs */
-  --bg-sidebar: #0f172a;          /* Deep Slate for high-contrast Sidebar */
-  --bg-sidebar-active: rgba(56, 189, 248, 0.12);
+  --bg-app: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-subtle: #f1f5f9;
+  --bg-sidebar: #0f172a;
+  --bg-sidebar-active: rgba(29, 95, 96, 0.18);
 
-  /* Typography & High Contrast Colors */
-  --text-main: #0f172a;           /* Dark Slate headings & primary text */
-  --text-body: #1e293b;           /* Body text */
-  --text-muted: #64748b;          /* Secondary descriptions & subtitles */
-  --text-disabled: #94a3b8;       /* Low contrast text */
+  --text-main: #0f172a;
+  --text-body: #1e293b;
+  --text-muted: #64748b;
+  --text-disabled: #94a3b8;
 
-  /* Corporate Municipal Accent */
-  --primary: #2563eb;             /* Royal Blue Primary */
-  --primary-hover: #1d4ed8;
-  --primary-subtle: #dbeafe;
-  --primary-focus: rgba(37, 99, 235, 0.15);
+  --primary: #1d5f60;
+  --primary-hover: #164849;
+  --primary-subtle: #e8f2f2;
+  --primary-focus: rgba(29, 95, 96, 0.16);
+  --accent-gold: #b45309;
+  --accent-gold-bg: #fef3c7;
 
   /* Semantic Status Colors & Pastels */
   --success-text: #047857;
@@ -64,8 +61,14 @@
   --radius-lg: 12px;
   --radius-xl: 16px;
 
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-sans: 'Manrope', ui-sans-serif, system-ui, sans-serif;
+  --font-serif: 'Fraunces', ui-serif, Georgia, serif;
   font-family: var(--font-sans);
+}
+
+h1, h2, h3 {
+  font-family: var(--font-serif);
+  color: var(--text-main);
 }
 
 *, *:before, *:after {
