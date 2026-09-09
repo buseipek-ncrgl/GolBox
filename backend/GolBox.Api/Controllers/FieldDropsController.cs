@@ -36,6 +36,7 @@ public class FieldDropsController : BaseApiController
     }
 
     [HttpGet("nearby")]
+    [AllowAnonymous]
     public async Task<IActionResult> GetNearby([FromQuery] decimal latitude, [FromQuery] decimal longitude, [FromQuery] int limit = 20)
     {
         if (!IsValidCoordinate(latitude, longitude))

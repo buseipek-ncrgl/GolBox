@@ -10,6 +10,7 @@ import { CafesScreen } from "@/components/golbox/screens/cafes-screen"
 import { QrScreen } from "@/components/golbox/screens/qr-screen"
 import { IsmarliyorScreen } from "@/components/golbox/screens/ismarliyor-screen"
 import { ProfileScreen } from "@/components/golbox/screens/profile-screen"
+import { MapScreen } from "@/components/golbox/screens/map-screen"
 
 function StatusBar() {
   return (
@@ -41,6 +42,7 @@ export function AppShell() {
         {tab === "home" && <HomeScreen onNavigate={goto} onOpenCafe={setOpenCafe} />}
         {tab === "cafes" && <CafesScreen onOpenCafe={setOpenCafe} />}
         {tab === "qr" && <QrScreen />}
+        {tab === "map" && <MapScreen />}
         {tab === "ismarliyor" && <IsmarliyorScreen onNavigate={goto} />}
         {tab === "profile" && <ProfileScreen />}
       </main>

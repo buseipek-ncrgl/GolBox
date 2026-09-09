@@ -124,6 +124,11 @@ async function main() {
     }
   });
 
+  await check('nearby field drops are public and only live', async () => {
+    const { status, json } = await req('/field-drops/nearby?latitude=37.0662&longitude=37.3781');
+    assert(status === 200 && json?.success && Array.isArray(json.data), `nearby failed ${status} ${JSON.stringify(json)}`);
+  });
+
   let dropId;
   await check('admin lists and creates field drops', async () => {
     const list = await req('/field-drops', { token });

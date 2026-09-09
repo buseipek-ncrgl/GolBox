@@ -67,6 +67,20 @@ export interface Reward {
   imageUrl?: string
 }
 
+export interface FieldDropNearby {
+  id: string
+  title: string
+  description: string
+  latitude: number
+  longitude: number
+  radiusMeters: number
+  pointsGranted: number
+  imageUrl?: string
+  remainingStock: number | null
+  inRange: boolean
+  distanceMeters: number
+}
+
 export interface PointTransaction {
   id: string
   amount: number
@@ -82,6 +96,7 @@ interface GolboxContextType {
   orders: Order[]
   rewards: Reward[]
   pointTransactions: PointTransaction[]
+  fieldDrops: FieldDropNearby[]
   loading: boolean
   login: (email: string, password: string) => Promise<boolean>
   logout: () => void
@@ -90,6 +105,7 @@ interface GolboxContextType {
   claimReward: (rewardId: string) => Promise<boolean>
   uploadFile: (file: File) => Promise<string | null>
   refreshData: () => Promise<void>
+  loadNearbyFieldDrops: (latitude: number, longitude: number) => Promise<void>
 }
 
 const GolboxContext = createContext<GolboxContextType | null>(null)
@@ -107,6 +123,7 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
   const [orders, setOrders] = useState<Order[]>([])
   const [rewards, setRewards] = useState<Reward[]>([])
   const [pointTransactions, setPointTransactions] = useState<PointTransaction[]>([])
+  const [fieldDrops, setFieldDrops] = useState<FieldDropNearby[]>([])
   const [loading, setLoading] = useState(false)
   const showToast = useGolToast()
 
@@ -241,6 +258,7 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
       setOrders([])
       setRewards([])
       setPointTransactions([])
+      setFieldDrops([])
     }
   }, [token, refreshData])
 
@@ -422,6 +440,25 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
     return false
   }
 
+  const loadNearbyFieldDrops = useCallback(async (latitude: number, longitude: number) => {
+    try {
+      const authHeader: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {}
+      const res = await fetch(
+        `${API_BASE_URL}/field-drops/nearby?latitude=${latitude}&longitude=${longitude}`,
+        { headers: authHeader }
+      )
+      if (!res.ok) {
+        setFieldDrops([])
+        return
+      }
+      const json = await res.json()
+      const items = Array.isArray(json.data) ? json.data : []
+      setFieldDrops(items)
+    } catch {
+      setFieldDrops([])
+    }
+  }, [token])
+
   return (
     <GolboxContext.Provider
       value={{
@@ -431,6 +468,7 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
         orders,
         rewards,
         pointTransactions,
+        fieldDrops,
         loading,
         login,
         logout,
@@ -438,7 +476,8 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
         createOrder,
         claimReward,
         uploadFile,
-        refreshData
+        refreshData,
+        loadNearbyFieldDrops
       }}
     >
       {children}

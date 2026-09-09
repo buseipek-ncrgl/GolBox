@@ -49,12 +49,12 @@ export function LoginScreen() {
         <button
           type="button"
           onClick={() => {
-            setEmail("admin@golbox.gov.tr")
-            setPassword("123456")
+            setEmail("user@golbox.com")
+            setPassword("User123!")
           }}
           className="w-full rounded-xl bg-emerald-500/10 border border-emerald-500/30 p-2.5 text-xs font-bold text-emerald-700 hover:bg-emerald-500/20 transition-colors"
         >
-          ⚡ Hızlı Vatandaş Girişi (admin@golbox.gov.tr)
+          Vatandaş girişi (user@golbox.com)
         </button>
       </div>
 
