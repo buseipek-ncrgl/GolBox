@@ -82,9 +82,12 @@ export function GlbStage({
       object.scale.setScalar(1.25 / longest)
     }
 
+    canvas.style.opacity = "0"
+    canvas.style.pointerEvents = "none"
+
     loadTimer = window.setTimeout(() => {
       if (!cancelled && !model) onError()
-    }, 5000)
+    }, 4000)
 
     loader.load(
       src,
@@ -94,6 +97,7 @@ export function GlbStage({
         model = gltf.scene
         fit(model)
         scene.add(model)
+        canvas.style.opacity = "1"
       },
       undefined,
       () => {
