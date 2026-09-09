@@ -1,16 +1,11 @@
 "use client"
 
-import dynamic from "next/dynamic"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { Gift, X } from "lucide-react"
 import { safeModelUrl } from "@/lib/safe-model-url"
 import type { FieldDropNearby } from "@/lib/golbox-context"
-
-const GlbStage = dynamic(
-  () => import("@/components/golbox/glb-stage").then((mod) => mod.GlbStage),
-  { ssr: false }
-)
+import type { ComponentType } from "react"
 
 export function CaptureOverlay({
   drop,
@@ -28,6 +23,7 @@ export function CaptureOverlay({
   const [mounted, setMounted] = useState(false)
   const [cameraState, setCameraState] = useState<"pending" | "live" | "unavailable">("pending")
   const [modelFailed, setModelFailed] = useState(false)
+  const [GlbStage, setGlbStage] = useState<ComponentType<{ src: string; onError: () => void }> | null>(null)
   const modelUrl = safeModelUrl(drop.modelGlbUrl)
 
   useEffect(() => {
@@ -36,6 +32,22 @@ export function CaptureOverlay({
 
   useEffect(() => {
     setModelFailed(false)
+  }, [modelUrl])
+
+  useEffect(() => {
+    if (!modelUrl) {
+      setGlbStage(null)
+      return
+    }
+    let cancelled = false
+    void import("@/components/golbox/glb-stage").then((mod) => {
+      if (!cancelled) setGlbStage(() => mod.GlbStage)
+    }).catch(() => {
+      if (!cancelled) setModelFailed(true)
+    })
+    return () => {
+      cancelled = true
+    }
   }, [modelUrl])
 
   useEffect(() => {
@@ -99,7 +111,7 @@ export function CaptureOverlay({
         )}
 
         <div className="pointer-events-none absolute inset-x-6 top-[18%] bottom-[28%]">
-          {showModel ? (
+          {showModel && GlbStage ? (
             <GlbStage src={modelUrl!} onError={handleModelError} />
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-3">
