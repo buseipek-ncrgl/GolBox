@@ -114,6 +114,22 @@ async function main() {
     assert(empty.json?.success === false, `empty cart should fail, got ${JSON.stringify(empty.json)}`);
 
     const cheap = [...items].sort((a, b) => a.requiredPoints - b.requiredPoints)[0];
+    const me = await req('/users/me', { token: citizenToken });
+    assert(me.status === 200 && me.json?.data?.id, `citizen profile failed ${JSON.stringify(me.json)}`);
+    const balance = Number(me.json.data.pointsBalance ?? 0);
+    if (balance < cheap.requiredPoints) {
+      const topUp = await req('/points/grant', {
+        method: 'POST',
+        token,
+        body: {
+          userId: me.json.data.id,
+          amount: cheap.requiredPoints,
+          description: 'Foundation checkout bakiyesi',
+        },
+      });
+      assert(topUp.json?.success !== false, `grant points failed ${JSON.stringify(topUp.json)}`);
+    }
+
     const checkout = await req('/rewards/checkout', {
       method: 'POST',
       token: citizenToken,
