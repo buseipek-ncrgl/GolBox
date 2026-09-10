@@ -15,7 +15,11 @@ export function CafeCover({
   const showImage = Boolean(imageUrl) && !failed
 
   return (
-    <div className={`relative overflow-hidden bg-gradient-to-br from-primary via-[#1d5f60] to-[#0b1f20] ${className}`}>
+    <div
+      role="img"
+      aria-label={name}
+      className={`relative overflow-hidden bg-gradient-to-br from-primary via-[#1d5f60] to-[#0b1f20] ${className}`}
+    >
       {showImage ? (
         // Live cafe photos may be remote; keep object-cover without next/image host config.
         // eslint-disable-next-line @next/next/no-img-element
