@@ -77,7 +77,7 @@ export function HomeScreen({
   }
 
   return (
-    <div className="gol-fade-up space-y-6 px-5 pb-8 pt-3">
+    <div className="gol-fade-up space-y-6 px-5 pb-24 pt-3">
       <UserCard onOpenCatalog={() => setShowRewards(true)} />
 
       <section aria-label="Yakındaki saha hediyesi" className="space-y-3">
@@ -95,7 +95,7 @@ export function HomeScreen({
 
         {nearbyDrop ? (
           <article className="overflow-hidden rounded-[1.75rem] border border-border bg-card">
-            <div className="relative h-36 bg-gradient-to-br from-primary via-[#1d5f60] to-[#0b1f20]">
+            <div className="relative h-28 bg-gradient-to-br from-primary via-[#1d5f60] to-[#0b1f20]">
               {nearbyDrop.imageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={nearbyDrop.imageUrl} alt="" className="absolute inset-0 h-full w-full object-cover opacity-55" />

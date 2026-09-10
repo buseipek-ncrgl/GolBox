@@ -33,7 +33,7 @@ export function MapScreen() {
   }
 
   return (
-    <div className="gol-fade-up flex h-full flex-col px-5 pb-4 pt-3">
+    <div className="gol-fade-up flex h-full flex-col px-5 pb-16 pt-3">
       <header className="mb-3 space-y-1">
         <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">Saha</p>
         <h1 className="font-serif text-2xl text-foreground">Harita</h1>

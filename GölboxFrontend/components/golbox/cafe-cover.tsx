@@ -1,5 +1,7 @@
 "use client"
 
+import { useState } from "react"
+
 export function CafeCover({
   name,
   imageUrl,
@@ -9,12 +11,20 @@ export function CafeCover({
   imageUrl?: string | null
   className?: string
 }) {
+  const [failed, setFailed] = useState(false)
+  const showImage = Boolean(imageUrl) && !failed
+
   return (
     <div className={`relative overflow-hidden bg-gradient-to-br from-primary via-[#1d5f60] to-[#0b1f20] ${className}`}>
-      {imageUrl ? (
+      {showImage ? (
         // Live cafe photos may be remote; keep object-cover without next/image host config.
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={imageUrl} alt={`${name} görseli`} className="h-full w-full object-cover" />
+        <img
+          src={imageUrl!}
+          alt=""
+          onError={() => setFailed(true)}
+          className="h-full w-full object-cover"
+        />
       ) : (
         <div
           aria-hidden

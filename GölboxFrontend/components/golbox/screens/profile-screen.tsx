@@ -44,7 +44,7 @@ export function ProfileScreen() {
   }
 
   return (
-    <div className="gol-fade-up space-y-6 px-5 pb-8 pt-3">
+    <div className="gol-fade-up space-y-6 px-5 pb-24 pt-3">
       <header className="flex items-center gap-4">
         <div className="flex size-14 items-center justify-center rounded-full bg-primary font-serif text-2xl text-primary-foreground">
           {displayName.charAt(0)}
