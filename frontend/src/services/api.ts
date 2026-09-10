@@ -107,6 +107,11 @@ export const api = {
     request<any>(`/rewards/${id}/claim`, {
       method: 'POST',
     }),
+  checkoutCart: (items: { rewardId: string; quantity: number }[]) =>
+    request<any>('/rewards/checkout', {
+      method: 'POST',
+      body: JSON.stringify({ items }),
+    }),
   createReward: (data: any) =>
     request<any>('/rewards', {
       method: 'POST',

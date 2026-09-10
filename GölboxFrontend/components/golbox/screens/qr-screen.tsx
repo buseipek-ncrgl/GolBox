@@ -3,6 +3,7 @@
 import { useMemo } from "react"
 import { Screen } from "@/components/golbox/screen"
 import { ScanLine } from "lucide-react"
+import { CouponPass, isActiveCoupon } from "@/components/golbox/coupon-pass"
 import { user as mockUser } from "@/lib/golbox-data"
 import { useGolbox } from "@/lib/golbox-context"
 
@@ -36,11 +37,12 @@ function useMatrix(seed: string, size = 21) {
 }
 
 export function QrScreen() {
-  const { user } = useGolbox()
+  const { user, claimedRewards } = useGolbox()
   const displayName = user ? `${user.firstName} ${user.lastName}`.trim() : mockUser.fullName
   const points = user?.pointsBalance ?? mockUser.points
   const qrId = user?.id ? `GB-${user.id.replace(/-/g, "").slice(0, 8).toUpperCase()}` : mockUser.qrId
   const matrix = useMatrix(qrId)
+  const activeCoupons = claimedRewards.filter(isActiveCoupon)
 
   return (
     <Screen fill>
@@ -87,6 +89,17 @@ export function QrScreen() {
           <ScanLine className="size-4" />
           Kasada bu kodu gösterin
         </div>
+
+        {activeCoupons.length > 0 ? (
+          <div className="w-full max-w-[300px] space-y-3">
+            <p className="text-center text-xs text-muted-foreground">
+              Aktif kişiye özel kuponların. Katalog kuponu saha kutusu ve Ismarlıyor ile karışmaz.
+            </p>
+            {activeCoupons.slice(0, 2).map((coupon) => (
+              <CouponPass key={coupon.claimId} coupon={coupon} compact />
+            ))}
+          </div>
+        ) : null}
       </div>
     </Screen>
   )

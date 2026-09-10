@@ -93,6 +93,50 @@ async function main() {
     assert(typeof items[0].requiredPoints === 'number', 'requiredPoints missing');
   });
 
+  await check('catalog is public and checkout issues a 1-year personal coupon', async () => {
+    const publicCatalog = await req('/rewards');
+    assert(publicCatalog.status === 200 && publicCatalog.json.success, `public catalog failed ${publicCatalog.status}`);
+    const items = publicCatalog.json.data.items || publicCatalog.json.data;
+    assert(Array.isArray(items) && items.length > 0, 'public catalog empty');
+
+    const citizenLogin = await req('/auth/login', {
+      method: 'POST',
+      body: { email: 'user@golbox.com', password: 'User123!' },
+    });
+    assert(citizenLogin.json?.data?.accessToken, `citizen login failed ${JSON.stringify(citizenLogin.json)}`);
+    const citizenToken = citizenLogin.json.data.accessToken;
+
+    const empty = await req('/rewards/checkout', {
+      method: 'POST',
+      token: citizenToken,
+      body: { items: [] },
+    });
+    assert(empty.json?.success === false, `empty cart should fail, got ${JSON.stringify(empty.json)}`);
+
+    const cheap = [...items].sort((a, b) => a.requiredPoints - b.requiredPoints)[0];
+    const checkout = await req('/rewards/checkout', {
+      method: 'POST',
+      token: citizenToken,
+      body: { items: [{ rewardId: cheap.id, quantity: 1 }] },
+    });
+    assert(checkout.status === 200 && checkout.json.success, `checkout failed ${JSON.stringify(checkout.json)}`);
+    const coupons = checkout.json.data.coupons;
+    assert(Array.isArray(coupons) && coupons.length === 1, 'checkout coupons missing');
+    assert(coupons[0].redeemCode, 'redeemCode missing');
+    assert(typeof coupons[0].personalizedFor === 'string' && coupons[0].personalizedFor.includes('özel'), `personalizedFor missing: ${coupons[0].personalizedFor}`);
+    const days = (new Date(coupons[0].expiresAt).getTime() - Date.now()) / 86400000;
+    assert(days >= 360 && days <= 370, `expected ~365 day expiry, got ${days}`);
+
+    const claimed = await req('/rewards/my-claimed', { token: citizenToken });
+    assert(claimed.status === 200 && Array.isArray(claimed.json.data), `my-claimed failed ${JSON.stringify(claimed.json)}`);
+    const coupon = claimed.json.data.find((c) => c.claimId === coupons[0].claimId || c.redeemCode === coupons[0].redeemCode);
+    assert(coupon, 'checked-out coupon missing from wallet');
+    assert(coupon.isExpired === false, 'new coupon marked expired');
+    assert(coupon.daysRemaining >= 360, `daysRemaining ${coupon.daysRemaining}`);
+    assert(coupon.personalizedFor, 'claimed personalizedFor missing');
+    assert(coupon.status === 'Claimed', `unexpected coupon status ${coupon.status}`);
+  });
+
   await check('create order uses real menu item', async () => {
     const users = await req('/users', { token });
     const citizen = (users.json.data || []).find((u) => u.email === 'user@golbox.com');

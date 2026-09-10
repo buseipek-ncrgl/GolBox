@@ -24,6 +24,7 @@ public class RewardsController : BaseApiController
     }
 
     [HttpGet]
+    [AllowAnonymous]
     public async Task<IActionResult> GetActiveRewards([FromQuery] int page = 1, [FromQuery] int pageSize = 20, [FromQuery] string? search = null)
     {
         var result = await _mediator.Send(new GetActiveRewardsQuery(page, pageSize, search));
@@ -34,6 +35,14 @@ public class RewardsController : BaseApiController
     public async Task<IActionResult> GetMyClaimedRewards()
     {
         var result = await _mediator.Send(new GetUserClaimedRewardsQuery());
+        return HandleResult(result);
+    }
+
+    [HttpPost("checkout")]
+    public async Task<IActionResult> Checkout([FromBody] CheckoutCartCommand command)
+    {
+        var items = command?.Items ?? new System.Collections.Generic.List<CheckoutCartItem>();
+        var result = await _mediator.Send(new CheckoutCartCommand(items));
         return HandleResult(result);
     }
 

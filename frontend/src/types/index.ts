@@ -36,6 +36,13 @@ export interface ClaimedReward {
   claimedAt: string;
   redeemedAt?: string;
   expiresAt: string;
+  rewardDescription?: string;
+  imageUrl?: string | null;
+  requiredPoints?: number;
+  holderName?: string;
+  personalizedFor?: string;
+  isExpired?: boolean;
+  daysRemaining?: number;
 }
 
 export interface PointTransaction {

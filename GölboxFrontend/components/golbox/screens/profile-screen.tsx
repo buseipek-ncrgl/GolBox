@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react"
 import { Screen } from "@/components/golbox/screen"
-import { Gift, LogIn, LogOut } from "lucide-react"
+import { Gift, LogIn, LogOut, Ticket } from "lucide-react"
 import { activity, user as mockUser } from "@/lib/golbox-data"
 import { useGolbox } from "@/lib/golbox-context"
 import { LoginScreen } from "@/components/golbox/screens/login-screen"
 import { RewardsScreen } from "@/components/golbox/screens/rewards-screen"
+import { CouponPass, isActiveCoupon } from "@/components/golbox/coupon-pass"
 
 function formatWhen(iso: string) {
   const date = new Date(iso)
@@ -15,9 +16,10 @@ function formatWhen(iso: string) {
 }
 
 export function ProfileScreen() {
-  const { user, token, myCaptures, pointTransactions, logout, loadMyCaptures } = useGolbox()
+  const { user, token, myCaptures, pointTransactions, claimedRewards, logout, loadMyCaptures } = useGolbox()
   const [showLogin, setShowLogin] = useState(false)
   const [showRewards, setShowRewards] = useState(false)
+  const [rewardsTab, setRewardsTab] = useState<"catalog" | "cart" | "coupons">("catalog")
 
   useEffect(() => {
     if (token) void loadMyCaptures()
@@ -25,6 +27,7 @@ export function ProfileScreen() {
 
   const displayName = user ? `${user.firstName} ${user.lastName}`.trim() : mockUser.fullName
   const points = user?.pointsBalance ?? mockUser.points
+  const activeCoupons = claimedRewards.filter(isActiveCoupon)
   const gpRows =
     token && pointTransactions.length > 0
       ? pointTransactions.slice(0, 8).map((pt) => ({
@@ -37,7 +40,13 @@ export function ProfileScreen() {
       : activity
 
   if (showRewards) {
-    return <RewardsScreen onClose={() => setShowRewards(false)} closeLabel="Profile dön" />
+    return (
+      <RewardsScreen
+        onClose={() => setShowRewards(false)}
+        closeLabel="Profile dön"
+        initialTab={rewardsTab}
+      />
+    )
   }
 
   if (showLogin && !token) {
@@ -61,7 +70,10 @@ export function ProfileScreen() {
 
       <button
         type="button"
-        onClick={() => setShowRewards(true)}
+        onClick={() => {
+          setRewardsTab("catalog")
+          setShowRewards(true)
+        }}
         className="flex w-full items-center justify-between rounded-[var(--gol-card)] bg-primary px-5 py-4 text-left text-primary-foreground"
       >
         <div>
@@ -83,6 +95,55 @@ export function ProfileScreen() {
           Giriş yap
         </button>
       )}
+
+      <section className="space-y-3">
+        <div className="flex items-end justify-between">
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">Kuponlarım</h2>
+            <p className="text-xs text-muted-foreground">Katalogdan alınan kişiye özel kuponlar. 1 yıl geçerli.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setRewardsTab("coupons")
+              setShowRewards(true)
+            }}
+            className="text-sm font-medium text-primary"
+          >
+            Tümü
+          </button>
+        </div>
+        {!token ? (
+          <button
+            type="button"
+            onClick={() => setShowLogin(true)}
+            className="gol-card w-full border-dashed px-4 py-6 text-sm text-muted-foreground"
+          >
+            Kuponlarını görmek için giriş yapın.
+          </button>
+        ) : activeCoupons.length === 0 ? (
+          <button
+            type="button"
+            onClick={() => {
+              setRewardsTab("catalog")
+              setShowRewards(true)
+            }}
+            className="gol-card w-full border-dashed px-4 py-6 text-left text-sm text-muted-foreground"
+          >
+            <span className="mb-1 flex items-center gap-2 font-medium text-foreground">
+              <Ticket className="size-4 text-primary" />
+              Henüz kupon yok
+            </span>
+            Katalogdan sepete ekle, GölPuan ile al.
+          </button>
+        ) : (
+          <div className="grid gap-3">
+            {activeCoupons.slice(0, 2).map((coupon) => (
+              <CouponPass key={coupon.claimId} coupon={coupon} compact />
+            ))}
+          </div>
+        )}
+      </section>
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-foreground">Toplanan kutular</h2>

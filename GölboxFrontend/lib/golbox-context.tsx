@@ -72,6 +72,29 @@ export interface Reward {
   imageUrl?: string
 }
 
+export interface CartItem {
+  rewardId: string
+  quantity: number
+}
+
+export interface ClaimedReward {
+  claimId: string
+  rewardId: string
+  rewardTitle: string
+  rewardDescription?: string
+  imageUrl?: string | null
+  requiredPoints?: number
+  redeemCode: string
+  status: string
+  holderName?: string
+  personalizedFor?: string
+  claimedAt: string
+  expiresAt: string
+  redeemedAt?: string | null
+  isExpired: boolean
+  daysRemaining: number
+}
+
 export interface FieldDropNearby {
   id: string
   title: string
@@ -111,6 +134,10 @@ interface GolboxContextType {
   cafes: Cafe[]
   orders: Order[]
   rewards: Reward[]
+  claimedRewards: ClaimedReward[]
+  cartItems: CartItem[]
+  cartCount: number
+  cartTotalPoints: number
   pointTransactions: PointTransaction[]
   fieldDrops: FieldDropNearby[]
   myCaptures: FieldDropCapture[]
@@ -120,11 +147,53 @@ interface GolboxContextType {
   register: (data: any) => Promise<boolean>
   createOrder: (cafeId: string, menuItemId: string, quantity: number, paidWithPoints: boolean, imageUrl?: string) => Promise<boolean>
   claimReward: (rewardId: string) => Promise<boolean>
+  addToCart: (rewardId: string) => boolean
+  setCartQuantity: (rewardId: string, quantity: number) => void
+  removeFromCart: (rewardId: string) => void
+  checkoutCart: () => Promise<boolean>
+  loadMyCoupons: () => Promise<void>
   uploadFile: (file: File) => Promise<string | null>
   refreshData: () => Promise<void>
   loadNearbyFieldDrops: (latitude: number, longitude: number) => Promise<void>
   loadMyCaptures: () => Promise<void>
   captureFieldDrop: (id: string, latitude: number, longitude: number) => Promise<boolean>
+}
+
+const CART_PREFIX = "gol_cart_"
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+function cartKey(owner: string) {
+  return `${CART_PREFIX}${owner}`
+}
+
+function readCart(owner: string): CartItem[] {
+  if (typeof window === "undefined") return []
+  try {
+    const raw = localStorage.getItem(cartKey(owner))
+    const parsed = raw ? JSON.parse(raw) : []
+    if (!Array.isArray(parsed)) return []
+    return parsed
+      .filter((item: CartItem) => item && UUID_RE.test(item.rewardId) && item.quantity > 0)
+      .map((item: CartItem) => ({
+        rewardId: item.rewardId,
+        quantity: Math.min(5, Math.max(1, Number(item.quantity) || 1)),
+      }))
+  } catch {
+    return []
+  }
+}
+
+function writeCart(owner: string, items: CartItem[]) {
+  if (typeof window === "undefined") return
+  localStorage.setItem(cartKey(owner), JSON.stringify(items))
+}
+
+function mergeCart(a: CartItem[], b: CartItem[]): CartItem[] {
+  const map = new Map<string, number>()
+  for (const line of [...a, ...b]) {
+    map.set(line.rewardId, Math.min(5, (map.get(line.rewardId) ?? 0) + line.quantity))
+  }
+  return [...map.entries()].map(([rewardId, quantity]) => ({ rewardId, quantity }))
 }
 
 const GolboxContext = createContext<GolboxContextType | null>(null)
@@ -141,6 +210,8 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
   const [cafes, setCafes] = useState<Cafe[]>([])
   const [orders, setOrders] = useState<Order[]>([])
   const [rewards, setRewards] = useState<Reward[]>([])
+  const [claimedRewards, setClaimedRewards] = useState<ClaimedReward[]>([])
+  const [cartItems, setCartItems] = useState<CartItem[]>([])
   const [pointTransactions, setPointTransactions] = useState<PointTransaction[]>([])
   const [fieldDrops, setFieldDrops] = useState<FieldDropNearby[]>([])
   const [myCaptures, setMyCaptures] = useState<FieldDropCapture[]>([])
@@ -245,21 +316,24 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // 4. Fetch rewards
+      // 4. Fetch live catalog only — fake IDs cannot be checked out.
       const rewardsRes = await fetch(`${API_BASE_URL}/rewards`, { headers: authHeader })
-      const defaultRewards: Reward[] = [
-        { id: 'rew-1', title: 'Ücretsiz Filtre Kahve', description: 'Şehitkamil Kitap Kafelerde geçerli sıcak taze filtre kahve ikramı.', requiredPoints: 50, status: 'Active' },
-        { id: 'rew-2', title: 'Günün Dilim Pastası', description: 'Kitap Kafe günlük taze dilim pasta veya cheesecake ikramı.', requiredPoints: 100, status: 'Active' },
-        { id: 'rew-3', title: 'Sıcak Kruvasan ve Taze Çay', description: 'Taze fırınlanmış kruvasan ve sınırsız demli çay ikramı.', requiredPoints: 75, status: 'Active' },
-        { id: 'rew-4', title: 'Kitap alımında yüzde 50 kupon', description: 'Gençlik Merkezleri ve Kitap Kafe kütüphanelerinde yüzde 50 indirim.', requiredPoints: 120, status: 'Active' }
-      ]
-
       if (rewardsRes.ok) {
         const res = await rewardsRes.json()
         const items = res.data?.items || res.data || []
-        setRewards(items.length > 0 ? items : defaultRewards)
+        setRewards(Array.isArray(items) ? items : [])
       } else {
-        setRewards(defaultRewards)
+        setRewards([])
+      }
+
+      if (token) {
+        const claimedRes = await fetch(`${API_BASE_URL}/rewards/my-claimed`, { headers: authHeader })
+        if (claimedRes.ok) {
+          const claimedJson = await claimedRes.json()
+          setClaimedRewards(Array.isArray(claimedJson.data) ? claimedJson.data : [])
+        }
+      } else {
+        setClaimedRewards([])
       }
 
       // 5. Fetch point transactions if token exists
@@ -283,6 +357,7 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
       setOrders([])
       setPointTransactions([])
       setMyCaptures([])
+      setClaimedRewards([])
     }
     void refreshData()
   }, [token, refreshData])
@@ -394,6 +469,8 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem("mob_token")
     setToken(null)
     setUser(null)
+    setClaimedRewards([])
+    setCartItems(readCart("guest"))
     showToast("Oturum kapatıldı.")
   }
 
@@ -441,8 +518,85 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
     return false
   }
 
+  const cartOwner = user?.id ?? "guest"
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    if (user?.id) {
+      const merged = mergeCart(readCart("guest"), readCart(user.id))
+      writeCart(user.id, merged)
+      localStorage.removeItem(cartKey("guest"))
+      setCartItems(merged)
+      return
+    }
+    setCartItems(readCart("guest"))
+  }, [user?.id])
+
+  const persistCart = (next: CartItem[]) => {
+    setCartItems(next)
+    writeCart(cartOwner, next)
+  }
+
+  const addToCart = (rewardId: string) => {
+    if (!UUID_RE.test(rewardId)) {
+      showToast("Bu ikram henüz katalogda değil.")
+      return false
+    }
+    const current = readCart(cartOwner)
+    const existing = current.find((line) => line.rewardId === rewardId)
+    if (existing && existing.quantity >= 5) {
+      showToast("Aynı ikramdan en fazla 5 adet eklenebilir.")
+      persistCart(current)
+      return false
+    }
+    const next = existing
+      ? current.map((line) =>
+          line.rewardId === rewardId ? { ...line, quantity: Math.min(5, line.quantity + 1) } : line,
+        )
+      : [...current, { rewardId, quantity: 1 }]
+    persistCart(next)
+    showToast("Sepete eklendi.")
+    return true
+  }
+
+  const setCartQuantity = (rewardId: string, quantity: number) => {
+    const nextQty = Math.min(5, Math.max(0, Math.floor(quantity)))
+    const next =
+      nextQty === 0
+        ? cartItems.filter((line) => line.rewardId !== rewardId)
+        : cartItems.map((line) => (line.rewardId === rewardId ? { ...line, quantity: nextQty } : line))
+    persistCart(next)
+  }
+
+  const removeFromCart = (rewardId: string) => {
+    persistCart(cartItems.filter((line) => line.rewardId !== rewardId))
+  }
+
+  const loadMyCoupons = useCallback(async () => {
+    if (!token) {
+      setClaimedRewards([])
+      return
+    }
+    try {
+      const res = await fetch(`${API_BASE_URL}/rewards/my-claimed`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) {
+        setClaimedRewards([])
+        return
+      }
+      const json = await res.json()
+      setClaimedRewards(Array.isArray(json.data) ? json.data : [])
+    } catch {
+      setClaimedRewards([])
+    }
+  }, [token])
+
   const claimReward = async (rewardId: string) => {
-    if (!token) return false
+    if (!token) {
+      showToast("Kupon almak için giriş yapın.")
+      return false
+    }
     setLoading(true)
     try {
       const res = await fetch(`${API_BASE_URL}/rewards/${rewardId}/claim`, {
@@ -454,8 +608,9 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
 
       const data = await res.json()
       if (res.ok && data.success) {
-        showToast("Katalog ikramı alındı.")
+        showToast("Kişiye özel kupon cüzdanına işlendi. 1 yıl geçerli.")
         await refreshData()
+        await loadMyCoupons()
         setLoading(false)
         return true
       } else {
@@ -467,6 +622,50 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
     setLoading(false)
     return false
   }
+
+  const checkoutCart = async () => {
+    if (!token) {
+      showToast("Kupon almak için giriş yapın.")
+      return false
+    }
+    if (cartItems.length === 0) {
+      showToast("Sepet boş.")
+      return false
+    }
+    setLoading(true)
+    try {
+      const res = await fetch(`${API_BASE_URL}/rewards/checkout`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          items: cartItems.map((line) => ({ rewardId: line.rewardId, quantity: line.quantity })),
+        }),
+      })
+      const data = await res.json()
+      if (res.ok && data.success) {
+        persistCart([])
+        showToast(data.message || "Kişiye özel kuponların 1 yıl geçerli.")
+        await refreshData()
+        await loadMyCoupons()
+        setLoading(false)
+        return true
+      }
+      showToast(data.message || "Sepet alınamadı.")
+    } catch {
+      showToast("Sepet gönderilemedi.")
+    }
+    setLoading(false)
+    return false
+  }
+
+  const cartTotalPoints = cartItems.reduce((sum, line) => {
+    const reward = rewards.find((item) => item.id === line.rewardId)
+    return sum + (reward?.requiredPoints ?? 0) * line.quantity
+  }, 0)
+  const cartCount = cartItems.reduce((sum, line) => sum + line.quantity, 0)
 
   const loadNearbyFieldDrops = useCallback(async (latitude: number, longitude: number) => {
     try {
@@ -549,6 +748,10 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
         cafes,
         orders,
         rewards,
+        claimedRewards,
+        cartItems,
+        cartCount,
+        cartTotalPoints,
         pointTransactions,
         fieldDrops,
         myCaptures,
@@ -558,6 +761,11 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
         register,
         createOrder,
         claimReward,
+        addToCart,
+        setCartQuantity,
+        removeFromCart,
+        checkoutCart,
+        loadMyCoupons,
         uploadFile,
         refreshData,
         loadNearbyFieldDrops,

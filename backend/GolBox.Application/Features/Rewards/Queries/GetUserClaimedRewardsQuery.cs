@@ -7,6 +7,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using GolBox.Application.Common;
 using GolBox.Application.Interfaces;
+using GolBox.Application.Features.Rewards;
 
 namespace GolBox.Application.Features.Rewards.Queries;
 
@@ -20,7 +21,14 @@ public record ClaimedRewardDto(
     string Status,
     DateTime ClaimedAt,
     DateTime? RedeemedAt,
-    DateTime ExpiresAt
+    DateTime ExpiresAt,
+    string RewardDescription,
+    string? ImageUrl,
+    int RequiredPoints,
+    string HolderName,
+    string PersonalizedFor,
+    bool IsExpired,
+    int DaysRemaining
 );
 
 public class GetUserClaimedRewardsQueryHandler : IRequestHandler<GetUserClaimedRewardsQuery, Result<List<ClaimedRewardDto>>>
@@ -42,11 +50,29 @@ public class GetUserClaimedRewardsQueryHandler : IRequestHandler<GetUserClaimedR
             return Result<List<ClaimedRewardDto>>.Fail("Kullanıcı kimliği doğrulanamadı.");
         }
 
-        var claimedRewards = await _context.UserRewards
+        var user = await _context.Users
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Id == currentUserId.Value, cancellationToken);
+
+        if (user == null)
+            return Result<List<ClaimedRewardDto>>.Fail("Kullanıcı bulunamadı.");
+
+        var now = DateTime.UtcNow;
+        var holderName = $"{user.FirstName} {user.LastName}".Trim();
+        var personalized = RewardIssue.PersonalizedFor(user.FirstName, user.LastName);
+
+        var rows = await _context.UserRewards
+            .AsNoTracking()
             .Include(ur => ur.Reward)
             .Where(ur => ur.UserId == currentUserId.Value)
             .OrderByDescending(ur => ur.ClaimedAt)
-            .Select(ur => new ClaimedRewardDto(
+            .ToListAsync(cancellationToken);
+
+        var claimedRewards = rows.Select(ur =>
+        {
+            var expired = ur.ExpiresAt < now;
+            var daysRemaining = expired ? 0 : (int)Math.Ceiling((ur.ExpiresAt - now).TotalDays);
+            return new ClaimedRewardDto(
                 ur.Id,
                 ur.RewardId,
                 ur.Reward.Title,
@@ -54,9 +80,16 @@ public class GetUserClaimedRewardsQueryHandler : IRequestHandler<GetUserClaimedR
                 ur.Status,
                 ur.ClaimedAt,
                 ur.RedeemedAt,
-                ur.ExpiresAt
-            ))
-            .ToListAsync(cancellationToken);
+                ur.ExpiresAt,
+                ur.Reward.Description,
+                ur.Reward.ImageUrl,
+                ur.Reward.RequiredPoints,
+                holderName,
+                personalized,
+                expired,
+                daysRemaining
+            );
+        }).ToList();
 
         return Result<List<ClaimedRewardDto>>.Ok(claimedRewards, "Kullanıcı ikram geçmişi başarıyla getirildi.");
     }

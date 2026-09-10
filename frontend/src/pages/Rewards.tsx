@@ -188,6 +188,9 @@ export const Rewards: React.FC = () => {
                         {isRedeemed ? 'Kullanıldı' : 'Aktif Kupon'}
                       </span>
                     </div>
+                    {c.personalizedFor ? (
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{c.personalizedFor} · 1 yıl geçerli</span>
+                    ) : null}
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px dashed var(--border-color)', paddingTop: '0.75rem' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-secondary)' }}>

@@ -192,7 +192,7 @@ public static class DbInitializer
         if (!await context.Settings.AnyAsync(s => s.OrganizationId == orgId))
         {
             context.Settings.AddRange(
-                new Setting { OrganizationId = orgId, Key = "rewardExpireDays", Value = "30", Description = "İkram kuponlarının geçerlilik süresi (gün)" },
+                new Setting { OrganizationId = orgId, Key = "rewardExpireDays", Value = "365", Description = "Kişiye özel ikram kuponlarının geçerlilik süresi (gün)" },
                 new Setting { OrganizationId = orgId, Key = "visitBonusPoints", Value = "15", Description = "QR okutma başına verilen ziyaret bonus puanı" },
                 new Setting { OrganizationId = orgId, Key = "pointsExchangeRate", Value = "1", Description = "1 TL ödeme için harcanacak puan oranı (1 TL = 1 Puan)" },
                 new Setting { OrganizationId = orgId, Key = "spendEarnRatePercent", Value = "10", Description = "Nakit harcamalarda geri kazanılan puan oranı (%)" }
@@ -597,6 +597,38 @@ public static class DbInitializer
             );
             await context.SaveChangesAsync();
         }
+
+        await EnsurePersonalCouponPolicyAsync(context, orgId);
+    }
+
+    private static async System.Threading.Tasks.Task EnsurePersonalCouponPolicyAsync(AppDbContext context, Guid orgId)
+    {
+        var expireSetting = await context.Settings.FirstOrDefaultAsync(s => s.OrganizationId == orgId && s.Key == "rewardExpireDays");
+        if (expireSetting == null)
+        {
+            context.Settings.Add(new Setting
+            {
+                OrganizationId = orgId,
+                Key = "rewardExpireDays",
+                Value = "365",
+                Description = "Kişiye özel ikram kuponlarının geçerlilik süresi (gün)"
+            });
+        }
+        else
+        {
+            expireSetting.Value = "365";
+            expireSetting.Description = "Kişiye özel ikram kuponlarının geçerlilik süresi (gün)";
+        }
+
+        var claimed = await context.UserRewards.Where(ur => ur.Status == "Claimed").ToListAsync();
+        foreach (var ur in claimed)
+        {
+            var year = ur.ClaimedAt.AddDays(365);
+            if (ur.ExpiresAt < year)
+                ur.ExpiresAt = year;
+        }
+
+        await context.SaveChangesAsync();
     }
 
     private static async System.Threading.Tasks.Task EnsureProviderSchemaAsync(AppDbContext context)
