@@ -22,6 +22,11 @@ export interface Cafe {
   name: string
   address: string
   categoryId: string
+  categoryName?: string
+  imageUrl?: string
+  isActive?: boolean
+  latitude?: number
+  longitude?: number
   menuItems: MenuItem[]
 }
 
@@ -243,10 +248,10 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
       // 4. Fetch rewards
       const rewardsRes = await fetch(`${API_BASE_URL}/rewards`, { headers: authHeader })
       const defaultRewards: Reward[] = [
-        { id: 'rew-1', title: '☕ Ücretsiz Filtre Kahve', description: 'Şehitkamil Kitap Kafelerde geçerli sıcak taze filtre kahve ikramı.', requiredPoints: 50, status: 'Active' },
-        { id: 'rew-2', title: '🍰 Günün Dilim Pastası', description: 'Kitap Kafe günlük taze dilim pasta veya cheesecake ikramı.', requiredPoints: 100, status: 'Active' },
-        { id: 'rew-3', title: '🥐 Sıcak Kruvasan & Taze Çay', description: 'Taze fırınlanmış kruvasan ve sınırsız demli çay ikramı.', requiredPoints: 75, status: 'Active' },
-        { id: 'rew-4', title: '📚 %50 Kitap Satın Alma İndirim Kuponu', description: 'Gençlik Merkezleri ve Kitap Kafe kütüphanelerinde %50 indirim.', requiredPoints: 120, status: 'Active' }
+        { id: 'rew-1', title: 'Ücretsiz Filtre Kahve', description: 'Şehitkamil Kitap Kafelerde geçerli sıcak taze filtre kahve ikramı.', requiredPoints: 50, status: 'Active' },
+        { id: 'rew-2', title: 'Günün Dilim Pastası', description: 'Kitap Kafe günlük taze dilim pasta veya cheesecake ikramı.', requiredPoints: 100, status: 'Active' },
+        { id: 'rew-3', title: 'Sıcak Kruvasan ve Taze Çay', description: 'Taze fırınlanmış kruvasan ve sınırsız demli çay ikramı.', requiredPoints: 75, status: 'Active' },
+        { id: 'rew-4', title: 'Kitap alımında yüzde 50 kupon', description: 'Gençlik Merkezleri ve Kitap Kafe kütüphanelerinde yüzde 50 indirim.', requiredPoints: 120, status: 'Active' }
       ]
 
       if (rewardsRes.ok) {
@@ -273,17 +278,13 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
   }, [token])
 
   useEffect(() => {
-    if (token) {
-      refreshData()
-    } else {
+    if (!token) {
       setUser(null)
-      setCafes([])
       setOrders([])
-      setRewards([])
       setPointTransactions([])
-      setFieldDrops([])
       setMyCaptures([])
     }
+    void refreshData()
   }, [token, refreshData])
 
   // Real-time SignalR hub listener
@@ -299,7 +300,7 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
 
     connection.on("OrderStatusUpdated", (notification: { orderId: string; status: string; collectionCode: string; userId: string }) => {
       console.log("⚡ SignalR OrderStatusUpdated:", notification)
-      showToast(`🔔 ${notification.collectionCode} kodlu siparişinizin durumu: '${notification.status}' olarak güncellendi!`)
+      showToast(`${notification.collectionCode} kodlu sipariş: ${notification.status}`)
       refreshData()
     })
 
@@ -325,13 +326,13 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
 
       const data = await res.json()
       if (res.ok && data.success) {
-        showToast("📷 Görsel sunucuya yüklendi!")
+        showToast("Görsel sunucuya yüklendi.")
         return data.data.url
       } else {
-        showToast(`❌ Görsel yüklenemedi: ${data.message || "Bilinmeyen hata"}`)
+        showToast(`Görsel yüklenemedi: ${data.message || "Bilinmeyen hata"}`)
       }
     } catch (e) {
-      showToast("❌ Görsel yükleme bağlantı hatası.")
+      showToast("Görsel yükleme bağlantı hatası.")
     }
     return null
   }
@@ -349,14 +350,14 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
       if (res.ok && data.success) {
         localStorage.setItem("mob_token", data.data.accessToken)
         setToken(data.data.accessToken)
-        showToast(`✨ Hoş geldiniz, ${data.data.user.firstName}!`)
+        showToast(`Hoş geldiniz, ${data.data.user.firstName}.`)
         setLoading(false)
         return true
       } else {
-        showToast(`❌ ${data.message || "Giriş başarısız."}`)
+        showToast(data.message || "Giriş başarısız.")
       }
     } catch (e) {
-      showToast("❌ Sunucu bağlantı hatası.")
+      showToast("Sunucu bağlantı hatası.")
     }
     setLoading(false)
     return false
@@ -376,14 +377,14 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
 
       const resData = await res.json()
       if (res.ok && resData.success) {
-        showToast("✨ Kayıt başarılı! Giriş yapabilirsiniz.")
+        showToast("Kayıt başarılı. Giriş yapabilirsiniz.")
         setLoading(false)
         return true
       } else {
-        showToast(`❌ ${resData.message || "Kayıt başarısız."}`)
+        showToast(resData.message || "Kayıt başarısız.")
       }
     } catch (e) {
-      showToast("❌ Sunucu bağlantı hatası.")
+      showToast("Sunucu bağlantı hatası.")
     }
     setLoading(false)
     return false
@@ -393,7 +394,7 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem("mob_token")
     setToken(null)
     setUser(null)
-    showToast("🔓 Oturum kapatıldı.")
+    showToast("Oturum kapatıldı.")
   }
 
   const createOrder = async (
@@ -403,7 +404,10 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
     paidWithPoints: boolean,
     imageUrl?: string
   ) => {
-    if (!user) return false
+    if (!user) {
+      showToast("Profil yükleniyor. Biraz sonra tekrar deneyin.")
+      return false
+    }
     setLoading(true)
     try {
       const res = await fetch(`${API_BASE_URL}/orders`, {
@@ -423,15 +427,15 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
 
       const data = await res.json()
       if (res.ok && data.success) {
-        showToast("✨ Ön siparişiniz alındı!")
+        showToast("Ismarlıyor listene eklendi.")
         await refreshData()
         setLoading(false)
         return true
       } else {
-        showToast(`❌ ${data.message || "Sipariş oluşturulamadı."}`)
+        showToast(data.message || "Sipariş oluşturulamadı.")
       }
     } catch (e) {
-      showToast("❌ Sipariş gönderilemedi.")
+      showToast("Sipariş gönderilemedi.")
     }
     setLoading(false)
     return false
@@ -450,15 +454,15 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
 
       const data = await res.json()
       if (res.ok && data.success) {
-        showToast("🎉 İkram kuponu başarıyla alındı!")
+        showToast("Katalog ikramı alındı.")
         await refreshData()
         setLoading(false)
         return true
       } else {
-        showToast(`❌ ${data.message || "Ödül alınamadı."}`)
+        showToast(data.message || "Ödül alınamadı.")
       }
     } catch (e) {
-      showToast("❌ Ödül talebi gönderilemedi.")
+      showToast("Ödül talebi gönderilemedi.")
     }
     setLoading(false)
     return false

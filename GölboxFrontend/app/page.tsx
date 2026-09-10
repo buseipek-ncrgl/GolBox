@@ -8,7 +8,7 @@ export default function Page() {
       <div className="mb-8 hidden max-w-xs text-center sm:block">
         <p className="font-serif text-3xl text-primary">GölBox</p>
         <p className="mt-2 text-pretty text-sm leading-relaxed text-muted-foreground">
-          Dikkatini isteyen değil, zamanına saygı duyan bir sadakat deneyimi.
+          GölPuan, saha hediyesi ve Ismarlıyor. Tek QR, sakin bir ana sayfa.
         </p>
       </div>
 

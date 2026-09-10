@@ -5,10 +5,9 @@ import { Signal, Wifi, BatteryFull } from "lucide-react"
 import type { TabId } from "@/lib/golbox-data"
 import { BottomNav } from "@/components/golbox/bottom-nav"
 import { CafeDetailSheet } from "@/components/golbox/cafe-detail-sheet"
+import { CafesOverlay } from "@/components/golbox/cafes-overlay"
 import { HomeScreen } from "@/components/golbox/screens/home-screen"
-import { CafesScreen } from "@/components/golbox/screens/cafes-screen"
 import { QrScreen } from "@/components/golbox/screens/qr-screen"
-import { IsmarliyorScreen } from "@/components/golbox/screens/ismarliyor-screen"
 import { ProfileScreen } from "@/components/golbox/screens/profile-screen"
 import { MapScreen } from "@/components/golbox/screens/map-screen"
 
@@ -27,10 +26,12 @@ function StatusBar() {
 
 export function AppShell() {
   const [tab, setTab] = useState<TabId>("home")
-  const [openCafe, setOpenCafe] = useState<string | null>(null)
+  const [cafeId, setCafeId] = useState<string | null>(null)
+  const [showCafes, setShowCafes] = useState(false)
 
   const goto = (next: TabId) => {
-    setOpenCafe(null)
+    setCafeId(null)
+    setShowCafes(false)
     setTab(next)
   }
 
@@ -39,17 +40,24 @@ export function AppShell() {
       <StatusBar />
 
       <main className="no-scrollbar flex-1 overflow-y-auto">
-        {tab === "home" && <HomeScreen onNavigate={goto} onOpenCafe={setOpenCafe} />}
-        {tab === "cafes" && <CafesScreen onOpenCafe={setOpenCafe} />}
+        {tab === "home" && (
+          <HomeScreen
+            onNavigate={goto}
+            onOpenCafe={setCafeId}
+            onOpenCafes={() => setShowCafes(true)}
+          />
+        )}
         {tab === "qr" && <QrScreen />}
         {tab === "map" && <MapScreen />}
-        {tab === "ismarliyor" && <IsmarliyorScreen onNavigate={goto} />}
         {tab === "profile" && <ProfileScreen />}
       </main>
 
       <BottomNav active={tab} onChange={goto} />
 
-      {openCafe && <CafeDetailSheet cafeId={openCafe} onClose={() => setOpenCafe(null)} />}
+      {showCafes && (
+        <CafesOverlay onOpenCafe={setCafeId} onClose={() => setShowCafes(false)} />
+      )}
+      {cafeId && <CafeDetailSheet cafeId={cafeId} onClose={() => setCafeId(null)} />}
     </div>
   )
 }

@@ -1,14 +1,12 @@
 "use client"
 
-import { Coffee, Gift, Home, MapPin, QrCode, User } from "lucide-react"
+import { Home, MapPin, QrCode, User } from "lucide-react"
 import type { TabId } from "@/lib/golbox-data"
 
 const items: { id: TabId; label: string; icon: typeof Home }[] = [
   { id: "home", label: "Ana Sayfa", icon: Home },
-  { id: "cafes", label: "Kafeler", icon: Coffee },
-  { id: "qr", label: "QR", icon: QrCode },
   { id: "map", label: "Harita", icon: MapPin },
-  { id: "ismarliyor", label: "Ismarlıyor", icon: Gift },
+  { id: "qr", label: "QR", icon: QrCode },
   { id: "profile", label: "Profil", icon: User },
 ]
 
@@ -22,9 +20,9 @@ export function BottomNav({
   return (
     <nav
       aria-label="Ana gezinme"
-      className="relative z-20 shrink-0 border-t border-border bg-background/90 backdrop-blur"
+      className="relative z-20 shrink-0 border-t border-border/80 bg-background/92 pb-[max(0.7rem,env(safe-area-inset-bottom))] backdrop-blur-xl"
     >
-      <ul className="flex items-stretch justify-between px-3 pb-5 pt-2.5">
+      <ul className="grid grid-cols-4 items-end px-2 pt-2">
         {items.map((item) => {
           const isActive = active === item.id
           const isCenter = item.id === "qr"
@@ -32,24 +30,33 @@ export function BottomNav({
 
           if (isCenter) {
             return (
-              <li key={item.id} className="flex flex-1 justify-center">
+              <li key={item.id} className="flex flex-col items-center">
                 <button
+                  type="button"
                   onClick={() => onChange(item.id)}
                   aria-label={item.label}
                   aria-current={isActive ? "page" : undefined}
-                  className={`-mt-6 flex size-14 flex-col items-center justify-center rounded-full text-primary-foreground shadow-[0_12px_28px_-10px_rgba(29,95,96,0.9)] transition-transform active:scale-95 ${
+                  className={`-mt-7 flex size-14 items-center justify-center rounded-full text-primary-foreground shadow-[0_14px_32px_-12px_rgba(29,95,96,0.95)] transition-transform active:scale-95 ${
                     isActive ? "bg-primary" : "bg-foreground"
                   }`}
                 >
                   <Icon className="size-6" strokeWidth={2.1} />
                 </button>
+                <span
+                  className={`mt-1.5 text-[10px] font-medium ${
+                    isActive ? "text-primary" : "text-muted-foreground"
+                  }`}
+                >
+                  {item.label}
+                </span>
               </li>
             )
           }
 
           return (
-            <li key={item.id} className="flex flex-1">
+            <li key={item.id} className="flex">
               <button
+                type="button"
                 onClick={() => onChange(item.id)}
                 aria-current={isActive ? "page" : undefined}
                 className="flex flex-1 flex-col items-center gap-1 py-1"

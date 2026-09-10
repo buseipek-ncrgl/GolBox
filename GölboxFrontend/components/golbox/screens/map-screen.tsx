@@ -1,112 +1,42 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
 import { MapPin, Navigation } from "lucide-react"
 import { useGolbox } from "@/lib/golbox-context"
 import { LoginScreen } from "@/components/golbox/screens/login-screen"
 import { CaptureOverlay } from "@/components/golbox/capture-overlay"
-
-const SEHITKAMIL = { lat: 37.0662, lng: 37.3781 }
+import { formatDistance } from "@/lib/golbox-geo"
+import { useCitizenLocation } from "@/lib/use-citizen-location"
+import { useCaptureSession } from "@/lib/use-capture-session"
+import { useMemo, useState } from "react"
 
 function osmEmbed(lat: number, lng: number) {
   const pad = 0.012
   return `https://www.openstreetmap.org/export/embed.html?bbox=${lng - pad}%2C${lat - pad}%2C${lng + pad}%2C${lat + pad}&layer=mapnik&marker=${lat}%2C${lng}`
 }
 
-function formatDistance(meters: number) {
-  if (!Number.isFinite(meters)) return "—"
-  if (meters < 1000) return `${Math.round(meters)} m`
-  return `${(meters / 1000).toFixed(1)} km`
-}
-
 export function MapScreen() {
-  const { fieldDrops, loadNearbyFieldDrops, captureFieldDrop, token, loading } = useGolbox()
-  const [origin, setOrigin] = useState(SEHITKAMIL)
-  const [usingFallback, setUsingFallback] = useState(true)
+  const { fieldDrops } = useGolbox()
+  const { origin, usingFallback } = useCitizenLocation(20000)
+  const capture = useCaptureSession(origin, fieldDrops)
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [showLogin, setShowLogin] = useState(false)
-  const [capturedIds, setCapturedIds] = useState<string[]>([])
-  const [busyId, setBusyId] = useState<string | null>(null)
-  const [pendingDropId, setPendingDropId] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (token) setShowLogin(false)
-  }, [token])
-
-  useEffect(() => {
-    let cancelled = false
-    if (!navigator.geolocation) {
-      loadNearbyFieldDrops(SEHITKAMIL.lat, SEHITKAMIL.lng)
-      return
-    }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        if (cancelled) return
-        const next = { lat: pos.coords.latitude, lng: pos.coords.longitude }
-        setOrigin(next)
-        setUsingFallback(false)
-        loadNearbyFieldDrops(next.lat, next.lng)
-      },
-      () => {
-        if (cancelled) return
-        setOrigin(SEHITKAMIL)
-        setUsingFallback(true)
-        loadNearbyFieldDrops(SEHITKAMIL.lat, SEHITKAMIL.lng)
-      },
-      { enableHighAccuracy: true, timeout: 8000 }
-    )
-    return () => {
-      cancelled = true
-    }
-  }, [loadNearbyFieldDrops])
-
-  useEffect(() => {
-    const tick = window.setInterval(() => {
-      loadNearbyFieldDrops(origin.lat, origin.lng)
-    }, 20000)
-    return () => window.clearInterval(tick)
-  }, [loadNearbyFieldDrops, origin.lat, origin.lng])
 
   const selected = useMemo(
-    () => fieldDrops.find((d) => d.id === selectedId) ?? fieldDrops[0] ?? null,
-    [fieldDrops, selectedId]
+    () => fieldDrops.find((drop) => drop.id === selectedId) ?? fieldDrops[0] ?? null,
+    [fieldDrops, selectedId],
   )
 
   const mapLat = selected ? Number(selected.latitude) : origin.lat
   const mapLng = selected ? Number(selected.longitude) : origin.lng
 
-  const pendingDrop = useMemo(
-    () => fieldDrops.find((d) => d.id === pendingDropId) ?? null,
-    [fieldDrops, pendingDropId]
-  )
-
-  const openCapture = (dropId: string) => {
-    if (!token) {
-      setShowLogin(true)
-      return
-    }
-    setPendingDropId(dropId)
-  }
-
-  const confirmCapture = async () => {
-    if (!pendingDrop) return
-    setBusyId(pendingDrop.id)
-    const ok = await captureFieldDrop(pendingDrop.id, origin.lat, origin.lng)
-    if (ok) {
-      setCapturedIds((prev) => (prev.includes(pendingDrop.id) ? prev : [...prev, pendingDrop.id]))
-      setPendingDropId(null)
-    }
-    setBusyId(null)
-  }
-
-  if (showLogin && !token) {
-        return <LoginScreen onClose={() => setShowLogin(false)} closeLabel="Haritaya dön" />
+  if (capture.showLogin && !capture.token) {
+    return <LoginScreen onClose={() => capture.setShowLogin(false)} closeLabel="Haritaya dön" />
   }
 
   return (
     <div className="gol-fade-up flex h-full flex-col px-5 pb-4 pt-3">
       <header className="mb-3 space-y-1">
-        <h1 className="font-serif text-2xl text-foreground">Saha haritası</h1>
+        <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">Saha</p>
+        <h1 className="font-serif text-2xl text-foreground">Harita</h1>
         <p className="text-sm text-muted-foreground">
           {usingFallback
             ? "Konum alınamadı. Şehitkamil merkezi kullanılıyor. Yarıçap içinde Al çalışır."
@@ -114,7 +44,7 @@ export function MapScreen() {
         </p>
       </header>
 
-      <div className="overflow-hidden rounded-3xl border border-border bg-card">
+      <div className="overflow-hidden rounded-[1.75rem] border border-border bg-card">
         <iframe
           title="Saha hediyeleri haritası"
           src={osmEmbed(mapLat, mapLng)}
@@ -124,18 +54,18 @@ export function MapScreen() {
 
       <ul className="mt-4 flex-1 space-y-2 overflow-y-auto pb-2">
         {fieldDrops.length === 0 ? (
-          <li className="rounded-3xl border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
+          <li className="rounded-[1.75rem] border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
             Yakında yayında saha hediyesi yok.
           </li>
         ) : (
           fieldDrops.map((drop) => {
             const active = (selected?.id ?? "") === drop.id
-            const already = capturedIds.includes(drop.id)
+            const already = capture.capturedIds.includes(drop.id)
             const remaining = Math.max(0, Number(drop.distanceMeters) - Number(drop.radiusMeters))
             return (
               <li key={drop.id}>
                 <div
-                  className={`rounded-3xl border p-4 ${
+                  className={`rounded-[1.75rem] border p-4 ${
                     active ? "border-primary bg-card" : "border-border bg-card"
                   }`}
                 >
@@ -168,11 +98,11 @@ export function MapScreen() {
                     ) : drop.inRange ? (
                       <button
                         type="button"
-                        disabled={loading || busyId === drop.id}
-                        onClick={() => openCapture(drop.id)}
+                        disabled={capture.loading || capture.busyId === drop.id}
+                        onClick={() => capture.openCapture(drop.id)}
                         className="w-full rounded-2xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
                       >
-                        {busyId === drop.id ? "Alınıyor..." : token ? "Al" : "Giriş yap ve al"}
+                        {capture.busyId === drop.id ? "Alınıyor..." : capture.token ? "Al" : "Giriş yap ve al"}
                       </button>
                     ) : (
                       <p className="text-sm text-muted-foreground">
@@ -187,12 +117,12 @@ export function MapScreen() {
         )}
       </ul>
 
-      {pendingDrop && (
+      {capture.pendingDrop && (
         <CaptureOverlay
-          drop={pendingDrop}
-          busy={busyId === pendingDrop.id}
-          onConfirm={confirmCapture}
-          onClose={() => setPendingDropId(null)}
+          drop={capture.pendingDrop}
+          busy={capture.busyId === capture.pendingDrop.id}
+          onConfirm={capture.confirmCapture}
+          onClose={capture.closeCapture}
         />
       )}
     </div>

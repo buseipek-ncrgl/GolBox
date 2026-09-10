@@ -1,10 +1,16 @@
 "use client"
 
-import { Gift, Sparkles, CheckCircle2, AlertCircle } from "lucide-react"
+import { Gift } from "lucide-react"
 import { useGolbox } from "@/lib/golbox-context"
 import { useState } from "react"
 
-export function RewardsScreen({ onClose }: { onClose?: () => void }) {
+export function RewardsScreen({
+  onClose,
+  closeLabel = "Geri",
+}: {
+  onClose?: () => void
+  closeLabel?: string
+}) {
   const { user, rewards, claimReward, loading } = useGolbox()
   const [claimingId, setClaimingId] = useState<string | null>(null)
 
@@ -19,7 +25,7 @@ export function RewardsScreen({ onClose }: { onClose?: () => void }) {
       <header className="space-y-1">
         {onClose && (
           <button type="button" onClick={onClose} className="text-sm font-medium text-primary">
-            Profile dön
+            {closeLabel}
           </button>
         )}
         <h1 className="font-serif text-2xl text-foreground">Ödül Kataloğu</h1>

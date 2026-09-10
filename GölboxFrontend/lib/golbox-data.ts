@@ -1,4 +1,4 @@
-export type TabId = "home" | "cafes" | "qr" | "map" | "ismarliyor" | "profile"
+export type TabId = "home" | "qr" | "map" | "profile"
 
 export const user = {
   name: "Enes",

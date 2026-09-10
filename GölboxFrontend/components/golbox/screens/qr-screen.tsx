@@ -44,6 +44,7 @@ export function QrScreen() {
   return (
     <div className="gol-fade-up flex min-h-full flex-col px-5 pb-6 pt-3">
       <header className="space-y-1">
+        <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">Kasa</p>
         <h1 className="font-serif text-2xl text-foreground">QR&apos;ın</h1>
         <p className="text-sm text-muted-foreground">
           Tek QR. Kasada göster; kahve, ödül ve puan otomatik işlenir.
@@ -57,7 +58,7 @@ export function QrScreen() {
               <p className="font-semibold text-card-foreground">{displayName}</p>
               <p className="text-xs text-muted-foreground">{qrId}</p>
             </div>
-            <span className="rounded-full bg-accent/20 px-2.5 py-1 text-xs font-semibold text-accent-foreground">
+            <span className="rounded-full bg-accent/20 px-2.5 py-1 font-serif text-sm font-semibold text-accent-foreground">
               {points} GP
             </span>
           </div>
