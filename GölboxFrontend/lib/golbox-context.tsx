@@ -160,7 +160,7 @@ interface GolboxContextType {
 }
 
 const CART_PREFIX = "gol_cart_"
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 function cartKey(owner: string) {
   return `${CART_PREFIX}${owner}`
