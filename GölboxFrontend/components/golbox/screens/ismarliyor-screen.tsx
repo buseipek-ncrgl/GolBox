@@ -2,16 +2,32 @@
 
 import { Check, Clock, Coffee } from "lucide-react"
 import { activePreps, type TabId } from "@/lib/golbox-data"
+import { useGolbox } from "@/lib/golbox-context"
 
 export function IsmarliyorScreen({ onNavigate }: { onNavigate: (tab: TabId) => void }) {
+  const { token, orders } = useGolbox()
+  const livePreps = (orders || [])
+    .filter((o) => ["Ready", "Preparing", "Pending", "Approved"].includes(o.status))
+    .map((o) => ({
+      id: o.id,
+      cafe: o.cafeName,
+      status: o.status === "Ready" ? ("hazir" as const) : ("hazirlaniyor" as const),
+      note:
+        o.status === "Ready"
+          ? "Kasada QR'ını göster, hemen hazır."
+          : "İkram hazırlanıyor.",
+      items: (o.items || []).map((it) => it.menuItemName).filter(Boolean),
+    }))
+  const preps = token && livePreps.length > 0 ? livePreps : token ? [] : activePreps
+
   return (
     <div className="gol-fade-up space-y-5 px-5 pb-6 pt-3">
       <header className="space-y-1">
         <h1 className="font-serif text-2xl text-foreground">Ismarlıyor</h1>
-        <p className="text-sm text-muted-foreground">Seni bekleyen ikramlar.</p>
+        <p className="text-sm text-muted-foreground">Seni bekleyen ikramlar. Saha kutusu ve katalog ödülü buradan ayrıdır.</p>
       </header>
 
-      {activePreps.length === 0 ? (
+      {preps.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-3xl border border-dashed border-border bg-card px-6 py-12 text-center">
           <div className="flex size-12 items-center justify-center rounded-2xl bg-secondary text-secondary-foreground">
             <Coffee className="size-6" />
@@ -28,7 +44,7 @@ export function IsmarliyorScreen({ onNavigate }: { onNavigate: (tab: TabId) => v
         </div>
       ) : (
         <ul className="space-y-4">
-          {activePreps.map((prep) => (
+          {preps.map((prep) => (
             <li
               key={prep.id}
               className="overflow-hidden rounded-3xl border border-border bg-card"
@@ -56,7 +72,7 @@ export function IsmarliyorScreen({ onNavigate }: { onNavigate: (tab: TabId) => v
               <div className="space-y-3 p-4">
                 <p className="text-sm text-muted-foreground">{prep.note}</p>
                 <ul className="flex flex-wrap gap-2">
-                  {prep.items.map((it) => (
+                  {(prep.items.length > 0 ? prep.items : ["İkram"]).map((it) => (
                     <li
                       key={it}
                       className="rounded-full bg-secondary px-3 py-1.5 text-sm font-medium text-secondary-foreground"

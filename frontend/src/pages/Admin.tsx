@@ -31,7 +31,7 @@ const rewardPoints = (reward: any): number =>
   Number(reward?.requiredPoints ?? reward?.pointsRequired ?? 0);
 
 const emptyNote = (text: string) => (
-  <div style={{ background: '#fff', border: '1px dashed #cbd5e1', borderRadius: '16px', padding: '2rem', color: '#64748b' }}>{text}</div>
+  <div style={{ background: '#fff', border: '1px dashed #d7e3e0', borderRadius: '20px', padding: '2rem', color: '#5b6f6e' }}>{text}</div>
 );
 
 const campaignTypeLabel = (type?: string) => {
@@ -418,7 +418,7 @@ export const Admin: React.FC = () => {
         imageUrl: editCafeImageUrl || undefined,
         categoryId: selectedCafeDetail.categoryId || '22222222-2222-2222-2222-222222222222'
       });
-      setSuccess(`✨ Şehitkamil Tesis '${editCafeName}' fotoğrafı ve detayları kaydedildi!`);
+      setSuccess(`Tesis '${editCafeName}' kaydedildi.`);
       setSelectedCafeDetail(null);
       fetchData();
     } catch (err: any) {
@@ -444,7 +444,7 @@ export const Admin: React.FC = () => {
         throw new Error('Tesis oluşturuldu ancak kimlik dönmedi.');
       }
 
-      setSuccess(`✨ Yeni Şehitkamil Tesis/Şube '${newCafeName}' eklendi!`);
+      setSuccess(`Tesis '${newCafeName}' eklendi.`);
       setShowAddCafeModal(false);
       setNewCafeName('');
       setNewCafeAddress('');
@@ -482,7 +482,7 @@ export const Admin: React.FC = () => {
         throw new Error('Ürün oluşturuldu ancak kimlik dönmedi.');
       }
 
-      setSuccess(`✨ Yeni Ürün '${newProdName}' (${newProdPrice} TL - ${cafeNameLabel}) fotoğraflı olarak menüye eklendi!`);
+      setSuccess(`Ürün '${newProdName}' menüye eklendi.`);
       setShowAddProductModal(false);
       setNewProdName('');
       setNewProdDesc('');
@@ -509,7 +509,7 @@ export const Admin: React.FC = () => {
         throw new Error('Ödül oluşturuldu ancak kimlik dönmedi.');
       }
 
-      setSuccess(`✨ Yeni İkram/Ödül '${newRewardTitle}' (${newRewardPoints} GP) eklendi!`);
+      setSuccess(`Ödül '${newRewardTitle}' eklendi. ${newRewardPoints} GP`);
       setShowAddRewardModal(false);
       setNewRewardTitle('');
       setNewRewardDesc('');
@@ -562,7 +562,7 @@ export const Admin: React.FC = () => {
         throw new Error('Ismarlıyor oluşturuldu ancak kimlik dönmedi.');
       }
 
-      setSuccess(`✨ Gaziantep Şehitkamil Belediyesi Ismarlıyor (${created.collectionCode || createdId(created)}) [${donatorName}] ikramı yayınlandı!`);
+      setSuccess(`Ismarlıyor yayınlandı (${created.collectionCode || createdId(created)}).`);
       setShowAddIsmarliyorModal(false);
       setNewIsmUserFullName('');
       setNewIsmProofUrl('');
@@ -646,7 +646,7 @@ export const Admin: React.FC = () => {
         targetUserGroup: pushTargetGroup || 'All',
         notificationType: 'General'
       });
-      setSuccess(`📢 Toplu anlık bildirim (${pushTargetGroup}) kaydedildi.`);
+      setSuccess('Bildirim kaydedildi.');
       setPushTitle('');
       setPushMessage('');
       fetchData();
@@ -659,7 +659,7 @@ export const Admin: React.FC = () => {
   const handleUpdateOrderStatus = async (orderId: string, status: string) => {
     try {
       await api.updateOrderStatus(orderId, status);
-      setSuccess(`✨ Sipariş anında '${status === 'Delivered' ? 'Teslim Edildi & İkram Edildi' : status}' olarak onaylandı ve vatandaşa bildirim gönderildi!`);
+      setSuccess(`Sipariş ${status === 'Delivered' ? 'teslim edildi' : status}.`);
       fetchData();
     } catch (err: any) {
       setError(err.message || 'Sipariş durumu güncellenemedi.');
@@ -719,7 +719,7 @@ export const Admin: React.FC = () => {
         paidWithPoints: qrPaidWithPoints
       });
       setQrScanResult(res);
-      setSuccess(`✨ QR Tarama Başarılı! Vatandaşa +${res.pointsEarned} GP Yüklendi. Bakiye: ${res.newPointsBalance} GP`);
+      setSuccess(`QR okundu. +${res.pointsEarned} GP. Bakiye: ${res.newPointsBalance} GP`);
       fetchData();
     } catch (err: any) {
       setQrScanError(err.message || 'QR Kod doğrulanamadı.');
@@ -862,126 +862,121 @@ export const Admin: React.FC = () => {
 
   const getMenuLabel = (key: string) => {
     const labels: Record<string, string> = {
-      overview: 'Genel Bakış Dashboard',
-      users: 'Vatandaş & Kullanıcı Yönetimi',
-      cafes: 'Şehitkamil Göl Kafeler',
-      products: 'Menü & Ürün Kataloğu',
-      points: 'GölPuan Kuralları & Defteri',
-      qr: 'QR İşlemleri & Güvenlik',
-      rewards: 'İkramlar & Ödüller',
-      fieldDrops: 'Saha Hediyeleri',
-      ismarliyor: 'Ismarlıyor Başvuruları',
-      campaigns: 'Kampanyalar & İndirimler',
-      events: 'Etkinlikler & Görevler',
-      notifications: 'Duyurular & Bildirimler',
+      overview: 'Genel bakış',
+      users: 'Vatandaşlar',
+      cafes: 'Göl Kafeler',
+      products: 'Menü ve ürünler',
+      points: 'GölPuan defteri',
+      qr: 'QR işlemleri',
+      rewards: 'Ödüller',
+      fieldDrops: 'Saha hediyeleri',
+      ismarliyor: 'Ismarlıyor',
+      campaigns: 'Kampanyalar',
+      events: 'Etkinlikler',
+      notifications: 'Duyurular',
       reports: 'Raporlar',
       roles: 'Yetkilendirme',
-      audit: 'Ayarlar & Denetim'
+      audit: 'Denetim'
     };
-    return labels[key] || 'Yönetim Modülü';
+    return labels[key] || 'Yönetim';
   };
 
   return (
     <div style={{
       display: 'flex',
       minHeight: '100vh',
-      background: '#f8fafc',
-      color: '#0f172a',
-      fontFamily: "Manrope, system-ui, sans-serif"
+      background: '#f4f7f5',
+      color: '#1c2e2e',
+      fontFamily: 'Manrope, system-ui, sans-serif'
     }}>
       
-      {/* 1. EXECUTIVE SAAS SIDEBAR (GAZİANTEP ŞEHİTKAMİL BELEDİYESİ BRANDING) */}
       <aside style={{
         width: sidebarCollapsed ? '76px' : '270px',
-        background: '#0f172a',
-        color: '#f8fafc',
-        borderRight: '1px solid #1e293b',
+        background: '#1d5f60',
+        color: '#f4f7f5',
         display: 'flex',
         flexDirection: 'column',
         transition: 'width 0.25s ease',
         flexShrink: 0,
         zIndex: 50
       }}>
-        {/* Sidebar Header */}
-        <div style={{ height: '75px', display: 'flex', alignItems: 'center', justifyContent: sidebarCollapsed ? 'center' : 'space-between', padding: '0 1.25rem', borderBottom: '1px solid #1e293b' }}>
+        <div style={{ height: '80px', display: 'flex', alignItems: 'center', justifyContent: sidebarCollapsed ? 'center' : 'space-between', padding: '0 1.15rem' }}>
           {!sidebarCollapsed && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <div style={{
-                width: '38px',
-                height: '38px',
-                borderRadius: '12px',
-                background: '#1d5f60',
+                width: '40px',
+                height: '40px',
+                borderRadius: '14px',
+                background: '#ffffff',
+                color: '#1d5f60',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#fff',
-                fontWeight: 800,
-                boxShadow: '0 4px 12px rgba(29, 95, 96, 0.35)',
-                fontSize: '0.9rem',
+                fontWeight: 700,
+                fontSize: '1rem',
                 fontFamily: 'Fraunces, Georgia, serif'
               }}>
                 ŞB
               </div>
               <div>
-                <div style={{ fontWeight: 800, fontSize: '1.05rem', color: '#ffffff', lineHeight: 1.2, fontFamily: 'Fraunces, Georgia, serif' }}>GölBox Admin</div>
-                <div style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: 600 }}>Şehitkamil Belediyesi</div>
+                <div style={{ fontWeight: 700, fontSize: '1.05rem', color: '#ffffff', lineHeight: 1.2, fontFamily: 'Fraunces, Georgia, serif' }}>GölBox</div>
+                <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.72)', fontWeight: 600 }}>Şehitkamil Belediyesi</div>
               </div>
             </div>
           )}
           <button
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            style={{ background: '#1e293b', border: 'none', color: '#94a3b8', padding: '6px', borderRadius: '8px', cursor: 'pointer', display: 'flex' }}
+            style={{ background: 'rgba(255,255,255,0.12)', border: 'none', color: '#fff', padding: '6px', borderRadius: '10px', cursor: 'pointer', display: 'flex' }}
           >
             {sidebarCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
           </button>
         </div>
 
-        {/* 14 Core Modules Navigation */}
-        <div style={{ flexGrow: 1, overflowY: 'auto', padding: '0.85rem 0.6rem' }}>
+        <div style={{ flexGrow: 1, overflowY: 'auto', padding: '0.5rem 0.6rem' }}>
           {[
             {
-              section: 'ANA EKOSİSTEM',
+              section: 'İşlem',
               items: [
-                { id: 'overview', label: 'Genel Bakış', icon: LayoutDashboard },
+                { id: 'overview', label: 'Genel bakış', icon: LayoutDashboard },
                 { id: 'users', label: 'Vatandaşlar', icon: Users },
                 { id: 'cafes', label: 'Göl Kafeler', icon: Building2 },
-                { id: 'products', label: 'Menü ve Ürünler', icon: Coffee }
+                { id: 'products', label: 'Menü ve ürünler', icon: Coffee }
               ]
             },
             {
-              section: 'SADAKAT & İKRAM',
+              section: 'Sadakat',
               items: [
-                { id: 'points', label: 'GölPuan Defteri', icon: History },
-                { id: 'qr', label: 'QR İşlemleri', icon: CreditCard },
-                { id: 'rewards', label: 'Ödüller & İkramlar', icon: Award },
-                { id: 'fieldDrops', label: 'Saha Hediyeleri', icon: MapPin },
+                { id: 'points', label: 'GölPuan defteri', icon: History },
+                { id: 'qr', label: 'QR işlemleri', icon: CreditCard },
+                { id: 'rewards', label: 'Ödüller', icon: Award },
+                { id: 'fieldDrops', label: 'Saha hediyeleri', icon: MapPin },
                 { id: 'ismarliyor', label: 'Ismarlıyor', icon: Gift }
               ]
             },
             {
-              section: 'ETKİLEŞİM & İLETİŞİM',
+              section: 'İletişim',
               items: [
                 { id: 'campaigns', label: 'Kampanyalar', icon: Megaphone },
-                { id: 'events', label: 'Etkinlikler & Görevler', icon: Calendar },
-                { id: 'notifications', label: 'Duyurular & Bildirim', icon: Bell }
+                { id: 'events', label: 'Etkinlikler', icon: Calendar },
+                { id: 'notifications', label: 'Duyurular', icon: Bell }
               ]
             },
             {
-              section: 'YÖNETİM & DENETİM',
+              section: 'Yönetim',
               items: [
-                { id: 'reports', label: 'Stratejik Raporlar', icon: BarChart3 },
+                { id: 'reports', label: 'Raporlar', icon: BarChart3 },
                 { id: 'roles', label: 'Yetkilendirme', icon: Shield },
-                { id: 'audit', label: 'Ayarlar & Audit Log', icon: FileCheck }
+                { id: 'audit', label: 'Denetim', icon: FileCheck }
               ]
             }
           ].map((grp, idx) => (
-            <div key={idx} style={{ marginBottom: '1.25rem' }}>
+            <div key={idx} style={{ marginBottom: '1.1rem' }}>
               {!sidebarCollapsed && (
-                <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#94a3b8', padding: '0 0.75rem 0.4rem', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                <div style={{ fontSize: '0.65rem', fontWeight: 700, color: 'rgba(255,255,255,0.55)', padding: '0 0.75rem 0.4rem', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
                   {grp.section}
                 </div>
               )}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 {grp.items.map((item) => {
                   const Icon = item.icon;
                   const isActive = activeMenu === item.id;
@@ -993,20 +988,21 @@ export const Admin: React.FC = () => {
                       style={{
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: sidebarCollapsed ? 'center' : 'space-between',
+                        justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
                         padding: '0.65rem 0.85rem',
-                        borderRadius: '10px',
-                        background: isActive ? '#1d5f60' : 'transparent',
-                        color: isActive ? '#ffffff' : '#94a3b8',
+                        borderRadius: '14px',
+                        background: isActive ? '#ffffff' : 'transparent',
+                        color: isActive ? '#1d5f60' : 'rgba(255,255,255,0.82)',
                         border: 'none',
                         fontSize: '0.85rem',
                         fontWeight: isActive ? 700 : 500,
                         cursor: 'pointer',
-                        transition: 'all 0.15s ease'
+                        fontFamily: 'Manrope, system-ui, sans-serif',
+                        transition: 'background 0.15s ease'
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                        <Icon size={18} color={isActive ? '#ffffff' : '#94a3b8'} />
+                        <Icon size={18} color={isActive ? '#1d5f60' : 'rgba(255,255,255,0.82)'} />
                         {!sidebarCollapsed && <span>{item.label}</span>}
                       </div>
                     </button>
@@ -1017,9 +1013,8 @@ export const Admin: React.FC = () => {
           ))}
         </div>
 
-        {/* Bottom Profile */}
-        <div style={{ padding: sidebarCollapsed ? '0.75rem 0.5rem' : '0.85rem 1rem', borderTop: '1px solid #1e293b', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: '#1d5f60', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '0.8rem', flexShrink: 0 }}>
+        <div style={{ padding: sidebarCollapsed ? '0.75rem 0.5rem' : '0.9rem 1rem', borderTop: '1px solid rgba(255,255,255,0.12)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div style={{ width: '38px', height: '38px', borderRadius: '14px', background: '#ffffff', color: '#1d5f60', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '0.8rem', flexShrink: 0, fontFamily: 'Fraunces, Georgia, serif' }}>
             {adminInitials}
           </div>
           {!sidebarCollapsed && (
@@ -1027,44 +1022,42 @@ export const Admin: React.FC = () => {
               <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#ffffff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {adminName}
               </div>
-              <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 600 }}>{adminRole}</div>
+              <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>{adminRole}</div>
             </div>
           )}
           {!sidebarCollapsed && (
-            <button onClick={logout} title="Oturumu Kapat" style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '6px' }}>
+            <button onClick={logout} title="Çıkış" style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.85)', cursor: 'pointer', padding: '6px' }}>
               <LogOut size={18} />
             </button>
           )}
         </div>
       </aside>
 
-      {/* 2. MAIN CONTENT AREA */}
       <div style={{ flexGrow: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
         
-        {/* Top Header Bar */}
-        <header style={{ height: '75px', background: '#ffffff', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 2rem', position: 'sticky', top: 0, zIndex: 40, boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', color: '#64748b' }}>
-            <span style={{ fontWeight: 600, color: '#1d5f60' }}>Gaziantep Şehitkamil Belediyesi</span>
-            <ChevronRight size={14} />
-            <span style={{ fontWeight: 700, color: '#0f172a' }}>{getMenuLabel(activeMenu)}</span>
+        <header style={{ height: '80px', background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 2rem', position: 'sticky', top: 0, zIndex: 40 }}>
+          <div>
+            <div style={{ fontSize: '0.75rem', color: '#5b6f6e', fontWeight: 600 }}>Şehitkamil Belediyesi</div>
+            <h1 style={{ margin: 0, fontSize: '1.45rem', fontFamily: 'Fraunces, Georgia, serif', fontWeight: 700, color: '#1c2e2e' }}>{getMenuLabel(activeMenu)}</h1>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
-            <div style={{ position: 'relative', width: '280px' }}>
-              <Search size={16} style={{ position: 'absolute', left: '12px', top: '10px', color: '#94a3b8' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <div style={{ position: 'relative', width: '260px' }}>
+              <Search size={16} style={{ position: 'absolute', left: '14px', top: '12px', color: '#5b6f6e' }} />
               <input
                 type="text"
-                placeholder="Listede ara (ad, kod, şube)"
+                placeholder="Listede ara"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 style={{
                   width: '100%',
-                  padding: '0.55rem 0.85rem 0.55rem 2.4rem',
-                  background: '#f8fafc',
-                  border: '1px solid #cbd5e1',
-                  borderRadius: '10px',
-                  color: '#0f172a',
+                  padding: '0.6rem 0.9rem 0.6rem 2.5rem',
+                  background: '#ffffff',
+                  border: '1px solid #d7e3e0',
+                  borderRadius: '999px',
+                  color: '#1c2e2e',
                   fontSize: '0.85rem',
+                  fontFamily: 'Manrope, system-ui, sans-serif',
                   outline: 'none',
                   boxSizing: 'border-box'
                 }}
@@ -1073,9 +1066,9 @@ export const Admin: React.FC = () => {
             <button
               onClick={() => setActiveMenu('notifications')}
               title="Duyurular"
-              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}
+              style={{ background: '#fff', border: '1px solid #d7e3e0', cursor: 'pointer', padding: '8px', borderRadius: '14px', display: 'flex' }}
             >
-              <Bell size={22} color="#1d5f60" />
+              <Bell size={18} color="#1d5f60" />
             </button>
           </div>
         </header>

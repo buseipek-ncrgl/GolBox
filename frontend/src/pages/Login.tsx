@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../store/AuthContext';
 import { api } from '../services/api';
-import { LogIn, AlertCircle, Eye, EyeOff, Lock, Mail, Shield } from 'lucide-react';
+import { LogIn, AlertCircle, Eye, EyeOff, Lock, Mail } from 'lucide-react';
 
 export const Login: React.FC = () => {
   const { login } = useAuth();
@@ -20,351 +20,203 @@ export const Login: React.FC = () => {
       const loginResponse = await api.login({ email, password });
       login(loginResponse.accessToken, loginResponse.refreshToken, loginResponse.user);
     } catch (err: any) {
-      setError(err.message || 'Giriş işlemi başarısız. Lütfen yetkili e-posta ve şifrenizi doğrulayın.');
+      setError(err.message || 'Giriş işlemi başarısız. E-posta ve şifrenizi kontrol edin.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Fast Demo Fill for Testing Admin & Staff Roles
   const handleQuickFill = (demoEmail: string, demoPass: string) => {
     setEmail(demoEmail);
     setPassword(demoPass);
     setError(null);
   };
 
+  const inputStyle: React.CSSProperties = {
+    width: '100%',
+    padding: '0.75rem 0.9rem 0.75rem 2.6rem',
+    background: '#fff',
+    border: '1px solid #d7e3e0',
+    borderRadius: '16px',
+    color: '#1c2e2e',
+    fontSize: '0.9rem',
+    fontFamily: 'Manrope, system-ui, sans-serif',
+    outline: 'none',
+    boxSizing: 'border-box',
+  };
+
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)',
-      padding: '1.5rem',
-      fontFamily: 'Manrope, system-ui, sans-serif',
-      position: 'relative',
-      overflow: 'hidden'
-    }}>
-      {/* Subtle Ambient Radial Lighting */}
-      <div style={{
-        position: 'absolute',
-        top: '20%',
-        left: '50%',
-        transform: 'translateX(-50%)',
-        width: '500px',
-        height: '500px',
-        borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(29, 95, 96, 0.2) 0%, rgba(0, 0, 0, 0) 70%)',
-        pointerEvents: 'none',
-        filter: 'blur(50px)'
-      }} />
-
-      {/* Main Glassmorphic Login Card */}
-      <div style={{
-        width: '100%',
-        maxWidth: '420px',
-        background: 'rgba(15, 23, 42, 0.75)',
-        backdropFilter: 'blur(24px)',
-        WebkitBackdropFilter: 'blur(24px)',
-        border: '1px solid rgba(255, 255, 255, 0.1)',
-        borderRadius: '24px',
-        padding: '2.5rem 2rem',
-        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
-        color: '#f8fafc',
-        position: 'relative',
-        zIndex: 10
-      }}>
-
-        {/* Municipality Emblem Header */}
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.4rem',
-            background: 'rgba(29, 95, 96, 0.2)',
-            border: '1px solid rgba(29, 95, 96, 0.4)',
-            padding: '0.35rem 0.85rem',
-            borderRadius: '100px',
-            color: '#94a3b8',
-            fontSize: '0.725rem',
-            fontWeight: 700,
-            letterSpacing: '0.04em',
-            textTransform: 'uppercase',
-            marginBottom: '1.25rem'
-          }}>
-            <Shield size={14} />
-            <span>Gaziantep Şehitkamil Belediyesi</span>
-          </div>
-
-          <div style={{
-            width: '56px',
-            height: '56px',
-            margin: '0 auto 1rem auto',
-            borderRadius: '16px',
-            background: '#1d5f60',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#ffffff',
-            fontWeight: 800,
-            fontSize: '1.25rem',
-            fontFamily: 'Fraunces, Georgia, serif',
-            boxShadow: '0 10px 20px -5px rgba(29, 95, 96, 0.4)'
-          }}>
+    <div
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: '#f4f7f5',
+        padding: '1.5rem',
+        fontFamily: 'Manrope, system-ui, sans-serif',
+      }}
+    >
+      <div
+        style={{
+          width: '100%',
+          maxWidth: '420px',
+          background: '#ffffff',
+          border: '1px solid #d7e3e0',
+          borderRadius: '28px',
+          padding: '2.25rem 1.75rem',
+          boxShadow: '0 24px 60px -40px rgba(29, 95, 96, 0.55)',
+        }}
+      >
+        <div style={{ textAlign: 'center', marginBottom: '1.75rem' }}>
+          <div
+            style={{
+              width: '56px',
+              height: '56px',
+              margin: '0 auto 1rem',
+              borderRadius: '18px',
+              background: '#1d5f60',
+              color: '#fff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontFamily: 'Fraunces, Georgia, serif',
+              fontSize: '1.35rem',
+              fontWeight: 700,
+            }}
+          >
             ŞB
           </div>
-
-          <h1 style={{
-            fontSize: '1.5rem',
-            fontWeight: 800,
-            color: '#ffffff',
-            letterSpacing: '-0.02em',
-            margin: 0,
-            lineHeight: 1.2
-          }}>
-            GölBox Yönetim Portalı
+          <p style={{ fontSize: '0.75rem', fontWeight: 600, color: '#5b6f6e', letterSpacing: '0.04em', margin: 0 }}>
+            Gaziantep Şehitkamil Belediyesi
+          </p>
+          <h1
+            style={{
+              fontFamily: 'Fraunces, Georgia, serif',
+              fontSize: '1.7rem',
+              fontWeight: 700,
+              color: '#1c2e2e',
+              margin: '0.35rem 0 0',
+            }}
+          >
+            GölBox Yönetim
           </h1>
-          <p style={{
-            color: '#94a3b8',
-            fontSize: '0.825rem',
-            marginTop: '0.4rem',
-            lineHeight: 1.4
-          }}>
-            Akıllı Şehir & Sadakat Ekosistemi Yetkili Girişi
+          <p style={{ color: '#5b6f6e', fontSize: '0.875rem', marginTop: '0.4rem' }}>
+            Personel girişi. Vatandaş uygulaması ayrıdır.
           </p>
         </div>
 
-        {/* Quick Demo Fill Pills */}
-        <div style={{
-          marginBottom: '1.5rem',
-          background: 'rgba(30, 41, 59, 0.6)',
-          padding: '0.75rem',
-          borderRadius: '14px',
-          border: '1px solid rgba(255, 255, 255, 0.05)'
-        }}>
-          <div style={{
-            fontSize: '0.675rem',
-            fontWeight: 700,
-            textTransform: 'uppercase',
-            color: '#94a3b8',
-            letterSpacing: '0.06em',
-            marginBottom: '0.5rem',
-            textAlign: 'center',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '0.35rem'
-          }}>
-            <span>Hızlı giriş</span>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-            <button
-              type="button"
-              onClick={() => handleQuickFill('admin@golbox.gov.tr', 'Admin123!')}
-              style={{
-                background: email === 'admin@golbox.gov.tr' ? '#1d5f60' : 'rgba(255, 255, 255, 0.04)',
-                color: '#ffffff',
-                border: email === 'admin@golbox.gov.tr' ? '1px solid #1d5f60' : '1px solid rgba(255, 255, 255, 0.08)',
-                borderRadius: '8px',
-                padding: '0.5rem',
-                fontSize: '0.75rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                transition: 'all 0.15s ease'
-              }}
-            >
-              Admin
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleQuickFill('staff@golbox.gov.tr', 'Staff123!')}
-              style={{
-                background: email === 'staff@golbox.gov.tr' ? '#1d5f60' : 'rgba(255, 255, 255, 0.04)',
-                color: '#ffffff',
-                border: email === 'staff@golbox.gov.tr' ? '1px solid #1d5f60' : '1px solid rgba(255, 255, 255, 0.08)',
-                borderRadius: '8px',
-                padding: '0.5rem',
-                fontSize: '0.75rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                transition: 'all 0.15s ease'
-              }}
-            >
-              Personel
-            </button>
-          </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '1.25rem' }}>
+          <button
+            type="button"
+            onClick={() => handleQuickFill('admin@golbox.gov.tr', 'Admin123!')}
+            style={{
+              background: email === 'admin@golbox.gov.tr' ? '#1d5f60' : '#e8f2f2',
+              color: email === 'admin@golbox.gov.tr' ? '#fff' : '#1d5f60',
+              border: 'none',
+              borderRadius: '999px',
+              padding: '0.55rem',
+              fontSize: '0.8rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+            }}
+          >
+            Yönetici
+          </button>
+          <button
+            type="button"
+            onClick={() => handleQuickFill('staff@golbox.gov.tr', 'Staff123!')}
+            style={{
+              background: email === 'staff@golbox.gov.tr' ? '#1d5f60' : '#e8f2f2',
+              color: email === 'staff@golbox.gov.tr' ? '#fff' : '#1d5f60',
+              border: 'none',
+              borderRadius: '999px',
+              padding: '0.55rem',
+              fontSize: '0.8rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+            }}
+          >
+            Personel
+          </button>
         </div>
 
-        {/* Error Alert */}
         {error && (
-          <div style={{
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: '0.65rem',
-            background: 'rgba(239, 68, 68, 0.12)',
-            border: '1px solid rgba(239, 68, 68, 0.3)',
-            borderRadius: '10px',
-            padding: '0.75rem 0.85rem',
-            color: '#fca5a5',
-            fontSize: '0.8rem',
-            marginBottom: '1.25rem',
-            lineHeight: 1.4
-          }}>
-            <AlertCircle size={16} style={{ flexShrink: 0, marginTop: '2px', color: '#f87171' }} />
+          <div
+            style={{
+              display: 'flex',
+              gap: '0.6rem',
+              background: '#fef2f2',
+              border: '1px solid #fecaca',
+              borderRadius: '16px',
+              padding: '0.75rem 0.9rem',
+              color: '#991b1b',
+              fontSize: '0.8rem',
+              marginBottom: '1rem',
+            }}
+          >
+            <AlertCircle size={16} style={{ flexShrink: 0, marginTop: 2 }} />
             <span>{error}</span>
           </div>
         )}
 
-        {/* Credentials Form */}
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <div>
-            <label style={{
-              fontSize: '0.75rem',
-              fontWeight: 700,
-              color: '#94a3b8',
-              display: 'block',
-              marginBottom: '0.35rem'
-            }}>
-              E-Posta Adresi
+            <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#5b6f6e', display: 'block', marginBottom: 6 }}>
+              E-posta
             </label>
             <div style={{ position: 'relative' }}>
-              <Mail size={16} style={{
-                position: 'absolute',
-                left: '12px',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                color: '#64748b'
-              }} />
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@golbox.gov.tr"
-                style={{
-                  width: '100%',
-                  padding: '0.7rem 0.85rem 0.7rem 2.5rem',
-                  background: 'rgba(30, 41, 59, 0.7)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  borderRadius: '10px',
-                  color: '#ffffff',
-                  fontSize: '0.875rem',
-                  outline: 'none',
-                  boxSizing: 'border-box'
-                }}
-              />
+              <Mail size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#5b6f6e' }} />
+              <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="admin@golbox.gov.tr" style={inputStyle} />
             </div>
           </div>
-
           <div>
-            <label style={{
-              fontSize: '0.75rem',
-              fontWeight: 700,
-              color: '#94a3b8',
-              display: 'block',
-              marginBottom: '0.35rem'
-            }}>
+            <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#5b6f6e', display: 'block', marginBottom: 6 }}>
               Şifre
             </label>
             <div style={{ position: 'relative' }}>
-              <Lock size={16} style={{
-                position: 'absolute',
-                left: '12px',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                color: '#64748b'
-              }} />
+              <Lock size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#5b6f6e' }} />
               <input
                 type={showPassword ? 'text' : 'password'}
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                style={{
-                  width: '100%',
-                  padding: '0.7rem 2.5rem 0.7rem 2.5rem',
-                  background: 'rgba(30, 41, 59, 0.7)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  borderRadius: '10px',
-                  color: '#ffffff',
-                  fontSize: '0.875rem',
-                  outline: 'none',
-                  boxSizing: 'border-box'
-                }}
+                style={{ ...inputStyle, paddingRight: '2.6rem' }}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                style={{
-                  position: 'absolute',
-                  right: '12px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  background: 'none',
-                  border: 'none',
-                  color: '#64748b',
-                  cursor: 'pointer',
-                  padding: 0,
-                  display: 'flex',
-                  alignItems: 'center'
-                }}
+                style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#5b6f6e', cursor: 'pointer' }}
               >
                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
           </div>
-
           <button
             type="submit"
             disabled={loading}
             style={{
-              marginTop: '0.4rem',
-              height: '44px',
-              background: 'linear-gradient(135deg, #1d5f60 0%, #0284c7 100%)',
-              color: '#ffffff',
+              marginTop: '0.25rem',
+              height: '48px',
+              background: '#1d5f60',
+              color: '#fff',
               border: 'none',
-              borderRadius: '10px',
-              fontWeight: 800,
-              fontSize: '0.9rem',
+              borderRadius: '999px',
+              fontWeight: 700,
+              fontSize: '0.95rem',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               gap: '0.5rem',
-              boxShadow: '0 4px 14px rgba(29, 95, 96, 0.35)',
-              opacity: loading ? 0.8 : 1
+              opacity: loading ? 0.8 : 1,
             }}
           >
-            {loading ? (
-              <span>Giriş Yapılıyor...</span>
-            ) : (
-              <>
-                <LogIn size={16} />
-                <span>Sisteme Giriş Yap</span>
-              </>
-            )}
+            <LogIn size={16} />
+            {loading ? 'Giriş yapılıyor' : 'Giriş yap'}
           </button>
         </form>
-
-        {/* Security Footer */}
-        <div style={{
-          marginTop: '1.75rem',
-          paddingTop: '1rem',
-          borderTop: '1px solid rgba(255, 255, 255, 0.06)',
-          textAlign: 'center'
-        }}>
-          <p style={{
-            fontSize: '0.7rem',
-            color: '#64748b',
-            margin: 0,
-            lineHeight: 1.4
-          }}>
-            Gaziantep Şehitkamil Belediyesi Bilgi İşlem ve Akıllı Şehir Hizmetleri Portalı
-          </p>
-        </div>
-
       </div>
     </div>
   );

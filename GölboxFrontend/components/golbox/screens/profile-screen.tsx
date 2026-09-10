@@ -6,6 +6,7 @@ import { activity, user as mockUser } from "@/lib/golbox-data"
 import { useGolToast } from "@/components/golbox/gol-toast"
 import { useGolbox } from "@/lib/golbox-context"
 import { LoginScreen } from "@/components/golbox/screens/login-screen"
+import { RewardsScreen } from "@/components/golbox/screens/rewards-screen"
 
 const settings = [
   { id: "account", label: "Hesap bilgileri", icon: CreditCard },
@@ -25,6 +26,7 @@ export function ProfileScreen() {
   const notify = useGolToast()
   const { user, token, myCaptures, pointTransactions, logout, loadMyCaptures } = useGolbox()
   const [showLogin, setShowLogin] = useState(false)
+  const [showRewards, setShowRewards] = useState(false)
 
   useEffect(() => {
     if (token) void loadMyCaptures()
@@ -42,6 +44,10 @@ export function ProfileScreen() {
           kind: pt.amount >= 0 ? "earn" : "spend",
         }))
       : activity
+
+  if (showRewards) {
+    return <RewardsScreen onClose={() => setShowRewards(false)} />
+  }
 
   if (showLogin && !token) {
     return <LoginScreen onClose={() => setShowLogin(false)} closeLabel="Profile dön" />
@@ -61,7 +67,11 @@ export function ProfileScreen() {
         </div>
       </header>
 
-      <div className="flex items-center justify-between rounded-3xl bg-primary px-5 py-4 text-primary-foreground">
+      <button
+        type="button"
+        onClick={() => setShowRewards(true)}
+        className="flex w-full items-center justify-between rounded-3xl bg-primary px-5 py-4 text-left text-primary-foreground"
+      >
         <div>
           <p className="text-xs uppercase tracking-wide text-primary-foreground/70">Göl Puan</p>
           <p className="font-serif text-3xl leading-tight">{points}</p>
@@ -69,7 +79,7 @@ export function ProfileScreen() {
         <p className="max-w-[9rem] text-pretty text-right text-sm text-primary-foreground/90">
           Katalog ödülleri GölPuan ile alınır. Saha kutusu ayrıdır.
         </p>
-      </div>
+      </button>
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-foreground">Toplanan kutular</h2>

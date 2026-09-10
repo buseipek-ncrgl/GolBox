@@ -22,10 +22,25 @@ export function HomeScreen({
   onNavigate: (tab: TabId) => void
   onOpenCafe: (id: string) => void
 }) {
-  const { fieldDrops, loadNearbyFieldDrops } = useGolbox()
+  const { fieldDrops, loadNearbyFieldDrops, token, pointTransactions } = useGolbox()
   const [usingFallback, setUsingFallback] = useState(true)
   const nearest = cafes[0]
   const nearbyDrop = fieldDrops[0] ?? null
+  const recentMoves =
+    token && pointTransactions.length > 0
+      ? pointTransactions.slice(0, 3).map((pt) => ({
+          id: pt.id,
+          label: pt.description || "GölPuan",
+          when: new Date(pt.createdDate).toLocaleString("tr-TR", {
+            day: "numeric",
+            month: "short",
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+          value: `${pt.amount > 0 ? "+" : ""}${pt.amount}`,
+          kind: pt.amount >= 0 ? "earn" : "spend",
+        }))
+      : activity.slice(0, 3)
 
   useEffect(() => {
     if (!navigator.geolocation) {
@@ -151,7 +166,7 @@ export function HomeScreen({
       <section aria-label="Son hareketler" className="space-y-3">
         <h2 className="text-sm font-semibold text-foreground">Son hareketler</h2>
         <ul className="divide-y divide-border overflow-hidden rounded-3xl border border-border bg-card">
-          {activity.slice(0, 3).map((a) => (
+          {recentMoves.map((a) => (
             <li key={a.id} className="flex items-center gap-3 px-4 py-3">
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-card-foreground">{a.label}</p>

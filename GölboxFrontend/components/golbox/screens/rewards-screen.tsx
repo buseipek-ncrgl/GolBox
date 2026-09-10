@@ -4,7 +4,7 @@ import { Gift, Sparkles, CheckCircle2, AlertCircle } from "lucide-react"
 import { useGolbox } from "@/lib/golbox-context"
 import { useState } from "react"
 
-export function RewardsScreen() {
+export function RewardsScreen({ onClose }: { onClose?: () => void }) {
   const { user, rewards, claimReward, loading } = useGolbox()
   const [claimingId, setClaimingId] = useState<string | null>(null)
 
@@ -17,8 +17,13 @@ export function RewardsScreen() {
   return (
     <div className="gol-fade-up space-y-5 px-5 pb-6 pt-3">
       <header className="space-y-1">
+        {onClose && (
+          <button type="button" onClick={onClose} className="text-sm font-medium text-primary">
+            Profile dön
+          </button>
+        )}
         <h1 className="font-serif text-2xl text-foreground">Ödül Kataloğu</h1>
-        <p className="text-sm text-muted-foreground">Biriktirdiğin GölPuan'lar ile ücretsiz ikramlarını seç.</p>
+        <p className="text-sm text-muted-foreground">GölPuan ile alınır. Saha kutusu ve Ismarlıyor buradan ayrıdır.</p>
       </header>
 
       {/* Puan Durum Kartı */}

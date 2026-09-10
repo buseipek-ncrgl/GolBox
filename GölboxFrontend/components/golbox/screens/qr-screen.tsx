@@ -2,9 +2,9 @@
 
 import { useMemo } from "react"
 import { ScanLine } from "lucide-react"
-import { user } from "@/lib/golbox-data"
+import { user as mockUser } from "@/lib/golbox-data"
+import { useGolbox } from "@/lib/golbox-context"
 
-// qrId'den deterministik, QR benzeri bir matris üretir (dekoratif)
 function useMatrix(seed: string, size = 21) {
   return useMemo(() => {
     let h = 0
@@ -19,7 +19,6 @@ function useMatrix(seed: string, size = 21) {
       for (let c = 0; c < size; c++) row.push(rand() > 0.5)
       grid.push(row)
     }
-    // konum işaretleyicileri (finder patterns)
     const stamp = (or: number, oc: number) => {
       for (let r = 0; r < 7; r++)
         for (let c = 0; c < 7; c++) {
@@ -36,7 +35,11 @@ function useMatrix(seed: string, size = 21) {
 }
 
 export function QrScreen() {
-  const matrix = useMatrix(user.qrId)
+  const { user } = useGolbox()
+  const displayName = user ? `${user.firstName} ${user.lastName}`.trim() : mockUser.fullName
+  const points = user?.pointsBalance ?? mockUser.points
+  const qrId = user?.id ? `GB-${user.id.replace(/-/g, "").slice(0, 8).toUpperCase()}` : mockUser.qrId
+  const matrix = useMatrix(qrId)
 
   return (
     <div className="gol-fade-up flex min-h-full flex-col px-5 pb-6 pt-3">
@@ -51,11 +54,11 @@ export function QrScreen() {
         <div className="w-full max-w-[300px] rounded-[2rem] border border-border bg-card p-6 shadow-[0_24px_60px_-40px_rgba(29,95,96,0.8)]">
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-semibold text-card-foreground">{user.fullName}</p>
-              <p className="text-xs text-muted-foreground">{user.qrId}</p>
+              <p className="font-semibold text-card-foreground">{displayName}</p>
+              <p className="text-xs text-muted-foreground">{qrId}</p>
             </div>
             <span className="rounded-full bg-accent/20 px-2.5 py-1 text-xs font-semibold text-accent-foreground">
-              {user.points} Puan
+              {points} GP
             </span>
           </div>
 
@@ -80,7 +83,7 @@ export function QrScreen() {
 
         <div className="flex items-center gap-2 rounded-full bg-secondary px-4 py-2 text-sm text-secondary-foreground">
           <ScanLine className="size-4" />
-          Sistem bağlama göre işlemi başlatır
+          Kasada bu kodu gösterin
         </div>
       </div>
     </div>
