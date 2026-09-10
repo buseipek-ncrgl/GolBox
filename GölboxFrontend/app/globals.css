@@ -77,6 +77,8 @@
   --chart-4: oklch(0.55 0.09 165);
   --chart-5: oklch(0.4 0.08 140);
   --radius: 1.25rem;
+  --gol-dock: 6.25rem;
+  --gol-card: 1.5rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.24 0.03 155);
   --sidebar-primary: oklch(0.46 0.11 152);
@@ -230,4 +232,18 @@
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+.gol-screen {
+  padding-left: 1.25rem;
+  padding-right: 1.25rem;
+  padding-top: 0.75rem;
+  padding-bottom: calc(var(--gol-dock) + env(safe-area-inset-bottom, 0px));
+}
+
+.gol-card {
+  overflow: hidden;
+  border-radius: var(--gol-card);
+  border: 1px solid color-mix(in oklab, var(--border) 88%, transparent);
+  background: var(--card);
 }

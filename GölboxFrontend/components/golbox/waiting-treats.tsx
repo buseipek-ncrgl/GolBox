@@ -18,7 +18,9 @@ export function useWaitingTreats() {
       items: (order.items || []).map((item) => item.menuItemName).filter(Boolean),
     }))
 
-  if (token) return livePreps
+  if (token) {
+    return livePreps.sort((a, b) => Number(b.status === "hazir") - Number(a.status === "hazir"))
+  }
   return []
 }
 
@@ -33,10 +35,12 @@ export function WaitingTreats({
 }) {
   const { token } = useGolbox()
   const preps = useWaitingTreats()
+  const visible = compact ? preps.slice(0, 1) : preps
+  const extra = compact ? Math.max(0, preps.length - 1) : 0
 
   if (preps.length === 0) {
     return (
-      <div className="rounded-[1.75rem] border border-dashed border-border bg-card px-5 py-5 text-center">
+      <div className="gol-card border-dashed px-5 py-5 text-center">
         <div className="mx-auto mb-2 flex size-10 items-center justify-center rounded-2xl bg-secondary text-secondary-foreground">
           <Coffee className="size-5" />
         </div>
@@ -52,49 +56,51 @@ export function WaitingTreats({
 
   if (compact) {
     return (
-      <ul className="space-y-2">
-        {preps.map((prep) => (
-          <li key={prep.id}>
-            <button
-              type="button"
-              onClick={onShowQr}
-              className="flex w-full items-center gap-3 rounded-[1.5rem] border border-border bg-card px-4 py-3.5 text-left"
+      <div className="space-y-2">
+        {visible.map((prep) => (
+          <button
+            key={prep.id}
+            type="button"
+            onClick={onShowQr}
+            className="gol-card flex w-full items-center gap-3 px-4 py-3.5 text-left"
+          >
+            <span
+              className={`flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${
+                prep.status === "hazir"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-accent text-accent-foreground"
+              }`}
             >
-              <span
-                className={`flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${
-                  prep.status === "hazir"
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-accent text-accent-foreground"
-                }`}
-              >
-                {prep.status === "hazir" ? (
-                  <>
-                    <Check className="size-3.5" /> Hazır
-                  </>
-                ) : (
-                  <>
-                    <Clock className="size-3.5" /> Hazırlanıyor
-                  </>
-                )}
+              {prep.status === "hazir" ? (
+                <>
+                  <Check className="size-3.5" /> Hazır
+                </>
+              ) : (
+                <>
+                  <Clock className="size-3.5" /> Hazırlanıyor
+                </>
+              )}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-semibold text-card-foreground">{prep.cafe}</span>
+              <span className="block truncate text-xs text-muted-foreground">
+                {(prep.items.length > 0 ? prep.items : ["İkram"]).join(" · ")}
               </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-semibold text-card-foreground">{prep.cafe}</span>
-                <span className="block truncate text-xs text-muted-foreground">
-                  {(prep.items.length > 0 ? prep.items : ["İkram"]).join(" · ")}
-                </span>
-              </span>
-              <ArrowRight className="size-4 shrink-0 text-muted-foreground" />
-            </button>
-          </li>
+            </span>
+            <ArrowRight className="size-4 shrink-0 text-muted-foreground" />
+          </button>
         ))}
-      </ul>
+        {extra > 0 && (
+          <p className="px-1 text-xs text-muted-foreground">ve {extra} ikram daha</p>
+        )}
+      </div>
     )
   }
 
   return (
     <ul className="space-y-3">
-      {preps.map((prep) => (
-        <li key={prep.id} className="overflow-hidden rounded-[1.75rem] border border-border bg-card">
+      {visible.map((prep) => (
+        <li key={prep.id} className="gol-card">
           <div className="flex items-center gap-2 border-b border-border bg-secondary/50 px-4 py-3">
             <span
               className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${

@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo } from "react"
+import { Screen } from "@/components/golbox/screen"
 import { ScanLine } from "lucide-react"
 import { user as mockUser } from "@/lib/golbox-data"
 import { useGolbox } from "@/lib/golbox-context"
@@ -42,7 +43,7 @@ export function QrScreen() {
   const matrix = useMatrix(qrId)
 
   return (
-    <div className="gol-fade-up flex min-h-full flex-col px-5 pb-6 pt-3">
+    <Screen fill>
       <header className="space-y-1">
         <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">Kasa</p>
         <h1 className="font-serif text-2xl text-foreground">QR&apos;ın</h1>
@@ -52,7 +53,7 @@ export function QrScreen() {
       </header>
 
       <div className="flex flex-1 flex-col items-center justify-center gap-6 py-4">
-        <div className="w-full max-w-[300px] rounded-[2rem] border border-border bg-card p-6 shadow-[0_24px_60px_-40px_rgba(29,95,96,0.8)]">
+        <div className="gol-card w-full max-w-[300px] p-6 shadow-[0_24px_60px_-40px_rgba(29,95,96,0.8)]">
           <div className="flex items-center justify-between">
             <div>
               <p className="font-semibold text-card-foreground">{displayName}</p>
@@ -87,6 +88,6 @@ export function QrScreen() {
           Kasada bu kodu gösterin
         </div>
       </div>
-    </div>
+    </Screen>
   )
 }

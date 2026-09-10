@@ -1,6 +1,7 @@
 "use client"
 
 import { MapPin, Navigation } from "lucide-react"
+import { Screen } from "@/components/golbox/screen"
 import { useGolbox } from "@/lib/golbox-context"
 import { LoginScreen } from "@/components/golbox/screens/login-screen"
 import { CaptureOverlay } from "@/components/golbox/capture-overlay"
@@ -33,7 +34,7 @@ export function MapScreen() {
   }
 
   return (
-    <div className="gol-fade-up flex h-full flex-col px-5 pb-16 pt-3">
+    <Screen fill>
       <header className="mb-3 space-y-1">
         <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">Saha</p>
         <h1 className="font-serif text-2xl text-foreground">Harita</h1>
@@ -44,7 +45,7 @@ export function MapScreen() {
         </p>
       </header>
 
-      <div className="overflow-hidden rounded-[1.75rem] border border-border bg-card">
+      <div className="gol-card">
         <iframe
           title="Saha hediyeleri haritası"
           src={osmEmbed(mapLat, mapLng)}
@@ -54,7 +55,7 @@ export function MapScreen() {
 
       <ul className="mt-4 flex-1 space-y-2 overflow-y-auto pb-2">
         {fieldDrops.length === 0 ? (
-          <li className="rounded-[1.75rem] border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
+          <li className="gol-card border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
             Yakında yayında saha hediyesi yok.
           </li>
         ) : (
@@ -65,8 +66,8 @@ export function MapScreen() {
             return (
               <li key={drop.id}>
                 <div
-                  className={`rounded-[1.75rem] border p-4 ${
-                    active ? "border-primary bg-card" : "border-border bg-card"
+                  className={`gol-card p-4 ${
+                    active ? "border-primary" : ""
                   }`}
                 >
                   <button
@@ -125,6 +126,6 @@ export function MapScreen() {
           onClose={capture.closeCapture}
         />
       )}
-    </div>
+    </Screen>
   )
 }

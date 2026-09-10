@@ -1,6 +1,7 @@
 "use client"
 
 import { Gift } from "lucide-react"
+import { Screen } from "@/components/golbox/screen"
 import { useGolbox } from "@/lib/golbox-context"
 import { useState } from "react"
 
@@ -21,7 +22,7 @@ export function RewardsScreen({
   }
 
   return (
-    <div className="gol-fade-up space-y-5 px-5 pb-6 pt-3">
+    <Screen className="space-y-5">
       <header className="space-y-1">
         {onClose && (
           <button type="button" onClick={onClose} className="text-sm font-medium text-primary">
@@ -48,7 +49,7 @@ export function RewardsScreen({
         <h2 className="text-sm font-semibold text-foreground">Kullanılabilir İkramlar</h2>
         
         {rewards.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 rounded-3xl border border-dashed border-border bg-card px-6 py-10 text-center">
+          <div className="gol-card flex flex-col items-center gap-2 border-dashed px-6 py-10 text-center">
             <Gift className="size-8 text-muted-foreground" />
             <p className="text-sm text-muted-foreground">Şu an aktif yayınlanan bir ikram bulunmuyor.</p>
           </div>
@@ -61,7 +62,7 @@ export function RewardsScreen({
               return (
                 <div
                   key={reward.id}
-                  className="flex items-center gap-4 rounded-3xl border border-border bg-card p-4 transition-all hover:border-primary/30"
+                  className="gol-card flex items-center gap-4 p-4"
                 >
                   <div className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-secondary text-primary font-serif text-xl">
                     {reward.title.charAt(0)}
@@ -91,6 +92,6 @@ export function RewardsScreen({
           </div>
         )}
       </section>
-    </div>
+    </Screen>
   )
 }

@@ -47,7 +47,7 @@ export function CafesScreen({
             <button
               type="button"
               onClick={() => onOpenCafe(cafe.id)}
-              className="group block w-full overflow-hidden rounded-[1.75rem] border border-border bg-card text-left"
+              className="gol-card group block w-full text-left"
             >
               <CafeCover name={cafe.name} imageUrl={cafe.imageUrl} className="h-40 w-full" />
               <div className="p-4">

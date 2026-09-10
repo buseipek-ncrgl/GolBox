@@ -22,7 +22,7 @@ export function UserCard({ onOpenCatalog }: { onOpenCatalog?: () => void }) {
         type="button"
         onClick={onOpenCatalog}
         disabled={!onOpenCatalog}
-        className="relative w-full overflow-hidden rounded-[1.75rem] bg-primary px-5 py-5 text-left text-primary-foreground shadow-[0_18px_40px_-24px_rgba(29,95,96,0.9)] disabled:cursor-default"
+        className="relative w-full overflow-hidden rounded-[var(--gol-card)] bg-primary px-5 py-5 text-left text-primary-foreground shadow-[0_18px_40px_-24px_rgba(29,95,96,0.9)] disabled:cursor-default"
       >
         <div aria-hidden className="pointer-events-none absolute -right-10 -top-16 size-48 rounded-full bg-white/5" />
         <div aria-hidden className="pointer-events-none absolute -bottom-20 -left-8 size-44 rounded-full bg-white/5" />

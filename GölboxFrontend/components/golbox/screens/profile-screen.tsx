@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { Screen } from "@/components/golbox/screen"
 import { Gift, LogIn, LogOut } from "lucide-react"
 import { activity, user as mockUser } from "@/lib/golbox-data"
 import { useGolbox } from "@/lib/golbox-context"
@@ -44,7 +45,7 @@ export function ProfileScreen() {
   }
 
   return (
-    <div className="gol-fade-up space-y-6 px-5 pb-24 pt-3">
+    <Screen>
       <header className="flex items-center gap-4">
         <div className="flex size-14 items-center justify-center rounded-full bg-primary font-serif text-2xl text-primary-foreground">
           {displayName.charAt(0)}
@@ -61,7 +62,7 @@ export function ProfileScreen() {
       <button
         type="button"
         onClick={() => setShowRewards(true)}
-        className="flex w-full items-center justify-between rounded-[1.75rem] bg-primary px-5 py-4 text-left text-primary-foreground"
+        className="flex w-full items-center justify-between rounded-[var(--gol-card)] bg-primary px-5 py-4 text-left text-primary-foreground"
       >
         <div>
           <p className="text-xs uppercase tracking-wide text-primary-foreground/70">Göl Puan</p>
@@ -90,16 +91,16 @@ export function ProfileScreen() {
           <button
             type="button"
             onClick={() => setShowLogin(true)}
-            className="w-full rounded-[1.75rem] border border-dashed border-border px-4 py-6 text-sm text-muted-foreground"
+            className="gol-card w-full border-dashed px-4 py-6 text-sm text-muted-foreground"
           >
             Toplanan kutuları görmek için giriş yapın.
           </button>
         ) : myCaptures.length === 0 ? (
-          <p className="rounded-[1.75rem] border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
+          <p className="gol-card border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
             Henüz toplanan kutu yok.
           </p>
         ) : (
-          <ul className="divide-y divide-border overflow-hidden rounded-[1.75rem] border border-border bg-card">
+          <ul className="gol-card divide-y divide-border">
             {myCaptures.map((cap) => (
               <li key={cap.id} className="flex items-center gap-3 px-4 py-3">
                 <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-secondary text-primary">
@@ -118,7 +119,7 @@ export function ProfileScreen() {
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-foreground">Puan hareketleri</h2>
-        <ul className="divide-y divide-border overflow-hidden rounded-[1.75rem] border border-border bg-card">
+        <ul className="gol-card divide-y divide-border">
           {gpRows.map((row) => (
             <li key={row.id} className="flex items-center gap-3 px-4 py-3">
               <div className="min-w-0 flex-1">
@@ -149,6 +150,6 @@ export function ProfileScreen() {
           Çıkış yap
         </button>
       )}
-    </div>
+    </Screen>
   )
 }

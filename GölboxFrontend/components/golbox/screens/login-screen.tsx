@@ -40,7 +40,7 @@ export function LoginScreen({
   }
 
   return (
-    <div className="gol-fade-up flex h-full flex-col justify-center px-6 py-12">
+    <div className="gol-fade-up gol-screen flex h-full flex-col justify-center px-6">
       <div className="flex flex-col items-center mb-8">
         <div className="flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary mb-3">
           <ShieldCheck className="size-8" strokeWidth={2} />

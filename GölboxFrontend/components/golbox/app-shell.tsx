@@ -36,10 +36,10 @@ export function AppShell() {
   }
 
   return (
-    <div className="relative flex h-full flex-col">
+    <div className="relative flex h-full flex-col [--gol-dock:6.25rem]">
       <StatusBar />
 
-      <main className="no-scrollbar flex-1 overflow-y-auto">
+      <main className="no-scrollbar min-h-0 flex-1 overflow-y-auto">
         {tab === "home" && (
           <HomeScreen
             onNavigate={goto}
