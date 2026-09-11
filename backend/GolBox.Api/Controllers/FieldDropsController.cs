@@ -278,6 +278,23 @@ public class FieldDropsController : BaseApiController
         if (drop.TotalStock.HasValue && drop.CapturedCount >= drop.TotalStock.Value)
             return BadRequest(Result<object>.Fail("Bu hediyenin stoğu tükendi."));
 
+        var lastCapture = await _context.UserFieldCaptures
+            .Where(c => c.UserId == user.Id)
+            .OrderByDescending(c => c.CreatedDate)
+            .FirstOrDefaultAsync();
+
+        var geoCheck = GeoAntiSpoofing.ValidateLocationCapture(
+            request.Latitude,
+            request.Longitude,
+            request.IsMockLocation,
+            lastCapture?.CapturedLatitude,
+            lastCapture?.CapturedLongitude,
+            lastCapture?.CreatedDate,
+            now);
+
+        if (!geoCheck.IsValid)
+            return BadRequest(Result<object>.Fail(geoCheck.ErrorMessage ?? "Konum doğrulaması başarısız."));
+
         var already = await _context.UserFieldCaptures.CountAsync(c => c.FieldDropId == drop.Id && c.UserId == user.Id);
         if (already >= drop.PerUserLimit)
             return BadRequest(Result<object>.Fail("Bu hediyeyi daha önce topladınız."));
@@ -405,4 +422,5 @@ public class CaptureFieldDropRequest
     public decimal Latitude { get; set; }
     public decimal Longitude { get; set; }
     public double? AccuracyMeters { get; set; }
+    public bool IsMockLocation { get; set; } = false;
 }

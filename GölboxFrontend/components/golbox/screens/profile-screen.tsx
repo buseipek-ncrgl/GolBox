@@ -157,9 +157,11 @@ export function ProfileScreen() {
             Toplanan kutuları görmek için giriş yapın.
           </button>
         ) : myCaptures.length === 0 ? (
-          <p className="gol-card border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
-            Henüz toplanan kutu yok.
-          </p>
+          <div className="gol-card flex flex-col items-center gap-2 border-dashed px-4 py-6 text-center">
+            <Gift className="size-6 text-muted-foreground" />
+            <p className="text-xs text-muted-foreground">Henüz sahada kutu toplamadınız.</p>
+            <p className="text-[11px] text-muted-foreground">Harita simgesine dokunarak yakınınızdaki hediyeleri keşfedin.</p>
+          </div>
         ) : (
           <ul className="gol-card divide-y divide-border">
             {myCaptures.map((cap) => (

@@ -161,17 +161,10 @@ export function HomeScreen({
     <Screen>
       <UserCard onOpenCatalog={() => setShowRewards(true)} />
 
-      {waitingTreats.length > 0 ? (
-        <>
-          {ismarliyor}
-          {fieldDrop}
-        </>
-      ) : (
-        <>
-          {fieldDrop}
-          {ismarliyor}
-        </>
-      )}
+      {/* Dynamic ordering: Active Field Drops or Waiting Treats top-prioritized */}
+      {nearbyDrop && !already && fieldDrop}
+      {waitingTreats.length > 0 && ismarliyor}
+      {(!nearbyDrop || already) && fieldDrop}
 
       <section aria-label="Sana en yakın şube" className="space-y-3">
         <div className="flex items-center justify-between">
@@ -199,6 +192,9 @@ export function HomeScreen({
           </div>
         </button>
       </section>
+
+      {/* If no waiting treats, place Ismarlıyor down here */}
+      {waitingTreats.length === 0 && ismarliyor}
 
       <section aria-label="Son hareketler" className="space-y-3">
         <h2 className="text-sm font-semibold text-foreground">Son hareketler</h2>

@@ -51,6 +51,8 @@ builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<ITokenDecoder, TokenDecoder>();
+builder.Services.AddSingleton<IDynamicQrService, DynamicQrService>();
+builder.Services.AddHostedService<ExpiredItemsCleanupService>();
 
 // 4. MediatR CQRS Kaydı (Application Katmanındaki tüm handler'ları tarar)
 builder.Services.AddMediatR(cfg => 
@@ -160,5 +162,6 @@ app.UseAuthorization();
 
 app.MapControllers();
 app.MapHub<GolBox.Api.Hubs.OrderHub>("/hubs/orders");
+app.MapHub<GolBox.Api.Hubs.NotificationHub>("/hubs/notifications");
 
 app.Run();

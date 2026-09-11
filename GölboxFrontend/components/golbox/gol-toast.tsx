@@ -30,9 +30,9 @@ export function GolToastProvider({ children }: { children: ReactNode }) {
           key={toast.id}
           role="status"
           aria-live="polite"
-          className="gol-toast-in absolute left-1/2 top-4 z-50 flex items-center gap-2.5 rounded-full border border-white/15 bg-foreground/95 px-4 py-2.5 text-sm font-medium text-background shadow-lg backdrop-blur"
+          className="gol-toast-in fixed left-1/2 top-4 z-50 flex -translate-x-1/2 items-center gap-2.5 rounded-full border border-white/20 bg-foreground/95 px-5 py-2.5 text-sm font-medium text-background shadow-xl backdrop-blur-md"
         >
-          <Sparkles className="size-4 text-accent" strokeWidth={2.2} />
+          <Sparkles className="size-4 text-accent shrink-0" strokeWidth={2.2} />
           <span className="whitespace-nowrap">{toast.message}</span>
         </div>
       )}

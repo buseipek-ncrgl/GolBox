@@ -1,6 +1,6 @@
 "use client"
 
-import { Gift, Minus, Plus, ShoppingBag, Ticket } from "lucide-react"
+import { Gift, Minus, Plus, Search, ShoppingBag, Ticket } from "lucide-react"
 import { Screen } from "@/components/golbox/screen"
 import { CouponPass, isActiveCoupon } from "@/components/golbox/coupon-pass"
 import { LoginScreen } from "@/components/golbox/screens/login-screen"
@@ -34,11 +34,22 @@ export function RewardsScreen({
   } = useGolbox()
   const [tab, setTab] = useState<WalletTab>(initialTab)
   const [showLogin, setShowLogin] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
 
   const points = user?.pointsBalance ?? 0
   const canPay = Boolean(token && cartItems.length > 0 && points >= cartTotalPoints)
   const activeCoupons = claimedRewards.filter(isActiveCoupon)
   const pastCoupons = claimedRewards.filter((coupon) => !isActiveCoupon(coupon))
+
+  const filteredRewards = useMemo(() => {
+    if (!searchQuery.trim()) return rewards
+    const q = searchQuery.toLowerCase().trim()
+    return rewards.filter(
+      (r) =>
+        r.title.toLowerCase().includes(q) ||
+        (r.description && r.description.toLowerCase().includes(q)),
+    )
+  }, [rewards, searchQuery])
 
   const cartRows = useMemo(
     () =>
@@ -114,15 +125,53 @@ export function RewardsScreen({
 
       {tab === "catalog" && (
         <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-foreground">Kullanılabilir ikramlar</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-foreground">Kullanılabilir ikramlar</h2>
+            <span className="text-xs text-muted-foreground">{filteredRewards.length} ikram</span>
+          </div>
+
+          {/* Search Bar */}
+          <div className="relative">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="İkram veya kupon ara..."
+              className="w-full rounded-2xl border border-input bg-card px-4 py-2.5 pl-10 text-xs font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+            <Search className="absolute left-3.5 top-3 size-4 text-muted-foreground" />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-3 top-2.5 text-xs font-medium text-muted-foreground hover:text-foreground"
+              >
+                Temizle
+              </button>
+            )}
+          </div>
+
           {rewards.length === 0 ? (
             <div className="gol-card flex flex-col items-center gap-2 border-dashed px-6 py-10 text-center">
               <Gift className="size-8 text-muted-foreground" />
               <p className="text-sm text-muted-foreground">Şu an aktif yayınlanan bir ikram bulunmuyor.</p>
             </div>
+          ) : filteredRewards.length === 0 ? (
+            <div className="gol-card flex flex-col items-center gap-2 border-dashed px-6 py-10 text-center">
+              <Search className="size-8 text-muted-foreground" />
+              <p className="text-sm font-medium text-foreground">Aramanıza uygun ikram bulunamadı</p>
+              <p className="text-xs text-muted-foreground">"{searchQuery}" araması için sonuç bulunamadı. Lütfen kelimelerinizi kontrol edin.</p>
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="mt-2 rounded-full bg-secondary px-4 py-1.5 text-xs font-semibold text-secondary-foreground"
+              >
+                Aramayı Temizle
+              </button>
+            </div>
           ) : (
             <div className="grid gap-3">
-              {rewards.map((reward) => {
+              {filteredRewards.map((reward) => {
                 const inCart = cartItems.find((line) => line.rewardId === reward.id)
                 return (
                   <div key={reward.id} className="gol-card flex items-center gap-4 p-4">

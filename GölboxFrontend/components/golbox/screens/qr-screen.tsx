@@ -1,8 +1,8 @@
 "use client"
 
-import { useMemo } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Screen } from "@/components/golbox/screen"
-import { ScanLine } from "lucide-react"
+import { RefreshCw, ScanLine } from "lucide-react"
 import { CouponPass, isActiveCoupon } from "@/components/golbox/coupon-pass"
 import { user as mockUser } from "@/lib/golbox-data"
 import { useGolbox } from "@/lib/golbox-context"
@@ -38,10 +38,25 @@ function useMatrix(seed: string, size = 21) {
 
 export function QrScreen() {
   const { user, claimedRewards } = useGolbox()
+  const [secondsLeft, setSecondsLeft] = useState(30)
   const displayName = user ? `${user.firstName} ${user.lastName}`.trim() : mockUser.fullName
   const points = user?.pointsBalance ?? mockUser.points
-  const qrId = user?.id ? `GB-${user.id.replace(/-/g, "").slice(0, 8).toUpperCase()}` : mockUser.qrId
-  const matrix = useMatrix(qrId)
+
+  // 30-Second TOTP Auto Refresh Timer
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setSecondsLeft((prev) => (prev <= 1 ? 30 : prev - 1))
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [])
+
+  const currentSeed = useMemo(() => {
+    const baseId = user?.id ? user.id.replace(/-/g, "").slice(0, 8).toUpperCase() : mockUser.qrId
+    const step = Math.floor(Date.now() / 30000)
+    return `GB-${baseId}-${step}`
+  }, [user?.id, secondsLeft === 30])
+
+  const matrix = useMatrix(currentSeed)
   const activeCoupons = claimedRewards.filter(isActiveCoupon)
 
   return (
@@ -50,7 +65,7 @@ export function QrScreen() {
         <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">Kasa</p>
         <h1 className="font-serif text-2xl text-foreground">QR&apos;ın</h1>
         <p className="text-sm text-muted-foreground">
-          Tek QR. Kasada göster; kahve, ödül ve puan otomatik işlenir.
+          Dinamik Güvenli QR. 30 saniyede bir otomatik yenilenir.
         </p>
       </header>
 
@@ -59,19 +74,19 @@ export function QrScreen() {
           <div className="flex items-center justify-between">
             <div>
               <p className="font-semibold text-card-foreground">{displayName}</p>
-              <p className="text-xs text-muted-foreground">{qrId}</p>
+              <p className="text-xs text-muted-foreground font-mono">{currentSeed.slice(0, 15)}...</p>
             </div>
             <span className="rounded-full bg-accent/20 px-2.5 py-1 font-serif text-sm font-semibold text-accent-foreground">
               {points} GP
             </span>
           </div>
 
-          <div className="mt-5 rounded-2xl bg-background p-4">
+          <div className="mt-5 rounded-2xl bg-background p-4 relative">
             <div
               className="grid aspect-square w-full gap-[2px]"
               style={{ gridTemplateColumns: `repeat(${matrix.length}, minmax(0, 1fr))` }}
               role="img"
-              aria-label="Kişisel GölBox QR kodu"
+              aria-label="Kişisel Dinamik GölBox QR kodu"
             >
               {matrix.flatMap((row, r) =>
                 row.map((on, c) => (
@@ -82,6 +97,21 @@ export function QrScreen() {
                 )),
               )}
             </div>
+          </div>
+
+          {/* 30s TOTP Countdown Bar */}
+          <div className="mt-4 flex items-center justify-between gap-2 text-xs font-medium text-muted-foreground">
+            <div className="flex items-center gap-1.5">
+              <RefreshCw className="size-3.5 animate-spin text-primary" style={{ animationDuration: '4s' }} />
+              <span>Yenilenme süresi</span>
+            </div>
+            <span className="font-mono font-bold text-primary">{secondsLeft}s</span>
+          </div>
+          <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-secondary">
+            <div
+              className="h-full bg-primary transition-all duration-1000 linear"
+              style={{ width: `${(secondsLeft / 30) * 100}%` }}
+            />
           </div>
         </div>
 

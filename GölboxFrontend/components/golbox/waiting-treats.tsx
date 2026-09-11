@@ -62,31 +62,36 @@ export function WaitingTreats({
             key={prep.id}
             type="button"
             onClick={onShowQr}
-            className="gol-card flex w-full items-center gap-3 px-4 py-3.5 text-left"
+            className="gol-card flex w-full items-center gap-3 p-3.5 text-left transition hover:border-primary/40"
           >
-            <span
-              className={`flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${
-                prep.status === "hazir"
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-accent text-accent-foreground"
-              }`}
-            >
-              {prep.status === "hazir" ? (
-                <>
-                  <Check className="size-3.5" /> Hazır
-                </>
-              ) : (
-                <>
-                  <Clock className="size-3.5" /> Hazırlanıyor
-                </>
-              )}
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-semibold text-card-foreground">{prep.cafe}</span>
-              <span className="block truncate text-xs text-muted-foreground">
-                {(prep.items.length > 0 ? prep.items : ["İkram"]).join(" · ")}
+            {/* Sender Avatar Badge */}
+            <div className="relative shrink-0">
+              <div className="flex size-11 items-center justify-center rounded-full bg-primary/10 font-serif text-sm font-bold text-primary ring-2 ring-primary/20">
+                GB
+              </div>
+              <span className="absolute -bottom-0.5 -right-0.5 flex size-5 items-center justify-center rounded-full bg-accent text-[10px] text-accent-foreground shadow-sm">
+                ☕
               </span>
-            </span>
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="truncate text-sm font-semibold text-card-foreground">{prep.cafe}</span>
+                <span
+                  className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                    prep.status === "hazir"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-accent/20 text-accent-foreground"
+                  }`}
+                >
+                  {prep.status === "hazir" ? <Check className="size-3" /> : <Clock className="size-3" />}
+                  {prep.status === "hazir" ? "Hazır" : "Hazırlanıyor"}
+                </span>
+              </div>
+              <p className="truncate text-xs text-muted-foreground">
+                {(prep.items.length > 0 ? prep.items : ["İkram"]).join(" · ")}
+              </p>
+            </div>
             <ArrowRight className="size-4 shrink-0 text-muted-foreground" />
           </button>
         ))}

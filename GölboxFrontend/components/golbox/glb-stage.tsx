@@ -1,7 +1,9 @@
 "use client"
 
 import { useEffect, useRef } from "react"
+// @ts-ignore
 import * as THREE from "three"
+// @ts-ignore
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js"
 
 function webglAvailable() {
@@ -80,7 +82,7 @@ export function GlbStage({
       object.position.sub(center)
       const longest = Math.max(size.x, size.y, size.z, 0.001)
       object.scale.setScalar(1.25 / longest)
-      object.traverse((child) => {
+      object.traverse((child: any) => {
         if (child instanceof THREE.Mesh) {
           child.material = new THREE.MeshStandardMaterial({
             color: 0xd4a017,
@@ -99,7 +101,7 @@ export function GlbStage({
 
     loader.load(
       src,
-      (gltf) => {
+      (gltf: any) => {
         window.clearTimeout(loadTimer)
         if (cancelled) return
         model = gltf.scene
@@ -134,7 +136,7 @@ export function GlbStage({
       cancelled = true
       window.clearTimeout(loadTimer)
       cancelAnimationFrame(raf)
-      scene.traverse((child) => {
+      scene.traverse((child: any) => {
         if (child instanceof THREE.Mesh) {
           child.geometry.dispose()
           const materials = Array.isArray(child.material) ? child.material : [child.material]
