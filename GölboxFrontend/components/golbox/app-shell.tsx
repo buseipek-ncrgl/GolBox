@@ -36,7 +36,7 @@ export function AppShell() {
   }
 
   return (
-    <div className="relative flex h-full flex-col [--gol-dock:8.5rem]">
+    <div className="relative flex h-full flex-col [--gol-dock:7.5rem]">
       <StatusBar />
 
       <main className="no-scrollbar min-h-0 flex-1 overflow-y-auto">

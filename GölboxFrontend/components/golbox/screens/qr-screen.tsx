@@ -5,6 +5,7 @@ import { Screen } from "@/components/golbox/screen"
 import { RefreshCw, ScanLine } from "lucide-react"
 import { CouponPass, isActiveCoupon } from "@/components/golbox/coupon-pass"
 import { LoginScreen } from "@/components/golbox/screens/login-screen"
+import { QrGuestState } from "@/components/golbox/login-required-card"
 import { GPValue } from "@/components/golbox/gp-value"
 import { useGolbox } from "@/lib/golbox-context"
 
@@ -67,23 +68,8 @@ export function QrScreen() {
 
   if (!token) {
     return (
-      <Screen>
-        <header className="space-y-1">
-          <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">Kasa</p>
-          <h1 className="font-serif text-2xl text-foreground">QR’ın</h1>
-          <p className="text-sm text-muted-foreground">Kişisel kasa kodu giriş yaptıktan sonra üretilir.</p>
-        </header>
-        <div className="gol-card px-5 py-6 text-center">
-          <ScanLine className="mx-auto size-6 text-primary" />
-          <p className="mt-3 text-sm text-muted-foreground">Kasada göstermek ve kupon kullanmak için Şehitkamil+ hesabın gerekir.</p>
-          <button
-            type="button"
-            onClick={() => setShowLogin(true)}
-            className="mt-4 min-h-11 w-full rounded-[14px] bg-primary text-sm font-semibold text-primary-foreground"
-          >
-            Giriş yap
-          </button>
-        </div>
+      <Screen className="space-y-5">
+        <QrGuestState onLogin={() => setShowLogin(true)} />
       </Screen>
     )
   }
@@ -93,13 +79,11 @@ export function QrScreen() {
       <header className="space-y-1">
         <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">Kasa</p>
         <h1 className="font-serif text-2xl text-foreground">QR&apos;ın</h1>
-        <p className="text-sm text-muted-foreground">
-          Dinamik Güvenli QR. 30 saniyede bir otomatik yenilenir.
-        </p>
+        <p className="text-sm text-muted-foreground">Kasada göster. Kod 30 saniyede bir yenilenir.</p>
       </header>
 
       <div className="flex flex-1 flex-col items-center justify-center gap-6 py-4">
-        <div className="gol-card w-full max-w-[300px] p-6 shadow-[0_24px_60px_-40px_rgba(29,95,96,0.8)]">
+        <div className="gol-card w-full max-w-[300px] p-5">
           <div className="flex items-center justify-between">
             <div>
               <p className="font-semibold text-card-foreground">{displayName}</p>
@@ -115,7 +99,7 @@ export function QrScreen() {
               className="grid aspect-square w-full gap-[2px]"
               style={{ gridTemplateColumns: `repeat(${matrix.length}, minmax(0, 1fr))` }}
               role="img"
-              aria-label="Kişisel Dinamik GölBox QR kodu"
+              aria-label="Kişisel kasa QR kodu"
             >
               {matrix.flatMap((row, r) =>
                 row.map((on, c) => (
@@ -131,7 +115,7 @@ export function QrScreen() {
           {/* 30s TOTP Countdown Bar */}
           <div className="mt-4 flex items-center justify-between gap-2 text-xs font-medium text-muted-foreground">
             <div className="flex items-center gap-1.5">
-              <RefreshCw className="size-3.5 animate-spin text-primary" style={{ animationDuration: '4s' }} />
+              <RefreshCw className="size-3.5 text-primary" />
               <span>Yenilenme süresi</span>
             </div>
             <span className="font-mono font-bold text-primary">{secondsLeft}s</span>

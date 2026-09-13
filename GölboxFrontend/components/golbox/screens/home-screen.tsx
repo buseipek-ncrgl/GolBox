@@ -159,7 +159,7 @@ export function HomeScreen({
   }
 
   return (
-    <Screen className="space-y-8">
+    <Screen className="space-y-6">
       <AppHeader
         firstName={user?.firstName}
         onNotifications={() => setSheet({ type: "notifications" })}

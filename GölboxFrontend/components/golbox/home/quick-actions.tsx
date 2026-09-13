@@ -20,8 +20,8 @@ const ICONS = {
 }
 
 export const defaultQuickActions: QuickActionItem[] = [
-  { id: "coupons", title: "Kuponlarım", description: "Katalog kuponların", icon: "ticket" },
-  { id: "cafes", title: "Göl Kafeler", description: "Yakındaki kafeleri gör", icon: "coffee" },
+  { id: "coupons", title: "Kuponlarım", description: "Aktif kuponlarını gör", icon: "ticket" },
+  { id: "cafes", title: "Göl Kafeler", description: "Yakındaki kafeleri keşfet", icon: "coffee" },
   { id: "events", title: "Etkinlikler", description: "Şehirde neler var?", icon: "calendar" },
   { id: "earn", title: "GölPuan kazan", description: "Kazanç yollarını keşfet", icon: "coins" },
 ]
@@ -38,11 +38,15 @@ export function QuickActionCard({
     <button
       type="button"
       onClick={() => onSelect(item.id)}
-      className="gol-card flex min-h-[5.5rem] flex-col items-start p-3.5 text-left"
+      className="gol-press gol-card flex min-h-[6.25rem] flex-col items-start p-3.5 text-left max-[360px]:min-h-[5.75rem] max-[360px]:p-3"
     >
-      <Icon className="size-5 text-primary" strokeWidth={1.8} />
-      <p className="mt-2 text-sm font-semibold text-foreground">{item.title}</p>
-      <p className="mt-0.5 text-[12px] leading-snug text-muted-foreground">{item.description}</p>
+      <span className="flex size-9 items-center justify-center rounded-[12px] bg-secondary text-primary">
+        <Icon className="size-[18px]" strokeWidth={1.8} />
+      </span>
+      <p className="mt-2.5 text-[15px] font-semibold leading-tight text-foreground max-[360px]:text-sm">
+        {item.title}
+      </p>
+      <p className="mt-1 line-clamp-1 text-[12px] leading-snug text-muted-foreground">{item.description}</p>
     </button>
   )
 }
@@ -60,14 +64,14 @@ export function QuickActions({
     item.id === "coupons" && typeof couponCount === "number"
       ? {
           ...item,
-          description: couponCount > 0 ? `${couponCount} aktif kupon` : item.description,
+          description: couponCount > 0 ? `${couponCount} aktif kupon` : "Aktif kuponlarını gör",
         }
       : item,
   )
 
   return (
     <section aria-label="Hızlı erişim" className="space-y-3">
-      <HomeSectionHeader title="Hızlı erişim" />
+      <HomeSectionHeader title="Hızlı erişim" tone="utility" />
       <div className="grid grid-cols-2 gap-3">
         {resolved.map((item) => (
           <QuickActionCard key={item.id} item={item} onSelect={onSelect} />

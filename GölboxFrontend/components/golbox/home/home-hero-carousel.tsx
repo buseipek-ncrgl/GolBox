@@ -14,37 +14,47 @@ export function HomeHeroCard({
   priority?: boolean
   onOpen: (item: CityContentItem) => void
 }) {
+  const isMayor = item.type === "mayor_message"
+  const alt = `${item.categoryLabel}: ${item.title}`
+
   return (
-    <article className="relative h-[200px] overflow-hidden rounded-[var(--gol-radius-xl)] bg-[color:var(--color-brand-900)] text-white">
+    <button
+      type="button"
+      onClick={() => onOpen(item)}
+      className="relative block h-[210px] w-full overflow-hidden rounded-[22px] bg-[color:var(--color-brand-900)] text-left text-white shadow-[0_4px_20px_rgba(20,40,35,0.06)]"
+    >
       {item.imageUrl ? (
-        // Editorial photos are local; object-cover without next/image host constraints.
+        // Local editorial photos; keep object-cover without remote image config.
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={item.imageUrl}
-          alt=""
+          alt={alt}
           fetchPriority={priority ? "high" : "low"}
+          loading={priority ? "eager" : "lazy"}
           className="absolute inset-0 h-full w-full object-cover"
         />
       ) : null}
-      <div
-        aria-hidden
-        className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-black/15"
-      />
+      <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/82 via-black/40 to-black/10" />
       <div className="relative flex h-full flex-col justify-end p-4">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/80">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/85">
           {item.categoryLabel}
         </p>
-        <h3 className="mt-1 font-serif text-[1.45rem] leading-tight text-white">{item.title}</h3>
-        <p className="mt-1 line-clamp-2 text-sm leading-snug text-white/85">{item.subtitle}</p>
-        <button
-          type="button"
-          onClick={() => onOpen(item)}
-          className="mt-3 min-h-11 w-fit text-sm font-semibold text-white underline-offset-4 hover:underline"
-        >
-          {item.ctaLabel} →
-        </button>
+        {isMayor ? (
+          <>
+            <h3 className="mt-1 font-serif text-[1.4rem] leading-tight text-white">{item.personName}</h3>
+            <p className="mt-0.5 text-[13px] text-white/80">{item.personTitle}</p>
+            <p className="mt-1.5 line-clamp-2 text-sm leading-snug text-white/90">{item.title}</p>
+          </>
+        ) : (
+          <>
+            <h3 className="mt-1 font-serif text-[1.45rem] leading-tight text-white">{item.title}</h3>
+            {item.meta ? <p className="mt-1 text-[13px] font-medium text-white/85">{item.meta}</p> : null}
+            <p className="mt-1 line-clamp-2 text-sm leading-snug text-white/85">{item.subtitle}</p>
+          </>
+        )}
+        <span className="mt-2 text-sm font-semibold text-white">{item.ctaLabel} →</span>
       </div>
-    </article>
+    </button>
   )
 }
 
@@ -83,7 +93,7 @@ export function HomeHeroCarousel({
       const width = card.getBoundingClientRect().width + 12
       const next = (index + 1) % items.length
       node.scrollTo({ left: next * width, behavior: "smooth" })
-    }, 7000)
+    }, 8000)
     return () => window.clearInterval(tick)
   }, [index, items.length, reducedMotion])
 
@@ -121,23 +131,23 @@ export function HomeHeroCarousel({
         }}
       >
         {items.map((item, itemIndex) => (
-          <div key={item.id} className="w-[88%] shrink-0 snap-start">
+          <div key={item.id} className="w-[90%] max-[360px]:w-[92%] shrink-0 snap-start">
             <HomeHeroCard item={item} priority={itemIndex === 0} onOpen={onOpen} />
           </div>
         ))}
       </div>
       {items.length > 1 ? (
-        <div className="mt-3 flex items-center justify-center gap-2">
+        <div className="mt-2.5 flex items-center justify-center gap-1.5">
           {items.map((item, itemIndex) => (
             <button
               key={item.id}
               type="button"
-              aria-label={`${item.categoryLabel} ${itemIndex + 1}`}
+              aria-label={`${item.categoryLabel}, slayt ${itemIndex + 1}`}
               aria-current={itemIndex === index}
               onClick={() => goTo(itemIndex)}
               className={cn(
-                "h-2 rounded-full transition-all",
-                itemIndex === index ? "w-5 bg-primary" : "w-2 bg-border",
+                "h-1.5 rounded-full transition-all",
+                itemIndex === index ? "w-4 bg-primary" : "w-1.5 bg-border",
               )}
             />
           ))}

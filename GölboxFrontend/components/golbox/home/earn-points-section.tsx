@@ -50,7 +50,7 @@ export function EarnPointsCard({
     <button
       type="button"
       onClick={() => onAction(card.action)}
-      className="gol-card flex w-full items-center gap-3 px-4 py-3.5 text-left"
+      className="gol-press gol-card flex w-full items-center gap-3 px-4 py-3.5 text-left"
     >
       <div className="min-w-0 flex-1">
         <p className="text-sm font-semibold text-foreground">{card.title}</p>
@@ -74,12 +74,14 @@ export function EarnPointsSection({
   const cards = buildEarnCards(drop)
   if (cards.length === 0) return null
   return (
-    <section aria-label="Şehrinde kazan" className="space-y-3">
-      <HomeSectionHeader title="Şehrinde kazan" />
-      <div className="space-y-2">
-        {cards.map((card) => (
-          <EarnPointsCard key={card.id} card={card} onAction={onAction} />
-        ))}
+    <section aria-label="Şehrinde kazan" className="-mx-5 bg-[color:var(--color-brand-50)] px-5 py-5">
+      <div className="space-y-3">
+        <HomeSectionHeader title="Şehrinde kazan" tone="utility" />
+        <div className="space-y-2">
+          {cards.map((card) => (
+            <EarnPointsCard key={card.id} card={card} onAction={onAction} />
+          ))}
+        </div>
       </div>
     </section>
   )

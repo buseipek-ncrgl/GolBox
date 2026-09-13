@@ -2,7 +2,7 @@
 
 import React, { useState } from "react"
 import { useGolbox } from "@/lib/golbox-context"
-import { LogIn, UserPlus, ShieldCheck } from "lucide-react"
+import { LogIn, UserPlus } from "lucide-react"
 
 export function LoginScreen({
   onClose,
@@ -29,7 +29,7 @@ export function LoginScreen({
         firstName,
         lastName,
         age: age !== "" ? Number(age) : null,
-        educationLevel
+        educationLevel,
       })
       if (success) {
         setIsRegister(false)
@@ -39,84 +39,74 @@ export function LoginScreen({
     }
   }
 
+  const fieldClass =
+    "mt-1.5 min-h-11 w-full rounded-[14px] border border-border bg-card px-3.5 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20"
+
   return (
     <div className="gol-fade-up gol-screen flex h-full flex-col justify-center px-6">
-      <div className="flex flex-col items-center mb-8">
-        <div className="flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary mb-3">
-          <ShieldCheck className="size-8" strokeWidth={2} />
-        </div>
-        <h2 className="font-serif text-2xl text-foreground">Şehitkamil+</h2>
-        <p className="mt-1.5 text-center text-xs text-muted-foreground px-4">
-          Şehitkamil Belediyesi vatandaş uygulaması.
+      <div className="mb-8 flex flex-col items-center">
+        <span
+          aria-hidden
+          className="mb-3 flex size-12 items-center justify-center rounded-[14px] bg-primary font-serif text-xl text-primary-foreground"
+        >
+          +
+        </span>
+        <h1 className="font-serif text-[1.75rem] leading-none text-foreground">Şehitkamil+</h1>
+        <p className="mt-2 max-w-[16rem] text-center text-[13px] leading-relaxed text-muted-foreground">
+          Şehitkamil Belediyesi vatandaş uygulaması
         </p>
-        {onClose && (
-          <button type="button" onClick={onClose} className="mt-3 text-sm font-medium text-primary">
+        {onClose ? (
+          <button type="button" onClick={onClose} className="mt-3 min-h-11 text-sm font-semibold text-primary">
             {closeLabel}
           </button>
-        )}
-      </div>
-
-      <div className="mb-4">
-        <button
-          type="button"
-          onClick={() => {
-            setEmail("user@golbox.com")
-            setPassword("User123!")
-          }}
-          className="w-full rounded-2xl border border-primary/20 bg-secondary p-2.5 text-xs font-semibold text-primary transition-colors"
-        >
-          Vatandaş girişi (user@golbox.com)
-        </button>
+        ) : null}
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        {isRegister && (
+        {isRegister ? (
           <>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Ad</label>
+                <label className="text-[12px] font-medium text-foreground">Ad</label>
                 <input
                   type="text"
                   required
-                  className="mt-1 w-full rounded-2xl border border-border bg-card px-3.5 py-2.5 text-sm outline-none focus:border-primary"
+                  autoComplete="given-name"
+                  className={fieldClass}
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
-                  placeholder="Ahmet"
                 />
               </div>
               <div>
-                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Soyad</label>
+                <label className="text-[12px] font-medium text-foreground">Soyad</label>
                 <input
                   type="text"
                   required
-                  className="mt-1 w-full rounded-2xl border border-border bg-card px-3.5 py-2.5 text-sm outline-none focus:border-primary"
+                  autoComplete="family-name"
+                  className={fieldClass}
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
-                  placeholder="Kaya"
                 />
               </div>
             </div>
-
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Yaşınız</label>
+                <label className="text-[12px] font-medium text-foreground">Yaş</label>
                 <input
                   type="number"
                   required
                   min={1}
-                  className="mt-1 w-full rounded-2xl border border-border bg-card px-3.5 py-2.5 text-sm outline-none focus:border-primary"
+                  className={fieldClass}
                   value={age}
                   onChange={(e) => setAge(e.target.value !== "" ? Number(e.target.value) : "")}
-                  placeholder="16"
                 />
               </div>
               <div>
-                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Eğitim</label>
+                <label className="text-[12px] font-medium text-foreground">Eğitim</label>
                 <select
-                  className="mt-1 w-full rounded-2xl border border-border bg-card px-3.5 py-2.5 text-sm outline-none focus:border-primary"
+                  className={fieldClass}
                   value={educationLevel}
                   onChange={(e) => setEducationLevel(e.target.value)}
-                  style={{ height: "42px" }}
                 >
                   <option value="Diğer">Diğer / Çalışan</option>
                   <option value="Lise">Lise Öğrencisi</option>
@@ -125,26 +115,28 @@ export function LoginScreen({
               </div>
             </div>
           </>
-        )}
+        ) : null}
 
         <div>
-          <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">E-Posta Adresi</label>
+          <label className="text-[12px] font-medium text-foreground">E-posta</label>
           <input
             type="email"
             required
-            className="mt-1 w-full rounded-2xl border border-border bg-card px-3.5 py-2.5 text-sm outline-none focus:border-primary"
+            autoComplete="email"
+            className={fieldClass}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="user@golbox.com"
+            placeholder="ornek@eposta.com"
           />
         </div>
 
         <div>
-          <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Şifre</label>
+          <label className="text-[12px] font-medium text-foreground">Şifre</label>
           <input
             type="password"
             required
-            className="mt-1 w-full rounded-2xl border border-border bg-card px-3.5 py-2.5 text-sm outline-none focus:border-primary"
+            autoComplete={isRegister ? "new-password" : "current-password"}
+            className={fieldClass}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="••••••••"
@@ -154,32 +146,48 @@ export function LoginScreen({
         <button
           type="submit"
           disabled={loading}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-foreground py-3 text-sm font-semibold text-background transition-opacity hover:opacity-90 disabled:opacity-50"
+          className="flex min-h-12 w-full items-center justify-center gap-2 rounded-[14px] bg-primary text-sm font-semibold text-primary-foreground disabled:opacity-50"
         >
           {loading ? (
             <span>İşlem yapılıyor...</span>
           ) : isRegister ? (
             <>
               <UserPlus className="size-4" />
-              <span>Hesap Oluştur</span>
+              Hesap oluştur
             </>
           ) : (
             <>
               <LogIn className="size-4" />
-              <span>Giriş Yap</span>
+              Giriş yap
             </>
           )}
         </button>
       </form>
 
-      <div className="mt-6 text-center">
+      <p className="mt-6 text-center text-[13px] text-muted-foreground">
+        {isRegister ? "Zaten hesabın var mı?" : "Hesabın yok mu?"}{" "}
         <button
+          type="button"
           onClick={() => setIsRegister(!isRegister)}
-          className="text-xs font-semibold text-primary hover:underline"
+          className="min-h-11 font-semibold text-primary"
         >
-          {isRegister ? "Zaten bir hesabınız var mı? Giriş Yapın" : "Hesabınız yok mu? Yeni Hesap Oluşturun"}
+          {isRegister ? "Giriş yap" : "Yeni hesap oluştur"}
         </button>
-      </div>
+      </p>
+
+      {process.env.NODE_ENV === "development" ? (
+        <button
+          type="button"
+          onClick={() => {
+            setEmail("user@golbox.com")
+            setPassword("User123!")
+            setIsRegister(false)
+          }}
+          className="mt-4 min-h-11 w-full text-center text-[11px] text-muted-foreground"
+        >
+          Geliştirici: test hesabını doldur
+        </button>
+      ) : null}
     </div>
   )
 }

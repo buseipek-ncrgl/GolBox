@@ -49,7 +49,7 @@ const HERO_ITEMS: CityContentItem[] = [
     id: "hero-bilimfest",
     type: "event",
     title: "Bilimfest Gaziantep",
-    subtitle: "15–17 Ekim · Bilim, teknoloji ve atölyelerle dolu üç gün.",
+    subtitle: "Bilim, teknoloji ve keşif dolu üç gün.",
     body: "Bilim Şehitkamil çatısı altında açık atölyeler, gösteriler ve aile programları. Kayıt ve program detayları etkinlik döneminde yayımlanır.",
     imageUrl: "/city/bilimfest.jpg",
     ctaLabel: "Etkinliği gör",

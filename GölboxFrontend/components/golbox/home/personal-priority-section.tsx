@@ -122,7 +122,7 @@ export function PersonalPrioritySection({
   if (!item) return null
   return (
     <section aria-label="Senin için" className="space-y-3">
-      <HomeSectionHeader title="Senin için" />
+      <HomeSectionHeader title="Senin için" tone="editorial" />
       <PersonalPriorityCard item={item} {...actions} />
     </section>
   )

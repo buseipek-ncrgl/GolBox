@@ -98,7 +98,7 @@
   --chart-4: #2f6f4e;
   --chart-5: #123f40;
   --radius: 1.125rem;
-  --gol-dock: 8.5rem;
+  --gol-dock: 7.5rem;
   --gol-card: 1.5rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.24 0.03 155);
@@ -258,7 +258,7 @@
 .gol-screen {
   padding-left: 1.25rem;
   padding-right: 1.25rem;
-  padding-top: 0.75rem;
+  padding-top: 0.5rem;
   padding-bottom: calc(var(--gol-dock) + env(safe-area-inset-bottom, 0px));
 }
 
@@ -267,6 +267,13 @@
   border-radius: var(--gol-card);
   border: 1px solid var(--color-border);
   background: var(--color-surface);
+}
+
+.gol-press {
+  transition: transform 0.16s ease;
+}
+.gol-press:active {
+  transform: scale(0.985);
 }
 
 .gp-value {
@@ -297,5 +304,10 @@
   .gol-fade,
   .gol-skeleton {
     animation: none !important;
+  }
+  .gol-press,
+  .gol-press:active {
+    transition: none !important;
+    transform: none !important;
   }
 }

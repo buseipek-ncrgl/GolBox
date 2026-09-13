@@ -23,7 +23,7 @@ export function NearbyPlaceCard({
     <button
       type="button"
       onClick={() => onOpen(cafe.id)}
-      className="gol-card flex w-full items-center gap-3 p-3 text-left"
+      className="gol-press gol-card flex w-full items-center gap-3 p-3 text-left"
     >
       <CafeCover name={cafe.name} imageUrl={cafe.imageUrl} className="size-16 shrink-0 rounded-[14px]" />
       <div className="min-w-0 flex-1">
@@ -60,7 +60,7 @@ export function NearbySection({
   if (!ready) {
     return (
       <section aria-label="Yakınında" className="space-y-3">
-        <HomeSectionHeader title="Yakınında" />
+        <HomeSectionHeader title="Yakınında" tone="utility" />
         <SectionSkeleton lines={2} />
       </section>
     )
@@ -69,7 +69,7 @@ export function NearbySection({
   if (error && cafes.length === 0) {
     return (
       <section aria-label="Yakınında" className="space-y-3">
-        <HomeSectionHeader title="Yakınında" />
+        <HomeSectionHeader title="Yakınında" tone="utility" />
         <InlineError message="Yakındaki yerler yüklenemedi." onRetry={onRetry} />
       </section>
     )
@@ -90,7 +90,7 @@ export function NearbySection({
 
   return (
     <section aria-label="Yakınında" className="space-y-3">
-      <HomeSectionHeader title="Yakınında" actionLabel="Tümü" onAction={onSeeAll} />
+      <HomeSectionHeader title="Yakınında" actionLabel="Tümü" onAction={onSeeAll} tone="utility" />
       <div className="space-y-2">
         {ranked.map(({ cafe, distanceMeters }) => (
           <NearbyPlaceCard key={cafe.id} cafe={cafe} distanceMeters={distanceMeters} onOpen={onOpen} />
