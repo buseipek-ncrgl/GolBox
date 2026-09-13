@@ -37,6 +37,8 @@ export interface CityContentItem {
   meta?: string
   personName?: string
   personTitle?: string
+  /** CSS object-position for CMS photos. Defaults to center. */
+  imageFocus?: string
 }
 
 /** Mirrors org setting `visitBonusPoints`. No public settings API exists. */
@@ -65,8 +67,8 @@ const HERO_ITEMS: CityContentItem[] = [
   {
     id: "hero-mayor",
     type: "mayor_message",
-    title: "Gençlerimizin ürettiği her projede onların yanındayız.",
-    subtitle: "Av. Umut Yılmaz · Şehitkamil Belediye Başkanı",
+    title: "Gençlerimizin ürettiği her projede yanlarındayız.",
+    subtitle: "Gençlerimizin ürettiği her projede yanlarındayız.",
     body: "Şehitkamil’i bilimle, kültürle ve günlük hayatın kolaylığıyla büyütmeye devam ediyoruz. Bu uygulama; duyurular, kent mekânları ve GölPuan sadakatini aynı çatı altında, sakin bir deneyimle sunmak için var.\n\nGölPuan kitap kafelerde ve kent etkinliklerinde kazandığınız puandır. GölBox, sahadaki hediye kutularıdır. Ismarlıyor ise size ısmarlanan ikramdır. Üçü birbirine karışmaz.",
     imageUrl: "/city/belediye.jpg",
     ctaLabel: "Mesajı oku",
@@ -79,6 +81,7 @@ const HERO_ITEMS: CityContentItem[] = [
     categoryLabel: "Başkan’dan",
     personName: "Av. Umut Yılmaz",
     personTitle: "Şehitkamil Belediye Başkanı",
+    imageFocus: "center 22%",
   },
   {
     id: "hero-kultur",
@@ -104,7 +107,7 @@ const HERO_ITEMS: CityContentItem[] = [
     subtitle: "Yürüyüş, spor ve aile alanları gün boyu hizmet veriyor.",
     body: "Şehitkamil’deki millet bahçeleri ve açık spor alanları günlük kullanıma açıktır. Saha hediyeleri haritada ayrıca gösterilir; park duyurusu bir GölBox değildir.",
     imageUrl: "/city/park.jpg",
-    ctaLabel: "Yakınımdakiler",
+    ctaLabel: "Yakındakiler",
     ctaTarget: "cafes",
     startAt: "2026-09-01T00:00:00+03:00",
     endAt: "2026-12-31T23:59:59+03:00",

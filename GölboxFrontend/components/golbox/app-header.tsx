@@ -27,17 +27,17 @@ export function AppHeader({
   const initial = firstName?.charAt(0)
 
   return (
-    <header className={cn("flex items-center justify-between gap-3", className)}>
+    <header className={cn("flex items-center justify-between gap-3 py-1", className)}>
       <div className="min-w-0">
-        <p className="truncate text-[17px] font-semibold tracking-tight text-foreground">Şehitkamil+</p>
+        <p className="truncate text-lg font-semibold leading-tight tracking-tight text-foreground">Şehitkamil+</p>
         <p className="mt-0.5 truncate text-[13px] text-muted-foreground">{line}</p>
       </div>
-      <div className="flex shrink-0 items-center gap-0.5">
+      <div className="flex shrink-0 items-center">
         <button
           type="button"
           onClick={onNotifications}
           aria-label={unreadCount > 0 ? `Bildirimler, ${unreadCount} okunmamış` : "Bildirimler"}
-          className="relative flex size-11 items-center justify-center rounded-[14px] text-foreground"
+          className="relative flex size-11 items-center justify-center rounded-[14px] text-foreground focus-visible:ring-2 focus-visible:ring-primary/40"
         >
           <Bell className="size-5" strokeWidth={1.8} />
           {unreadCount > 0 ? (
@@ -48,7 +48,7 @@ export function AppHeader({
           type="button"
           onClick={onProfile}
           aria-label={firstName ? "Profil" : "Giriş veya profil"}
-          className="flex size-11 items-center justify-center rounded-full bg-secondary text-secondary-foreground"
+          className="flex size-11 items-center justify-center rounded-full bg-secondary text-secondary-foreground focus-visible:ring-2 focus-visible:ring-primary/40"
         >
           {initial ? (
             <span className="text-sm font-semibold">{initial}</span>

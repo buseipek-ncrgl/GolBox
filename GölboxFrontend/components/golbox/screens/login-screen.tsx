@@ -1,8 +1,7 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useId, useState } from "react"
 import { useGolbox } from "@/lib/golbox-context"
-import { LogIn, UserPlus } from "lucide-react"
 
 export function LoginScreen({
   onClose,
@@ -19,6 +18,7 @@ export function LoginScreen({
   const [lastName, setLastName] = useState("")
   const [age, setAge] = useState<number | "">("")
   const [educationLevel, setEducationLevel] = useState("Diğer")
+  const formId = useId()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -40,10 +40,10 @@ export function LoginScreen({
   }
 
   const fieldClass =
-    "mt-1.5 min-h-11 w-full rounded-[14px] border border-border bg-card px-3.5 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20"
+    "mt-1.5 min-h-12 w-full rounded-[16px] border border-border bg-card px-3.5 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20"
 
   return (
-    <div className="gol-fade-up gol-screen flex h-full flex-col justify-center px-6">
+    <div className="gol-fade-up gol-screen flex h-full flex-col justify-start pt-10">
       <div className="mb-8 flex flex-col items-center">
         <span
           aria-hidden
@@ -56,7 +56,7 @@ export function LoginScreen({
           Şehitkamil Belediyesi vatandaş uygulaması
         </p>
         {onClose ? (
-          <button type="button" onClick={onClose} className="mt-3 min-h-11 text-sm font-semibold text-primary">
+          <button type="button" onClick={onClose} className="mt-2 min-h-11 text-sm font-semibold text-primary">
             {closeLabel}
           </button>
         ) : null}
@@ -67,8 +67,11 @@ export function LoginScreen({
           <>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-[12px] font-medium text-foreground">Ad</label>
+                <label htmlFor={`${formId}-first`} className="text-[13px] font-medium text-foreground">
+                  Ad
+                </label>
                 <input
+                  id={`${formId}-first`}
                   type="text"
                   required
                   autoComplete="given-name"
@@ -78,8 +81,11 @@ export function LoginScreen({
                 />
               </div>
               <div>
-                <label className="text-[12px] font-medium text-foreground">Soyad</label>
+                <label htmlFor={`${formId}-last`} className="text-[13px] font-medium text-foreground">
+                  Soyad
+                </label>
                 <input
+                  id={`${formId}-last`}
                   type="text"
                   required
                   autoComplete="family-name"
@@ -91,8 +97,11 @@ export function LoginScreen({
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-[12px] font-medium text-foreground">Yaş</label>
+                <label htmlFor={`${formId}-age`} className="text-[13px] font-medium text-foreground">
+                  Yaş
+                </label>
                 <input
+                  id={`${formId}-age`}
                   type="number"
                   required
                   min={1}
@@ -102,8 +111,11 @@ export function LoginScreen({
                 />
               </div>
               <div>
-                <label className="text-[12px] font-medium text-foreground">Eğitim</label>
+                <label htmlFor={`${formId}-edu`} className="text-[13px] font-medium text-foreground">
+                  Eğitim
+                </label>
                 <select
+                  id={`${formId}-edu`}
                   className={fieldClass}
                   value={educationLevel}
                   onChange={(e) => setEducationLevel(e.target.value)}
@@ -118,8 +130,11 @@ export function LoginScreen({
         ) : null}
 
         <div>
-          <label className="text-[12px] font-medium text-foreground">E-posta</label>
+          <label htmlFor={`${formId}-email`} className="text-[13px] font-medium text-foreground">
+            E-posta
+          </label>
           <input
+            id={`${formId}-email`}
             type="email"
             required
             autoComplete="email"
@@ -131,8 +146,11 @@ export function LoginScreen({
         </div>
 
         <div>
-          <label className="text-[12px] font-medium text-foreground">Şifre</label>
+          <label htmlFor={`${formId}-password`} className="text-[13px] font-medium text-foreground">
+            Şifre
+          </label>
           <input
+            id={`${formId}-password`}
             type="password"
             required
             autoComplete={isRegister ? "new-password" : "current-password"}
@@ -146,21 +164,9 @@ export function LoginScreen({
         <button
           type="submit"
           disabled={loading}
-          className="flex min-h-12 w-full items-center justify-center gap-2 rounded-[14px] bg-primary text-sm font-semibold text-primary-foreground disabled:opacity-50"
+          className="flex min-h-12 w-full items-center justify-center rounded-[16px] bg-primary text-sm font-semibold text-primary-foreground disabled:opacity-50"
         >
-          {loading ? (
-            <span>İşlem yapılıyor...</span>
-          ) : isRegister ? (
-            <>
-              <UserPlus className="size-4" />
-              Hesap oluştur
-            </>
-          ) : (
-            <>
-              <LogIn className="size-4" />
-              Giriş yap
-            </>
-          )}
+          {loading ? "İşlem yapılıyor..." : isRegister ? "Hesap oluştur" : "Giriş Yap"}
         </button>
       </form>
 
@@ -171,7 +177,7 @@ export function LoginScreen({
           onClick={() => setIsRegister(!isRegister)}
           className="min-h-11 font-semibold text-primary"
         >
-          {isRegister ? "Giriş yap" : "Yeni hesap oluştur"}
+          {isRegister ? "Giriş yap" : "Yeni Hesap Oluştur"}
         </button>
       </p>
 

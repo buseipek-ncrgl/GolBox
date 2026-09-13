@@ -23,7 +23,7 @@ export const defaultQuickActions: QuickActionItem[] = [
   { id: "coupons", title: "Kuponlarım", description: "Aktif kuponlarını gör", icon: "ticket" },
   { id: "cafes", title: "Göl Kafeler", description: "Yakındaki kafeleri keşfet", icon: "coffee" },
   { id: "events", title: "Etkinlikler", description: "Şehirde neler var?", icon: "calendar" },
-  { id: "earn", title: "GölPuan kazan", description: "Kazanç yollarını keşfet", icon: "coins" },
+  { id: "earn", title: "GölPuan kazan", description: "Kazanç yollarını gör", icon: "coins" },
 ]
 
 export function QuickActionCard({
@@ -38,15 +38,15 @@ export function QuickActionCard({
     <button
       type="button"
       onClick={() => onSelect(item.id)}
-      className="gol-press gol-card flex min-h-[6.25rem] flex-col items-start p-3.5 text-left max-[360px]:min-h-[5.75rem] max-[360px]:p-3"
+      className="gol-press flex h-full min-h-[5.5rem] flex-col items-start rounded-[16px] border border-border bg-card p-3 text-left shadow-none max-[360px]:min-h-[5.25rem]"
     >
-      <span className="flex size-9 items-center justify-center rounded-[12px] bg-secondary text-primary">
-        <Icon className="size-[18px]" strokeWidth={1.8} />
+      <span className="flex size-8 items-center justify-center rounded-[10px] bg-secondary text-primary">
+        <Icon className="size-4" strokeWidth={1.8} />
       </span>
-      <p className="mt-2.5 text-[15px] font-semibold leading-tight text-foreground max-[360px]:text-sm">
+      <p className="mt-2 text-[15px] font-semibold leading-tight text-foreground max-[360px]:text-sm">
         {item.title}
       </p>
-      <p className="mt-1 line-clamp-1 text-[12px] leading-snug text-muted-foreground">{item.description}</p>
+      <p className="mt-0.5 line-clamp-1 text-[12px] leading-snug text-muted-foreground">{item.description}</p>
     </button>
   )
 }
@@ -72,7 +72,7 @@ export function QuickActions({
   return (
     <section aria-label="Hızlı erişim" className="space-y-3">
       <HomeSectionHeader title="Hızlı erişim" tone="utility" />
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 auto-rows-fr gap-3">
         {resolved.map((item) => (
           <QuickActionCard key={item.id} item={item} onSelect={onSelect} />
         ))}

@@ -1,5 +1,6 @@
 "use client"
 
+import { CityImage } from "@/components/golbox/city-image"
 import { OverlaySheet } from "@/components/golbox/overlay-sheet"
 import { EmptyState } from "@/components/golbox/empty-state"
 import type { CityContentItem } from "@/lib/city-content"
@@ -13,11 +14,13 @@ export function MayorMessageSheet({
 }) {
   return (
     <OverlaySheet title="Başkan’dan" onClose={onClose}>
-      <div className="overflow-hidden rounded-[var(--gol-radius-lg)] bg-[color:var(--color-brand-900)]">
-        {item.imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={item.imageUrl} alt="" className="h-40 w-full object-cover opacity-90" />
-        ) : null}
+      <div className="h-40 overflow-hidden rounded-[var(--gol-radius-lg)] bg-[color:var(--color-brand-900)]">
+        <CityImage
+          src={item.imageUrl}
+          alt=""
+          focus={item.imageFocus ?? "center 22%"}
+          className="h-full w-full opacity-90"
+        />
       </div>
       <p className="mt-4 font-serif text-2xl leading-snug text-foreground">{item.title}</p>
       <p className="mt-2 text-sm font-semibold text-foreground">{item.personName}</p>
@@ -43,10 +46,14 @@ export function AgendaDetailSheet({
 }) {
   return (
     <OverlaySheet title={item.categoryLabel} onClose={onClose}>
-      {item.imageUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={item.imageUrl} alt="" className="h-40 w-full rounded-[var(--gol-radius-lg)] object-cover" />
-      ) : null}
+      <div className="h-40 overflow-hidden rounded-[var(--gol-radius-lg)] bg-[color:var(--color-brand-900)]">
+        <CityImage
+          src={item.imageUrl}
+          alt=""
+          focus={item.imageFocus ?? "center"}
+          className="h-full w-full"
+        />
+      </div>
       <h3 className="mt-4 font-serif text-2xl leading-snug text-foreground">{item.title}</h3>
       {item.meta ? <p className="mt-1 text-sm text-muted-foreground">{item.meta}</p> : null}
       <p className="mt-3 text-[15px] leading-relaxed text-foreground">{item.body || item.subtitle}</p>
@@ -76,12 +83,12 @@ export function AgendaListSheet({
                 onClick={() => onOpen(item)}
                 className="gol-card flex w-full gap-3 p-3 text-left"
               >
-                {item.imageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={item.imageUrl} alt="" className="size-14 rounded-[12px] object-cover" />
-                ) : (
-                  <span className="size-14 rounded-[12px] bg-secondary" />
-                )}
+                <CityImage
+                  src={item.imageUrl}
+                  alt=""
+                  focus={item.imageFocus ?? "center"}
+                  className="size-14 shrink-0 rounded-[12px]"
+                />
                 <span className="min-w-0">
                   <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                     {item.categoryLabel}

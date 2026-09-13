@@ -68,7 +68,7 @@ export function QrScreen() {
 
   if (!token) {
     return (
-      <Screen className="space-y-5">
+      <Screen className="space-y-4">
         <QrGuestState onLogin={() => setShowLogin(true)} />
       </Screen>
     )

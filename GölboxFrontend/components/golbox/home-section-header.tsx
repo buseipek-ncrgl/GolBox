@@ -19,8 +19,8 @@ export function HomeSectionHeader({
         className={cn(
           "leading-none tracking-tight text-foreground",
           tone === "editorial"
-            ? "font-serif text-[1.35rem]"
-            : "text-[1.05rem] font-semibold",
+            ? "font-serif text-[1.375rem]"
+            : "text-[1.0625rem] font-semibold",
         )}
       >
         {title}

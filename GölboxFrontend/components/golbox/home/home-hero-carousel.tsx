@@ -1,58 +1,66 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import { CityImage } from "@/components/golbox/city-image"
 import type { CityContentItem } from "@/lib/city-content"
 import { usePrefersReducedMotion } from "@/lib/use-prefers-reduced-motion"
 import { cn } from "@/lib/utils"
 
+const SLIDE_GAP = 8
+
+function heroCopy(item: CityContentItem) {
+  const isMayor = item.type === "mayor_message"
+  return {
+    category: item.categoryLabel,
+    title: isMayor ? (item.personName ?? item.title) : item.title,
+    support: isMayor ? item.subtitle || item.title : item.meta ?? item.subtitle,
+    cta: item.ctaLabel,
+    alt: `${item.categoryLabel}: ${item.title}`,
+    focus: item.imageFocus ?? (isMayor ? "center 22%" : "center"),
+  }
+}
+
 export function HomeHeroCard({
   item,
   priority = false,
+  compact = false,
   onOpen,
 }: {
   item: CityContentItem
   priority?: boolean
+  compact?: boolean
   onOpen: (item: CityContentItem) => void
 }) {
-  const isMayor = item.type === "mayor_message"
-  const alt = `${item.categoryLabel}: ${item.title}`
+  const copy = heroCopy(item)
 
   return (
     <button
       type="button"
       onClick={() => onOpen(item)}
-      className="relative block h-[210px] w-full overflow-hidden rounded-[22px] bg-[color:var(--color-brand-900)] text-left text-white shadow-[0_4px_20px_rgba(20,40,35,0.06)]"
+      className={cn(
+        "relative block w-full overflow-hidden rounded-[22px] bg-[color:var(--color-brand-900)] text-left text-white shadow-[0_4px_20px_rgba(20,40,35,0.08)] motion-reduce:transition-none",
+        compact ? "h-[11.75rem]" : "h-[12.75rem]",
+        "transition-[height] duration-300",
+      )}
     >
-      {item.imageUrl ? (
-        // Local editorial photos; keep object-cover without remote image config.
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={item.imageUrl}
-          alt={alt}
-          fetchPriority={priority ? "high" : "low"}
-          loading={priority ? "eager" : "lazy"}
-          className="absolute inset-0 h-full w-full object-cover"
-        />
-      ) : null}
-      <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/82 via-black/40 to-black/10" />
-      <div className="relative flex h-full flex-col justify-end p-4">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/85">
-          {item.categoryLabel}
+      <CityImage
+        src={item.imageUrl}
+        alt={copy.alt}
+        priority={priority}
+        focus={copy.focus}
+        className="absolute inset-0 h-full w-full"
+      />
+      <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/36 to-black/8" />
+      {/* Left padding is larger than the next-card peek so half-words never appear. */}
+      <div className="relative flex h-full flex-col justify-end py-5 pl-7 pr-5">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/80">
+          {copy.category}
         </p>
-        {isMayor ? (
-          <>
-            <h3 className="mt-1 font-serif text-[1.4rem] leading-tight text-white">{item.personName}</h3>
-            <p className="mt-0.5 text-[13px] text-white/80">{item.personTitle}</p>
-            <p className="mt-1.5 line-clamp-2 text-sm leading-snug text-white/90">{item.title}</p>
-          </>
-        ) : (
-          <>
-            <h3 className="mt-1 font-serif text-[1.45rem] leading-tight text-white">{item.title}</h3>
-            {item.meta ? <p className="mt-1 text-[13px] font-medium text-white/85">{item.meta}</p> : null}
-            <p className="mt-1 line-clamp-2 text-sm leading-snug text-white/85">{item.subtitle}</p>
-          </>
-        )}
-        <span className="mt-2 text-sm font-semibold text-white">{item.ctaLabel} →</span>
+        <h3 className="mt-1 line-clamp-2 font-serif text-[1.35rem] leading-[1.15] text-white">{copy.title}</h3>
+        {copy.support ? (
+          <p className="mt-1 line-clamp-1 text-[13px] leading-snug text-white/82">{copy.support}</p>
+        ) : null}
+        <span className="mt-2 text-sm font-semibold text-white">{copy.cta} →</span>
       </div>
     </button>
   )
@@ -61,9 +69,11 @@ export function HomeHeroCard({
 export function HomeHeroCarousel({
   items,
   onOpen,
+  compact = false,
 }: {
   items: CityContentItem[]
   onOpen: (item: CityContentItem) => void
+  compact?: boolean
 }) {
   const scrollerRef = useRef<HTMLDivElement>(null)
   const [index, setIndex] = useState(0)
@@ -76,7 +86,7 @@ export function HomeHeroCarousel({
     const onScroll = () => {
       const card = node.firstElementChild as HTMLElement | null
       if (!card) return
-      const width = card.getBoundingClientRect().width + 12
+      const width = card.getBoundingClientRect().width + SLIDE_GAP
       setIndex(Math.round(node.scrollLeft / width))
     }
     node.addEventListener("scroll", onScroll, { passive: true })
@@ -90,7 +100,7 @@ export function HomeHeroCarousel({
       if (!node || pauseRef.current) return
       const card = node.firstElementChild as HTMLElement | null
       if (!card) return
-      const width = card.getBoundingClientRect().width + 12
+      const width = card.getBoundingClientRect().width + SLIDE_GAP
       const next = (index + 1) % items.length
       node.scrollTo({ left: next * width, behavior: "smooth" })
     }, 8000)
@@ -103,16 +113,16 @@ export function HomeHeroCarousel({
     const node = scrollerRef.current
     const card = node?.firstElementChild as HTMLElement | null
     if (!node || !card) return
-    const width = card.getBoundingClientRect().width + 12
+    const width = card.getBoundingClientRect().width + SLIDE_GAP
     node.scrollTo({ left: next * width, behavior: reducedMotion ? "auto" : "smooth" })
   }
 
   return (
-    <section aria-roledescription="carousel" aria-label="Şehitkamil duyuruları" className="-mx-5">
+    <section aria-roledescription="carousel" aria-label="Şehitkamil duyuruları" className="@container -mx-5">
       <div
         ref={scrollerRef}
         tabIndex={0}
-        className="no-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+        className="no-scrollbar flex snap-x snap-mandatory gap-2 overflow-x-auto px-5 [scroll-padding-inline:1.25rem] outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
         onPointerDown={() => {
           pauseRef.current = true
         }}
@@ -131,8 +141,8 @@ export function HomeHeroCarousel({
         }}
       >
         {items.map((item, itemIndex) => (
-          <div key={item.id} className="w-[90%] max-[360px]:w-[92%] shrink-0 snap-start">
-            <HomeHeroCard item={item} priority={itemIndex === 0} onOpen={onOpen} />
+          <div key={item.id} className="w-[calc(100cqi-3.25rem)] shrink-0 snap-start">
+            <HomeHeroCard item={item} compact={compact} priority={itemIndex === 0} onOpen={onOpen} />
           </div>
         ))}
       </div>

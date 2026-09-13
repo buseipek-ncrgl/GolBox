@@ -74,7 +74,7 @@ export function EarnPointsSection({
   const cards = buildEarnCards(drop)
   if (cards.length === 0) return null
   return (
-    <section aria-label="Şehrinde kazan" className="-mx-5 bg-[color:var(--color-brand-50)] px-5 py-5">
+    <section aria-label="Şehrinde kazan" className="-mx-5 bg-[color:var(--color-brand-50)] px-5 py-4">
       <div className="space-y-3">
         <HomeSectionHeader title="Şehrinde kazan" tone="utility" />
         <div className="space-y-2">

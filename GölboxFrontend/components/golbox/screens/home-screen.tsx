@@ -166,7 +166,7 @@ export function HomeScreen({
         onProfile={() => onNavigate("profile")}
       />
 
-      <HomeHeroCarousel items={heroItems} onOpen={openContent} />
+      <HomeHeroCarousel items={heroItems} compact={Boolean(priority)} onOpen={openContent} />
 
       <PersonalPrioritySection
         item={priority}
