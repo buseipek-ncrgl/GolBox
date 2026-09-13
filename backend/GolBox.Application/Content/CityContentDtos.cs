@@ -95,15 +95,25 @@ public static class CityContentMapper
     {
         if (content.StartAt == default)
             return null;
-        var start = content.StartAt.ToLocalTime();
+        var start = content.StartAt;
         if (content.EndAt.HasValue)
         {
-            var end = content.EndAt.Value.ToLocalTime();
+            var end = content.EndAt.Value;
             if (start.Date == end.Date)
-                return start.ToString("d MMMM", new System.Globalization.CultureInfo("tr-TR"));
-            return $"{start:d MMM} – {end:d MMM}";
+                return FormatDay(start);
+            return $"{FormatDay(start)} – {FormatDay(end)}";
         }
-        return start.ToString("d MMMM", new System.Globalization.CultureInfo("tr-TR"));
+        return FormatDay(start);
+    }
+
+    private static string FormatDay(DateTime value)
+    {
+        string[] months =
+        [
+            "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran",
+            "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"
+        ];
+        return $"{value.Day} {months[Math.Clamp(value.Month - 1, 0, 11)]}";
     }
 
     public static CityContentPublicDto ToPublic(CityContent content) => new(
