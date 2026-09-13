@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from "react"
 import { Screen } from "@/components/golbox/screen"
 import { RefreshCw, ScanLine } from "lucide-react"
 import { CouponPass, isActiveCoupon } from "@/components/golbox/coupon-pass"
-import { user as mockUser } from "@/lib/golbox-data"
+import { LoginScreen } from "@/components/golbox/screens/login-screen"
+import { GPValue } from "@/components/golbox/gp-value"
 import { useGolbox } from "@/lib/golbox-context"
 
 function useMatrix(seed: string, size = 21) {
@@ -37,10 +38,11 @@ function useMatrix(seed: string, size = 21) {
 }
 
 export function QrScreen() {
-  const { user, claimedRewards } = useGolbox()
+  const { user, token, claimedRewards } = useGolbox()
   const [secondsLeft, setSecondsLeft] = useState(30)
-  const displayName = user ? `${user.firstName} ${user.lastName}`.trim() : mockUser.fullName
-  const points = user?.pointsBalance ?? mockUser.points
+  const [showLogin, setShowLogin] = useState(false)
+  const displayName = user ? `${user.firstName} ${user.lastName}`.trim() : ""
+  const points = user?.pointsBalance ?? 0
 
   // 30-Second TOTP Auto Refresh Timer
   useEffect(() => {
@@ -51,13 +53,40 @@ export function QrScreen() {
   }, [])
 
   const currentSeed = useMemo(() => {
-    const baseId = user?.id ? user.id.replace(/-/g, "").slice(0, 8).toUpperCase() : mockUser.qrId
+    const baseId = user?.id ? user.id.replace(/-/g, "").slice(0, 8).toUpperCase() : "GUEST"
     const step = Math.floor(Date.now() / 30000)
     return `GB-${baseId}-${step}`
   }, [user?.id, secondsLeft === 30])
 
   const matrix = useMatrix(currentSeed)
   const activeCoupons = claimedRewards.filter(isActiveCoupon)
+
+  if (showLogin && !token) {
+    return <LoginScreen onClose={() => setShowLogin(false)} closeLabel="QR’a dön" />
+  }
+
+  if (!token) {
+    return (
+      <Screen>
+        <header className="space-y-1">
+          <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">Kasa</p>
+          <h1 className="font-serif text-2xl text-foreground">QR’ın</h1>
+          <p className="text-sm text-muted-foreground">Kişisel kasa kodu giriş yaptıktan sonra üretilir.</p>
+        </header>
+        <div className="gol-card px-5 py-6 text-center">
+          <ScanLine className="mx-auto size-6 text-primary" />
+          <p className="mt-3 text-sm text-muted-foreground">Kasada göstermek ve kupon kullanmak için Şehitkamil+ hesabın gerekir.</p>
+          <button
+            type="button"
+            onClick={() => setShowLogin(true)}
+            className="mt-4 min-h-11 w-full rounded-[14px] bg-primary text-sm font-semibold text-primary-foreground"
+          >
+            Giriş yap
+          </button>
+        </div>
+      </Screen>
+    )
+  }
 
   return (
     <Screen fill>
@@ -76,8 +105,8 @@ export function QrScreen() {
               <p className="font-semibold text-card-foreground">{displayName}</p>
               <p className="text-xs text-muted-foreground font-mono">{currentSeed.slice(0, 15)}...</p>
             </div>
-            <span className="rounded-full bg-accent/20 px-2.5 py-1 font-serif text-sm font-semibold text-accent-foreground">
-              {points} GP
+            <span className="rounded-full bg-secondary px-2.5 py-1 text-sm font-semibold">
+              <GPValue amount={points} className="text-sm" />
             </span>
           </div>
 

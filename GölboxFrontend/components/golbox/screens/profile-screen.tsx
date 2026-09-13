@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react"
 import { Screen } from "@/components/golbox/screen"
 import { Gift, LogIn, LogOut, Ticket } from "lucide-react"
-import { activity, user as mockUser } from "@/lib/golbox-data"
 import { useGolbox } from "@/lib/golbox-context"
 import { LoginScreen } from "@/components/golbox/screens/login-screen"
 import { RewardsScreen } from "@/components/golbox/screens/rewards-screen"
@@ -25,8 +24,8 @@ export function ProfileScreen() {
     if (token) void loadMyCaptures()
   }, [token, loadMyCaptures])
 
-  const displayName = user ? `${user.firstName} ${user.lastName}`.trim() : mockUser.fullName
-  const points = user?.pointsBalance ?? mockUser.points
+  const displayName = user ? `${user.firstName} ${user.lastName}`.trim() : "Misafir"
+  const points = user?.pointsBalance ?? 0
   const activeCoupons = claimedRewards.filter(isActiveCoupon)
   const gpRows =
     token && pointTransactions.length > 0
@@ -37,7 +36,7 @@ export function ProfileScreen() {
           value: `${pt.amount > 0 ? "+" : ""}${pt.amount}`,
           kind: pt.amount >= 0 ? "earn" : "spend",
         }))
-      : activity
+      : []
 
   if (showRewards) {
     return (
@@ -68,22 +67,29 @@ export function ProfileScreen() {
         </div>
       </header>
 
-      <button
-        type="button"
-        onClick={() => {
-          setRewardsTab("catalog")
-          setShowRewards(true)
-        }}
-        className="flex w-full items-center justify-between rounded-[var(--gol-card)] bg-primary px-5 py-4 text-left text-primary-foreground"
-      >
-        <div>
-          <p className="text-xs uppercase tracking-wide text-primary-foreground/70">Göl Puan</p>
-          <p className="font-serif text-3xl leading-tight text-accent">{points}</p>
+      {token ? (
+        <button
+          type="button"
+          onClick={() => {
+            setRewardsTab("catalog")
+            setShowRewards(true)
+          }}
+          className="flex w-full items-center justify-between rounded-[var(--gol-card)] bg-primary px-5 py-4 text-left text-primary-foreground"
+        >
+          <div>
+            <p className="text-xs uppercase tracking-wide text-primary-foreground/70">GölPuan</p>
+            <p className="font-serif text-3xl leading-tight text-[color:var(--color-gold)]">{points}</p>
+          </div>
+          <p className="max-w-[9rem] text-pretty text-right text-sm text-primary-foreground/90">
+            Katalog ödülleri GölPuan ile alınır. Saha kutusu ayrıdır.
+          </p>
+        </button>
+      ) : (
+        <div className="rounded-[var(--gol-card)] bg-[color:var(--color-brand-900)] px-5 py-5 text-white">
+          <p className="text-xs uppercase tracking-wide text-white/70">GölPuan</p>
+          <p className="mt-1 font-serif text-2xl">Giriş yapınca bakiyen görünür</p>
         </div>
-        <p className="max-w-[9rem] text-pretty text-right text-sm text-primary-foreground/90">
-          Katalog ödülleri GölPuan ile alınır. Saha kutusu ayrıdır.
-        </p>
-      </button>
+      )}
 
       {!token && (
         <button
@@ -180,6 +186,7 @@ export function ProfileScreen() {
         )}
       </section>
 
+      {gpRows.length > 0 ? (
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-foreground">Puan hareketleri</h2>
         <ul className="gol-card divide-y divide-border">
@@ -202,6 +209,7 @@ export function ProfileScreen() {
           ))}
         </ul>
       </section>
+      ) : null}
 
       {token && (
         <button

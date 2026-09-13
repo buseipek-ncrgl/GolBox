@@ -1,7 +1,6 @@
 import { useState, useMemo } from "react"
 import { CafeCover } from "@/components/golbox/cafe-cover"
 import { MapPin, Search } from "lucide-react"
-import { cafes as mockCafes } from "@/lib/golbox-data"
 import { useGolbox } from "@/lib/golbox-context"
 
 export function CafesScreen({
@@ -14,24 +13,14 @@ export function CafesScreen({
   const { cafes: liveCafes } = useGolbox()
   const [searchQuery, setSearchQuery] = useState("")
 
-  const cards =
-    liveCafes.length > 0
-      ? liveCafes.map((cafe) => ({
-          id: cafe.id,
-          name: cafe.name,
-          category: cafe.categoryName || "Kitap Kafe",
-          meta: cafe.address,
-          imageUrl: cafe.imageUrl,
-          badge: cafe.isActive === false ? "Kapalı" : "Açık",
-        }))
-      : mockCafes.map((cafe) => ({
-          id: cafe.id,
-          name: cafe.name,
-          category: cafe.category,
-          meta: `${cafe.distance} · ${cafe.walk}`,
-          imageUrl: undefined as string | undefined,
-          badge: cafe.open ? `Açık · ${cafe.closeAt}` : "Kapalı",
-        }))
+  const cards = liveCafes.map((cafe) => ({
+    id: cafe.id,
+    name: cafe.name,
+    category: cafe.categoryName || "Kitap Kafe",
+    meta: cafe.address,
+    imageUrl: cafe.imageUrl,
+    badge: cafe.isActive === false ? "Kapalı" : "Açık",
+  }))
 
   const filteredCards = useMemo(() => {
     if (!searchQuery.trim()) return cards
@@ -77,8 +66,14 @@ export function CafesScreen({
       {filteredCards.length === 0 ? (
         <div className="gol-card flex flex-col items-center gap-2 border-dashed px-6 py-10 text-center">
           <Search className="size-8 text-muted-foreground" />
-          <p className="text-sm font-medium text-foreground">Kafe bulunamadı</p>
-          <p className="text-xs text-muted-foreground">"{searchQuery}" ile eşleşen kafe bulunamadı.</p>
+          <p className="text-sm font-medium text-foreground">
+            {searchQuery ? "Kafe bulunamadı" : "Göl Kafeler yüklenemedi"}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {searchQuery
+              ? `"${searchQuery}" ile eşleşen kafe yok.`
+              : "Canlı kafe listesi şu an alınamadı."}
+          </p>
         </div>
       ) : (
         <ul className="space-y-4">
