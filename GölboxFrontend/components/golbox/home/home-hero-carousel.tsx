@@ -8,6 +8,12 @@ import { cn } from "@/lib/utils"
 
 const SLIDE_GAP = 8
 
+function slideWidth(node: HTMLElement) {
+  const slide = node.querySelector("[data-hero-slide]") as HTMLElement | null
+  if (!slide) return 0
+  return slide.getBoundingClientRect().width + SLIDE_GAP
+}
+
 function heroCopy(item: CityContentItem) {
   const isMayor = item.type === "mayor_message"
   return {
@@ -52,7 +58,7 @@ export function HomeHeroCard({
       />
       <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/36 to-black/8" />
       {/* Left padding is larger than the next-card peek so half-words never appear. */}
-      <div className="relative flex h-full flex-col justify-end py-5 pl-7 pr-5">
+      <div className="relative flex h-full flex-col justify-end py-5 pl-8 pr-5">
         <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/80">
           {copy.category}
         </p>
@@ -84,9 +90,8 @@ export function HomeHeroCarousel({
     const node = scrollerRef.current
     if (!node) return
     const onScroll = () => {
-      const card = node.firstElementChild as HTMLElement | null
-      if (!card) return
-      const width = card.getBoundingClientRect().width + SLIDE_GAP
+      const width = slideWidth(node)
+      if (!width) return
       setIndex(Math.round(node.scrollLeft / width))
     }
     node.addEventListener("scroll", onScroll, { passive: true })
@@ -98,9 +103,8 @@ export function HomeHeroCarousel({
     const tick = window.setInterval(() => {
       const node = scrollerRef.current
       if (!node || pauseRef.current) return
-      const card = node.firstElementChild as HTMLElement | null
-      if (!card) return
-      const width = card.getBoundingClientRect().width + SLIDE_GAP
+      const width = slideWidth(node)
+      if (!width) return
       const next = (index + 1) % items.length
       node.scrollTo({ left: next * width, behavior: "smooth" })
     }, 8000)
@@ -111,18 +115,18 @@ export function HomeHeroCarousel({
 
   const goTo = (next: number) => {
     const node = scrollerRef.current
-    const card = node?.firstElementChild as HTMLElement | null
-    if (!node || !card) return
-    const width = card.getBoundingClientRect().width + SLIDE_GAP
+    if (!node) return
+    const width = slideWidth(node)
+    if (!width) return
     node.scrollTo({ left: next * width, behavior: reducedMotion ? "auto" : "smooth" })
   }
 
   return (
-    <section aria-roledescription="carousel" aria-label="Şehitkamil duyuruları" className="@container -mx-5">
+    <section aria-roledescription="carousel" aria-label="Şehitkamil duyuruları" className="-mx-5">
       <div
         ref={scrollerRef}
         tabIndex={0}
-        className="no-scrollbar flex snap-x snap-mandatory gap-2 overflow-x-auto px-5 [scroll-padding-inline:1.25rem] outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+        className="no-scrollbar flex snap-x snap-mandatory gap-2 overflow-x-auto [scroll-padding-inline:1.25rem] outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
         onPointerDown={() => {
           pauseRef.current = true
         }}
@@ -140,11 +144,17 @@ export function HomeHeroCarousel({
           }
         }}
       >
+        <div aria-hidden className="w-5 shrink-0 snap-none" />
         {items.map((item, itemIndex) => (
-          <div key={item.id} className="w-[calc(100cqi-3.25rem)] shrink-0 snap-start">
+          <div
+            key={item.id}
+            data-hero-slide
+            className="w-[calc(100%-2.75rem)] min-w-[calc(100%-2.75rem)] shrink-0 snap-start"
+          >
             <HomeHeroCard item={item} compact={compact} priority={itemIndex === 0} onOpen={onOpen} />
           </div>
         ))}
+        <div aria-hidden className="w-5 shrink-0 snap-none" />
       </div>
       {items.length > 1 ? (
         <div className="mt-2.5 flex items-center justify-center gap-1.5">
