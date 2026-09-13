@@ -35,43 +35,16 @@ public class ContentController : BaseApiController
             return Ok(Result<object>.Ok(cached));
 
         var now = DateTime.UtcNow;
-        var rows = await CityContentRules.WhereLive(_context.CityContents.AsNoTracking(), orgId, now)
-            .Where(c => c.Type == CityContentTypes.Hero || c.Type == CityContentTypes.MayorMessage)
+        var rows = await CityContentRules.WhereAudience(
+                CityContentRules.WhereLive(_context.CityContents.AsNoTracking(), orgId, now)
+                    .Where(c => c.Type == CityContentTypes.Hero || c.Type == CityContentTypes.MayorMessage),
+                audience)
             .OrderBy(c => c.Priority)
             .ThenBy(c => c.StartAt)
-            .Select(c => new CityContent
-            {
-                Id = c.Id,
-                OrganizationId = c.OrganizationId,
-                Type = c.Type,
-                Title = c.Title,
-                Subtitle = c.Subtitle,
-                Body = c.Body,
-                ImageUrl = c.ImageUrl,
-                ImageFocus = c.ImageFocus,
-                CtaLabel = c.CtaLabel,
-                CtaType = c.CtaType,
-                CtaTarget = c.CtaTarget,
-                Priority = c.Priority,
-                StartAt = c.StartAt,
-                EndAt = c.EndAt,
-                IsPublished = c.IsPublished,
-                AudienceType = c.AudienceType,
-                AudienceMinAge = c.AudienceMinAge,
-                AudienceMaxAge = c.AudienceMaxAge,
-                AudienceEducationLevel = c.AudienceEducationLevel,
-                AuthorName = c.AuthorName,
-                AuthorTitle = c.AuthorTitle,
-                AuthorImageUrl = c.AuthorImageUrl,
-                ActivityId = c.ActivityId
-            })
+            .Take(CityContentRules.HeroMaxCount)
             .ToListAsync(cancellationToken);
 
-        var items = CityContentRules.FilterAudience(rows, audience)
-            .Take(CityContentRules.HeroMaxCount)
-            .Select(CityContentMapper.ToPublic)
-            .ToList();
-
+        var items = rows.Select(CityContentMapper.ToPublic).ToList();
         _cache.Set(cacheKey, items, PublicCacheTtl);
         return Ok(Result<object>.Ok(items));
     }
@@ -91,9 +64,15 @@ public class ContentController : BaseApiController
 
         var orgId = await ResolveOrganizationIdAsync(cancellationToken);
         var audience = await ResolveAudienceAsync(cancellationToken);
+        var cacheKey = $"agenda:{_cache.Version}:{orgId}:{AudienceKey(audience)}:{page}:{pageSize}:{type}:{from?.Ticks}:{to?.Ticks}";
+        if (_cache.TryGet<PagedResult<CityContentPublicDto>>(cacheKey, out var cached) && cached != null)
+            return Ok(Result<object>.Ok(cached));
+
         var now = DateTime.UtcNow;
-        var query = CityContentRules.WhereLive(_context.CityContents.AsNoTracking(), orgId, now)
-            .Where(c => c.Type != CityContentTypes.Hero);
+        var query = CityContentRules.WhereAudience(
+            CityContentRules.WhereLive(_context.CityContents.AsNoTracking(), orgId, now)
+                .Where(c => c.Type != CityContentTypes.Hero),
+            audience);
 
         if (!string.IsNullOrWhiteSpace(type) && CityContentTypes.IsKnown(type))
         {
@@ -105,45 +84,21 @@ public class ContentController : BaseApiController
         if (to.HasValue)
             query = query.Where(c => c.StartAt <= to.Value);
 
+        var total = await query.CountAsync(cancellationToken);
         var rows = await query
             .OrderBy(c => c.Priority)
             .ThenBy(c => c.StartAt)
-            .Select(c => new CityContent
-            {
-                Id = c.Id,
-                Type = c.Type,
-                Title = c.Title,
-                Subtitle = c.Subtitle,
-                Body = c.Body,
-                ImageUrl = c.ImageUrl,
-                ImageFocus = c.ImageFocus,
-                CtaLabel = c.CtaLabel,
-                CtaType = c.CtaType,
-                CtaTarget = c.CtaTarget,
-                Priority = c.Priority,
-                StartAt = c.StartAt,
-                EndAt = c.EndAt,
-                IsPublished = c.IsPublished,
-                AudienceType = c.AudienceType,
-                AudienceMinAge = c.AudienceMinAge,
-                AudienceMaxAge = c.AudienceMaxAge,
-                AudienceEducationLevel = c.AudienceEducationLevel,
-                AuthorName = c.AuthorName,
-                AuthorTitle = c.AuthorTitle,
-                AuthorImageUrl = c.AuthorImageUrl,
-                ActivityId = c.ActivityId
-            })
-            .ToListAsync(cancellationToken);
-
-        var filtered = CityContentRules.FilterAudience(rows, audience).ToList();
-        var total = filtered.Count;
-        var items = filtered
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .Select(CityContentMapper.ToPublic)
-            .ToList();
+            .ToListAsync(cancellationToken);
 
-        return Ok(Result<object>.Ok(new PagedResult<CityContentPublicDto>(items, page, pageSize, total)));
+        var pageResult = new PagedResult<CityContentPublicDto>(
+            rows.Select(CityContentMapper.ToPublic).ToList(),
+            page,
+            pageSize,
+            total);
+        _cache.Set(cacheKey, pageResult, PublicCacheTtl);
+        return Ok(Result<object>.Ok(pageResult));
     }
 
     [HttpGet("{id:guid}")]
@@ -189,23 +144,16 @@ public class ContentController : BaseApiController
             query = query.Where(c => c.Title.Contains(term) || (c.Subtitle != null && c.Subtitle.Contains(term)));
         }
 
+        query = CityContentRules.WhereAdminStatus(query, status, now);
+        var total = await query.CountAsync(cancellationToken);
         var rows = await query
             .OrderBy(c => c.Priority)
             .ThenByDescending(c => c.CreatedDate)
-            .ToListAsync(cancellationToken);
-
-        if (!string.IsNullOrWhiteSpace(status))
-        {
-            var wanted = status.Trim();
-            rows = rows.Where(c => CityContentRules.AdminStatus(c, now).Equals(wanted, StringComparison.OrdinalIgnoreCase)).ToList();
-        }
-
-        var total = rows.Count;
-        var items = rows
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .Select(c => CityContentMapper.ToAdmin(c, now))
-            .ToList();
+            .ToListAsync(cancellationToken);
+
+        var items = rows.Select(c => CityContentMapper.ToAdmin(c, now)).ToList();
 
         return Ok(Result<object>.Ok(new PagedResult<CityContentAdminDto>(items, page, pageSize, total)));
     }

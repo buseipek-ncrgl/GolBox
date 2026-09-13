@@ -78,6 +78,58 @@ public class CitizenPlatformPersistenceTests : IDisposable
         var user = new AudienceContext(true, 20, "Üniversite");
         var targeted = CityContentRules.FilterAudience(_db.CityContents.ToList(), user).Select(c => c.Title).ToList();
         Assert.Equal(new[] { "open" }, targeted);
+
+        var guestSql = CityContentRules.WhereAudience(_db.CityContents, null).Select(c => c.Title).ToList();
+        Assert.Equal(new[] { "open" }, guestSql);
+        var userSql = CityContentRules.WhereAudience(_db.CityContents, user).Select(c => c.Title).ToList();
+        Assert.Equal(new[] { "open" }, userSql);
+    }
+
+    [Fact]
+    public void Agenda_Paginates_In_Sql_Without_Loading_All_Rows()
+    {
+        var now = DateTime.UtcNow;
+        for (var i = 1; i <= 15; i++)
+            _db.CityContents.Add(Live($"item-{i:00}", now, i));
+        _db.SaveChanges();
+
+        var query = CityContentRules.WhereLive(_db.CityContents, _orgId, now).OrderBy(c => c.Priority);
+        Assert.Equal(15, query.Count());
+        var page2 = query.Skip(10).Take(5).Select(c => c.Title).ToList();
+        Assert.Equal(new[] { "item-11", "item-12", "item-13", "item-14", "item-15" }, page2);
+    }
+
+    [Fact]
+    public void Read_All_Updates_Only_Current_User()
+    {
+        var other = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
+        _db.Users.Add(new User
+        {
+            Id = other,
+            OrganizationId = _orgId,
+            Email = "other2@test.local",
+            NormalizedEmail = "OTHER2@TEST.LOCAL",
+            PasswordHash = "x",
+            FirstName = "Other",
+            LastName = "User",
+            Role = "User"
+        });
+        _db.UserNotifications.AddRange(
+            new UserNotification { OrganizationId = _orgId, UserId = _userId, Title = "A", Body = "a", Type = "General", IsRead = false },
+            new UserNotification { OrganizationId = _orgId, UserId = _userId, Title = "B", Body = "b", Type = "General", IsRead = false },
+            new UserNotification { OrganizationId = _orgId, UserId = other, Title = "C", Body = "c", Type = "General", IsRead = false }
+        );
+        _db.SaveChanges();
+
+        var now = DateTime.UtcNow;
+        _db.UserNotifications
+            .Where(n => n.UserId == _userId && !n.IsRead)
+            .ExecuteUpdate(setters => setters
+                .SetProperty(n => n.IsRead, true)
+                .SetProperty(n => n.ReadAt, now));
+
+        Assert.Equal(0, _db.UserNotifications.Count(n => n.UserId == _userId && !n.IsRead));
+        Assert.Equal(1, _db.UserNotifications.Count(n => n.UserId == other && !n.IsRead));
     }
 
     [Fact]

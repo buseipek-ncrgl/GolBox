@@ -89,6 +89,50 @@ public static class CityContentRules
             c.StartAt <= utcNow &&
             (c.EndAt == null || c.EndAt >= utcNow));
 
+    public static IQueryable<CityContent> WhereAudience(IQueryable<CityContent> query, AudienceContext? audience)
+    {
+        if (audience is null || !audience.IsAuthenticated)
+            return query.Where(c => c.AudienceType == AudienceTypes.Everyone);
+
+        var age = audience.Age;
+        var edu = string.IsNullOrWhiteSpace(audience.EducationLevel)
+            ? null
+            : NormalizeEducation(audience.EducationLevel);
+        var lise = edu == "Lise";
+        var uni = edu == "Üniversite";
+
+        return query.Where(c =>
+            c.AudienceType == AudienceTypes.Everyone
+            || c.AudienceType == AudienceTypes.LoggedIn
+            || (c.AudienceType == AudienceTypes.AgeRange
+                && age != null
+                && (c.AudienceMinAge == null || age >= c.AudienceMinAge)
+                && (c.AudienceMaxAge == null || age <= c.AudienceMaxAge))
+            || (c.AudienceType == AudienceTypes.EducationLevel
+                && edu != null
+                && (c.AudienceEducationLevel == edu
+                    || (lise && (c.AudienceEducationLevel == "HighSchool" || c.AudienceEducationLevel == "Lise"))
+                    || (uni && (c.AudienceEducationLevel == "University"
+                                 || c.AudienceEducationLevel == "Universite"
+                                 || c.AudienceEducationLevel == "Üniversite")))));
+    }
+
+    public static IQueryable<CityContent> WhereAdminStatus(IQueryable<CityContent> query, string? status, DateTime utcNow)
+    {
+        if (string.IsNullOrWhiteSpace(status))
+            return query;
+
+        return status.Trim() switch
+        {
+            AdminContentStatuses.Draft => query.Where(c => !c.IsPublished),
+            AdminContentStatuses.Scheduled => query.Where(c => c.IsPublished && c.StartAt > utcNow),
+            AdminContentStatuses.Expired => query.Where(c => c.IsPublished && c.EndAt != null && c.EndAt < utcNow),
+            AdminContentStatuses.Published => query.Where(c =>
+                c.IsPublished && c.StartAt <= utcNow && (c.EndAt == null || c.EndAt >= utcNow)),
+            _ => query
+        };
+    }
+
     public static IEnumerable<CityContent> FilterAudience(IEnumerable<CityContent> items, AudienceContext? audience) =>
         items.Where(item => MatchesAudience(item, audience));
 }

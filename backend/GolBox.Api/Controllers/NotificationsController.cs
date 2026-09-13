@@ -136,15 +136,12 @@ public class NotificationsController : BaseApiController
             return Unauthorized(Result<object>.Fail("Giriş gerekli."));
 
         var now = DateTime.UtcNow;
-        var unread = await _context.UserNotifications
+        await _context.UserNotifications
             .Where(n => n.UserId == _currentUser.UserId.Value && !n.IsRead)
-            .ToListAsync(cancellationToken);
-        foreach (var row in unread)
-        {
-            row.IsRead = true;
-            row.ReadAt = now;
-        }
-        await _context.SaveChangesAsync(cancellationToken);
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(n => n.IsRead, true)
+                .SetProperty(n => n.ReadAt, now)
+                .SetProperty(n => n.UpdatedDate, now), cancellationToken);
         return Ok(Result<object>.Ok(new UnreadCountDto(0), "Tüm bildirimler okundu."));
     }
 
