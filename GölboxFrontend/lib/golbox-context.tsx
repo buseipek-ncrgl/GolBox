@@ -142,6 +142,8 @@ interface GolboxContextType {
   fieldDrops: FieldDropNearby[]
   myCaptures: FieldDropCapture[]
   loading: boolean
+  sessionReady: boolean
+  sessionError: boolean
   login: (email: string, password: string) => Promise<boolean>
   logout: () => void
   register: (data: any) => Promise<boolean>
@@ -216,6 +218,8 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
   const [fieldDrops, setFieldDrops] = useState<FieldDropNearby[]>([])
   const [myCaptures, setMyCaptures] = useState<FieldDropCapture[]>([])
   const [loading, setLoading] = useState(false)
+  const [sessionReady, setSessionReady] = useState(false)
+  const [sessionError, setSessionError] = useState(false)
   const showToast = useGolToast()
 
   // Load token from localStorage on mount
@@ -228,6 +232,7 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
 
   const refreshData = useCallback(async () => {
     const authHeader: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {}
+    setSessionError(false)
     try {
       // 1. Fetch profile and collected field boxes first so Home/Profile
       // do not wait on cafe menus.
@@ -348,6 +353,9 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
 
     } catch (e) {
       console.error("Failed to load user session data", e)
+      setSessionError(true)
+    } finally {
+      setSessionReady(true)
     }
   }, [token])
 
@@ -756,6 +764,8 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
         fieldDrops,
         myCaptures,
         loading,
+        sessionReady,
+        sessionError,
         login,
         logout,
         register,

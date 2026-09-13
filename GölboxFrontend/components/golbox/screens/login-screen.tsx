@@ -45,9 +45,9 @@ export function LoginScreen({
         <div className="flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary mb-3">
           <ShieldCheck className="size-8" strokeWidth={2} />
         </div>
-        <h2 className="font-serif text-2xl text-foreground">GölBox</h2>
+        <h2 className="font-serif text-2xl text-foreground">Şehitkamil+</h2>
         <p className="mt-1.5 text-center text-xs text-muted-foreground px-4">
-          Şehitkamil Belediyesi sadakat uygulaması.
+          Şehitkamil Belediyesi vatandaş uygulaması.
         </p>
         {onClose && (
           <button type="button" onClick={onClose} className="mt-3 text-sm font-medium text-primary">

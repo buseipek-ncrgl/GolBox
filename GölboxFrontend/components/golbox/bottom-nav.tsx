@@ -23,33 +23,28 @@ export function BottomNav({
       aria-label="Ana gezinme"
       className="pointer-events-none absolute inset-x-0 bottom-0 z-20 px-4 pb-[max(0.7rem,env(safe-area-inset-bottom))]"
     >
-      <ul className="pointer-events-auto mx-auto flex max-w-[22rem] items-center justify-between gap-1 rounded-full border border-white/50 bg-background/78 p-1.5 shadow-[0_18px_40px_-24px_rgba(29,95,96,0.55)] backdrop-blur-2xl">
+      <ul className="pointer-events-auto mx-auto flex max-w-[22rem] items-center justify-between rounded-[22px] border border-border bg-background/92 p-1.5 shadow-[0_4px_20px_rgba(20,40,35,0.06)]">
         {items.map((item) => {
           const isActive = active === item.id
+          const isQr = item.id === "qr"
           const Icon = item.icon
           return (
-            <li key={item.id} className="flex justify-center">
+            <li key={item.id} className="flex flex-1 justify-center">
               <button
                 type="button"
                 onClick={() => onChange(item.id)}
                 aria-label={item.id === "home" ? "Ana Sayfa" : item.label}
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
-                  "flex h-11 items-center justify-center rounded-full transition-all duration-300 ease-out",
+                  "flex min-h-11 min-w-11 flex-col items-center justify-center gap-0.5 rounded-[16px] px-2 py-1.5 text-[11px] font-semibold transition-colors",
                   isActive
-                    ? "bg-primary px-4 text-primary-foreground shadow-[0_8px_18px_-10px_rgba(29,95,96,0.9)]"
-                    : "w-11 text-muted-foreground hover:text-foreground",
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground",
+                  isQr && !isActive ? "text-primary" : null,
                 )}
               >
-                <Icon className="size-[1.15rem] shrink-0" strokeWidth={isActive ? 2.3 : 1.9} />
-                <span
-                  className={cn(
-                    "overflow-hidden text-[11px] font-semibold tracking-wide",
-                    isActive ? "ml-1.5 max-w-16" : "ml-0 max-w-0",
-                  )}
-                >
-                  {item.label}
-                </span>
+                <Icon className="size-[1.15rem]" strokeWidth={isActive || isQr ? 2.2 : 1.9} />
+                <span>{item.label}</span>
               </button>
             </li>
           )
