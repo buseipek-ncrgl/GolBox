@@ -3,7 +3,6 @@
 import { ArrowRight } from "lucide-react"
 import { GPValue } from "@/components/golbox/gp-value"
 import { HomeSectionHeader } from "@/components/golbox/home-section-header"
-import { VISIT_BONUS_POINTS } from "@/lib/city-content"
 import type { FieldDropNearby } from "@/lib/golbox-context"
 
 export type EarnCard = {
@@ -15,13 +14,13 @@ export type EarnCard = {
   action: "qr" | "map"
 }
 
-export function buildEarnCards(drop?: FieldDropNearby | null): EarnCard[] {
+export function buildEarnCards(drop?: FieldDropNearby | null, visitBonusPoints = 15): EarnCard[] {
   const cards: EarnCard[] = [
     {
       id: "visit",
       title: "Göl Kafe ziyareti",
       description: "Kasada QR’ını göster.",
-      points: VISIT_BONUS_POINTS,
+      points: visitBonusPoints,
       cta: "QR’ı aç",
       action: "qr",
     },
@@ -66,12 +65,14 @@ export function EarnPointsCard({
 
 export function EarnPointsSection({
   drop,
+  visitBonusPoints = 15,
   onAction,
 }: {
   drop?: FieldDropNearby | null
+  visitBonusPoints?: number
   onAction: (action: EarnCard["action"]) => void
 }) {
-  const cards = buildEarnCards(drop)
+  const cards = buildEarnCards(drop, visitBonusPoints)
   if (cards.length === 0) return null
   return (
     <section aria-label="Şehrinde kazan" className="-mx-5 bg-[color:var(--color-brand-50)] px-5 py-4">

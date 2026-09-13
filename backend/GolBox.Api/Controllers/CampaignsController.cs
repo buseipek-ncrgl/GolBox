@@ -1,6 +1,8 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using GolBox.Application.Authorization;
+using GolBox.Application.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -21,6 +23,7 @@ public class CampaignsController : BaseApiController
     }
 
     [HttpGet]
+    [Authorize(Policy = AuthorizationPolicies.StaffOrAdmin)]
     public async Task<IActionResult> GetCampaigns()
     {
         var list = await _context.Campaigns
@@ -30,13 +33,14 @@ public class CampaignsController : BaseApiController
     }
 
     [HttpPost]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
     public async Task<IActionResult> CreateCampaign([FromBody] CreateCampaignRequest request)
     {
         var org = await _context.Organizations.FirstOrDefaultAsync();
         var campaign = new Campaign
         {
             Id = Guid.NewGuid(),
-            OrganizationId = org?.Id ?? Guid.Parse("11111111-1111-1111-1111-111111111111"),
+            OrganizationId = org?.Id ?? KnownOrganizations.Sehitkamil,
             Title = request.Title,
             Description = request.Description,
             ImageUrl = request.ImageUrl,
@@ -54,6 +58,7 @@ public class CampaignsController : BaseApiController
 
         _context.Campaigns.Add(campaign);
         await _context.SaveChangesAsync();
+        await AuditLogsController.LogAsync(_context, "admin", "Admin", "Campaign_Create", "Campaigns", "Campaign", campaign.Id.ToString(), null, campaign.Title, null);
 
         return Ok(Result<object>.Ok(new { id = campaign.Id }, "Kampanya başarıyla oluşturuldu."));
     }

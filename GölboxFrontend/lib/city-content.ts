@@ -41,8 +41,7 @@ export interface CityContentItem {
   imageFocus?: string
 }
 
-/** Mirrors org setting `visitBonusPoints`. No public settings API exists. */
-export const VISIT_BONUS_POINTS = 15
+/** Visit bonus is read from GET /settings/public (`visitBonusPoints`). */
 
 export const CITY_CONTENT_SOURCE = "local-cms-adapter" as const
 

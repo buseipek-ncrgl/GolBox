@@ -1,6 +1,8 @@
 using System;
 using System.Threading.Tasks;
 using MediatR;
+using GolBox.Application.Authorization;
+using GolBox.Application.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using GolBox.Application.Common;
@@ -63,6 +65,7 @@ public class TasksController : BaseApiController
     }
 
     [HttpPost]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
     public async Task<IActionResult> CreateTask([FromBody] CreateTaskCommand command)
     {
         var result = await _mediator.Send(command);
@@ -70,6 +73,7 @@ public class TasksController : BaseApiController
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
     public async Task<IActionResult> DeleteTask(Guid id)
     {
         var task = await _context.Tasks.FindAsync(id);

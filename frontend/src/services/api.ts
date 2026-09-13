@@ -1,4 +1,6 @@
-const API_BASE_URL = 'http://localhost:5155/api/v1';
+export const API_BASE_URL =
+  (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '') ||
+  (import.meta.env.DEV ? 'http://localhost:5155/api/v1' : '/api/v1');
 
 interface ApiResponse<T> {
   success: boolean;

@@ -1,6 +1,8 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using GolBox.Application.Authorization;
+using GolBox.Application.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -21,6 +23,7 @@ public class NotificationsController : BaseApiController
     }
 
     [HttpGet]
+    [Authorize(Policy = AuthorizationPolicies.StaffOrAdmin)]
     public async Task<IActionResult> GetNotifications()
     {
         var list = await _context.Notifications
@@ -30,6 +33,7 @@ public class NotificationsController : BaseApiController
     }
 
     [HttpPost("send")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
     public async Task<IActionResult> SendNotification([FromBody] SendNotificationRequest request)
     {
         var org = await _context.Organizations.FirstOrDefaultAsync();
@@ -44,7 +48,7 @@ public class NotificationsController : BaseApiController
         var notification = new NotificationRecord
         {
             Id = Guid.NewGuid(),
-            OrganizationId = org?.Id ?? Guid.Parse("11111111-1111-1111-1111-111111111111"),
+            OrganizationId = org?.Id ?? KnownOrganizations.Sehitkamil,
             Title = request.Title,
             Message = request.Message,
             ImageUrl = request.ImageUrl,
@@ -60,6 +64,7 @@ public class NotificationsController : BaseApiController
 
         _context.Notifications.Add(notification);
         await _context.SaveChangesAsync();
+        await AuditLogsController.LogAsync(_context, "admin", "Admin", "Notification_Send", "Notifications", "NotificationRecord", notification.Id.ToString(), null, notification.Title, request.TargetUserGroup);
 
         return Ok(Result<object>.Ok(new { notificationId = notification.Id, recipientCount }, $"Bildirim {recipientCount} vatandaşa başarıyla gönderildi."));
     }

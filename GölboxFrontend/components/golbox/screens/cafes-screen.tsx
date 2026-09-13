@@ -10,7 +10,7 @@ export function CafesScreen({
   onOpenCafe: (id: string) => void
   embedded?: boolean
 }) {
-  const { cafes: liveCafes } = useGolbox()
+  const { cafes: liveCafes, cafesLoadState, refreshData } = useGolbox()
   const [searchQuery, setSearchQuery] = useState("")
 
   const cards = liveCafes.map((cafe) => ({
@@ -63,16 +63,29 @@ export function CafesScreen({
         )}
       </div>
 
-      {filteredCards.length === 0 ? (
+      {cafesLoadState === "error" ? (
+        <div className="gol-card flex flex-col items-center gap-2 border-dashed px-6 py-10 text-center">
+          <Search className="size-8 text-muted-foreground" />
+          <p className="text-sm font-medium text-foreground">Kafeler yüklenemedi.</p>
+          <p className="text-xs text-muted-foreground">Bağlantıyı kontrol edip tekrar deneyin.</p>
+          <button
+            type="button"
+            onClick={() => void refreshData()}
+            className="mt-2 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground"
+          >
+            Tekrar dene
+          </button>
+        </div>
+      ) : filteredCards.length === 0 ? (
         <div className="gol-card flex flex-col items-center gap-2 border-dashed px-6 py-10 text-center">
           <Search className="size-8 text-muted-foreground" />
           <p className="text-sm font-medium text-foreground">
-            {searchQuery ? "Kafe bulunamadı" : "Göl Kafeler yüklenemedi"}
+            {searchQuery ? "Kafe bulunamadı" : "Henüz yayınlanmış kafe bulunmuyor."}
           </p>
           <p className="text-xs text-muted-foreground">
             {searchQuery
               ? `"${searchQuery}" ile eşleşen kafe yok.`
-              : "Canlı kafe listesi şu an alınamadı."}
+              : "Yeni tesisler yayınlandığında burada görünür."}
           </p>
         </div>
       ) : (

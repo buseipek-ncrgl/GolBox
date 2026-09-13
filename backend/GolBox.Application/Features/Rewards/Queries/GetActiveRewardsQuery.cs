@@ -45,7 +45,7 @@ public class GetActiveRewardsQueryHandler : IRequestHandler<GetActiveRewardsQuer
 
     public async Task<Result<PagedRewardsResult>> Handle(GetActiveRewardsQuery request, CancellationToken cancellationToken)
     {
-        var organizationId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var organizationId = KnownOrganizations.Sehitkamil;
         var currentUserId = _currentUserService.UserId;
         if (currentUserId != null && currentUserId != Guid.Empty)
         {

@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using MediatR;
+using GolBox.Application.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using GolBox.Application.Features.Activities.Commands;
@@ -38,6 +39,7 @@ public class ActivitiesController : BaseApiController
     }
 
     [HttpPost]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
     public async Task<IActionResult> CreateActivity([FromBody] CreateActivityRequest request)
     {
         var activity = new Activity
@@ -55,11 +57,13 @@ public class ActivitiesController : BaseApiController
 
         _context.Activities.Add(activity);
         await _context.SaveChangesAsync();
+        await AuditLogsController.LogAsync(_context, "admin", "Admin", "Activity_Create", "Activities", "Activity", activity.Id.ToString(), null, activity.Title, null);
 
         return Ok(Result<object>.Ok(new { id = activity.Id }, "Etkinlik başarıyla oluşturuldu."));
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
     public async Task<IActionResult> DeleteActivity(Guid id)
     {
         var activity = await _context.Activities.FindAsync(id);
@@ -76,7 +80,7 @@ public class ActivitiesController : BaseApiController
 
 public class CreateActivityRequest
 {
-    public Guid OrganizationId { get; set; } = Guid.Parse("11111111-1111-1111-1111-111111111111");
+    public Guid OrganizationId { get; set; } = KnownOrganizations.Sehitkamil;
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public int PointsReward { get; set; }

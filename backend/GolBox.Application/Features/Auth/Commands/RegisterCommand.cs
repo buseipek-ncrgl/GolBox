@@ -33,18 +33,18 @@ public class RegisterCommandHandler : IRequestHandler<RegisterCommand, Result<Gu
 
     public async Task<Result<Guid>> Handle(RegisterCommand request, CancellationToken cancellationToken)
     {
-        // Check organization exists
-        var orgExists = await _context.Organizations
-            .AnyAsync(o => o.Id == request.OrganizationId, cancellationToken);
+        var org = await _context.Organizations
+            .OrderBy(o => o.CreatedDate)
+            .FirstOrDefaultAsync(cancellationToken)
+            ?? await _context.Organizations.FirstOrDefaultAsync(o => o.Id == KnownOrganizations.Sehitkamil, cancellationToken);
 
-        if (!orgExists)
-        {
-            return Result<Guid>.Fail("Belirtilen organizasyon (belediye) sistemde kayıtlı değil.");
-        }
+        if (org == null)
+            return Result<Guid>.Fail("Kayıt için varsayılan belediye bulunamadı.");
 
-        // Email uniqueness check (per Organization)
+        var organizationId = org.Id;
+
         var emailExists = await _context.Users
-            .AnyAsync(u => u.Email.ToLower() == request.Email.ToLower() && u.OrganizationId == request.OrganizationId, cancellationToken);
+            .AnyAsync(u => u.Email.ToLower() == request.Email.ToLower() && u.OrganizationId == organizationId, cancellationToken);
 
         if (emailExists)
         {
@@ -53,7 +53,7 @@ public class RegisterCommandHandler : IRequestHandler<RegisterCommand, Result<Gu
 
         var user = new User
         {
-            OrganizationId = request.OrganizationId,
+            OrganizationId = organizationId,
             Email = request.Email,
             NormalizedEmail = request.Email.ToUpper(),
             FirstName = request.FirstName,

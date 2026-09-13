@@ -10,10 +10,18 @@ public class NotificationHub : Hub
 {
     public async Task JoinUserGroup(string userId)
     {
-        if (!string.IsNullOrWhiteSpace(userId))
-        {
-            await Groups.AddToGroupAsync(Context.ConnectionId, $"User_{userId}");
-        }
+        if (string.IsNullOrWhiteSpace(userId))
+            return;
+
+        var currentId = Context.UserIdentifier
+            ?? Context.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        var role = Context.User?.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+        var isStaff = string.Equals(role, "Staff", StringComparison.OrdinalIgnoreCase)
+                      || string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase);
+        if (!isStaff && !string.Equals(currentId, userId, StringComparison.OrdinalIgnoreCase))
+            return;
+
+        await Groups.AddToGroupAsync(Context.ConnectionId, $"User_{userId}");
     }
 
     public async Task LeaveUserGroup(string userId)

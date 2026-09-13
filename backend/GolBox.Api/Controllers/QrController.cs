@@ -1,12 +1,12 @@
-using System;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using GolBox.Application.Authorization;
 using GolBox.Application.Common;
 using GolBox.Application.Features.Qr.Commands;
 using GolBox.Application.Interfaces;
-using GolBox.Infrastructure.Services;
 
 namespace GolBox.Api.Controllers;
 
@@ -25,7 +25,8 @@ public class QrController : BaseApiController
     }
 
     [HttpPost("scan")]
-    [AllowAnonymous]
+    [Authorize(Policy = AuthorizationPolicies.StaffOrAdmin)]
+    [EnableRateLimiting("qr")]
     public async Task<IActionResult> ScanQr([FromBody] ScanQrCommand command)
     {
         var result = await _mediator.Send(command);
@@ -44,15 +45,16 @@ public class QrController : BaseApiController
         return Ok(Result<object>.Ok(new { qrToken = token, expiresInSeconds = 30 }));
     }
 
-    [AllowAnonymous]
+    [Authorize(Policy = AuthorizationPolicies.StaffOrAdmin)]
     [HttpPost("verify-dynamic")]
+    [EnableRateLimiting("qr")]
     public IActionResult VerifyDynamicQr([FromBody] VerifyDynamicQrRequest request)
     {
         var validation = _qrService.ValidateDynamicQrToken(request.QrToken);
         if (!validation.IsValid)
             return BadRequest(Result<object>.Fail(validation.ErrorMessage ?? "Geçersiz QR kod."));
 
-        return Ok(Result<object>.Ok(new { userId = validation.UserId, valid = true }));
+        return Ok(Result<object>.Ok(new { userId = validation.UserId, valid = true, timeStep = validation.TimeStep }));
     }
 }
 

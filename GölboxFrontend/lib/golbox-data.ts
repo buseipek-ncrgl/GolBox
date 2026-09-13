@@ -1,5 +1,8 @@
 export type TabId = "home" | "qr" | "map" | "profile"
 
+// Mock user/cafe fixtures are unused in production UI.
+// Keep TabId here so navigation imports stay stable.
+
 export const user = {
   name: "Enes",
   fullName: "Enes Yılmaz",

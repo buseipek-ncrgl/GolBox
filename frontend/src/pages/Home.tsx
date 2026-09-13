@@ -58,7 +58,7 @@ export const Home: React.FC = () => {
               Merhaba, {user.firstName}!
             </h1>
             <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.95rem', marginTop: '0.25rem' }}>
-              Gölbaşı Belediyesi sadakat ekosistemine hoş geldiniz.
+              Şehitkamil Belediyesi sadakat ekosistemine hoş geldiniz.
             </p>
           </div>
           <div style={{ padding: '1rem', borderRadius: '15px', background: 'rgba(255,255,255,0.15)', color: '#fff' }}>

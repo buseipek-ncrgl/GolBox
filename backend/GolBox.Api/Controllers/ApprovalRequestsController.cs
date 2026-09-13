@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using GolBox.Application.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -10,7 +11,7 @@ using GolBox.Domain.Entities;
 
 namespace GolBox.Api.Controllers;
 
-[Authorize]
+[Authorize(Policy = AuthorizationPolicies.AdminOnly)]
 [Route("api/v1/approvals")]
 [Route("api/v1/[controller]")]
 public class ApprovalRequestsController : BaseApiController

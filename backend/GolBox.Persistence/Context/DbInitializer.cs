@@ -172,7 +172,7 @@ public static class DbInitializer
                 Id = Guid.Parse("11111111-1111-1111-1111-111111111111"),
                 Name = "Gaziantep Şehitkamil Belediyesi",
                 ThemeColor = "#1d5f60",
-                LogoUrl = "https://golbasi.bel.tr/logo.png",
+                LogoUrl = null,
                 TimeZone = "Europe/Istanbul"
             };
             context.Organizations.Add(organization);
@@ -181,10 +181,20 @@ public static class DbInitializer
 
         var orgId = Guid.Parse("11111111-1111-1111-1111-111111111111");
         var existingOrg = await context.Organizations.FindAsync(orgId);
-        if (existingOrg != null && existingOrg.Name != "Gaziantep Şehitkamil Belediyesi")
+        if (existingOrg != null)
         {
-            existingOrg.Name = "Gaziantep Şehitkamil Belediyesi";
-            existingOrg.ThemeColor = "#1d5f60";
+            if (existingOrg.Name != "Gaziantep Şehitkamil Belediyesi")
+            {
+                existingOrg.Name = "Gaziantep Şehitkamil Belediyesi";
+                existingOrg.ThemeColor = "#1d5f60";
+            }
+
+            if (!string.IsNullOrWhiteSpace(existingOrg.LogoUrl) &&
+                existingOrg.LogoUrl.Contains("golbasi", StringComparison.OrdinalIgnoreCase))
+            {
+                existingOrg.LogoUrl = null;
+            }
+
             await context.SaveChangesAsync();
         }
 
@@ -406,7 +416,7 @@ public static class DbInitializer
                 {
                     Id = Guid.Parse("66666666-6666-6666-6666-777777777777"),
                     OrganizationId = orgId,
-                    Title = "Gölbaşı Sahil Konseri",
+                    Title = "Şehitkamil Açık Hava Konseri",
                     Description = "Sahil Parkında düzenlenecek olan gençlik konserinde yerini al.",
                     PointsReward = 50,
                     Location = "Atatürk Sahil Parkı",
@@ -633,11 +643,23 @@ public static class DbInitializer
 
     private static async System.Threading.Tasks.Task EnsureProviderSchemaAsync(AppDbContext context)
     {
+        if (context.Database.IsSqlServer())
+        {
+            await context.Database.ExecuteSqlRawAsync(@"
+            IF OBJECT_ID('dbo.FieldDrops', 'U') IS NOT NULL AND COL_LENGTH('dbo.FieldDrops', 'RowVersion') IS NULL
+            BEGIN
+                ALTER TABLE [FieldDrops] ADD [RowVersion] INT NOT NULL CONSTRAINT [DF_FieldDrops_RowVersion] DEFAULT (0);
+            END
+            ");
+            return;
+        }
+
         if (!context.Database.IsSqlite())
             return;
 
         await AddSqliteColumnIfMissingAsync(context, "Cafes", "ImageUrl", "TEXT");
         await AddSqliteColumnIfMissingAsync(context, "Users", "Role", "TEXT NOT NULL DEFAULT 'User'");
+        await AddSqliteColumnIfMissingAsync(context, "FieldDrops", "RowVersion", "INTEGER NOT NULL DEFAULT 0");
 
         await context.Database.ExecuteSqlRawAsync(@"
             CREATE TABLE IF NOT EXISTS ApprovalRequests (
@@ -780,6 +802,7 @@ public static class DbInitializer
                 ImageUrl TEXT NULL,
                 ModelGlbUrl TEXT NULL,
                 IsActive INTEGER NOT NULL,
+                RowVersion INTEGER NOT NULL DEFAULT 0,
                 CreatedDate TEXT NOT NULL,
                 CreatedBy TEXT NULL,
                 UpdatedDate TEXT NULL,

@@ -62,6 +62,14 @@ export const Admin: React.FC = () => {
   const adminRole = currentUser?.role
     || (Array.isArray(currentUser?.roles) ? currentUser.roles[0] : null)
     || 'Admin';
+  const isAdminUser = adminRole === 'Admin';
+  const staffMenuIds = new Set(['overview', 'users', 'cafes', 'products', 'points', 'qr', 'fieldDrops', 'ismarliyor', 'events']);
+
+  useEffect(() => {
+    if (!isAdminUser && !staffMenuIds.has(activeMenu)) {
+      setActiveMenu('overview');
+    }
+  }, [isAdminUser, activeMenu]);
   const adminInitials = `${currentUser?.firstName?.[0] || ''}${currentUser?.lastName?.[0] || ''}`.trim() || 'GB';
   
   // Sidebar Collapse State
@@ -128,8 +136,7 @@ export const Admin: React.FC = () => {
   // Filter & Search State
   const [searchQuery, setSearchQuery] = useState('');
 
-  // POS QR Scan Modal State
-  const [showQrModal, setShowQrModal] = useState(false);
+  // POS QR Scan State
   const [qrTokenInput, setQrTokenInput] = useState('');
   const [qrSelectedCafeId, setQrSelectedCafeId] = useState('');
   const [qrAmount, setQrAmount] = useState<number>(45);
@@ -137,6 +144,7 @@ export const Admin: React.FC = () => {
   const [qrScanResult, setQrScanResult] = useState<any>(null);
   const [qrScanLoading, setQrScanLoading] = useState(false);
   const [qrScanError, setQrScanError] = useState<string | null>(null);
+  const [qrRedeemCode, setQrRedeemCode] = useState('');
 
   // Creation Modals
   const [showAddCafeModal, setShowAddCafeModal] = useState(false);
@@ -711,15 +719,26 @@ export const Admin: React.FC = () => {
     setQrScanResult(null);
 
     try {
-      const selectedCafe = qrSelectedCafeId || (cafesList[0]?.id ?? '33333333-3333-3333-3333-333333333333');
+      if (!qrTokenInput.trim()) {
+        setQrScanError('Vatandaş dinamik QR tokenını girin.');
+        setQrScanLoading(false);
+        return;
+      }
+      const selectedCafe = qrSelectedCafeId || cafesList[0]?.id;
+      if (!selectedCafe) {
+        setQrScanError('Önce bir tesis seçin.');
+        setQrScanLoading(false);
+        return;
+      }
       const res = await api.scanQr({
-        qrToken: qrTokenInput || '88888888-8888-8888-8888-888888888888',
+        qrToken: qrTokenInput.trim(),
         cafeId: selectedCafe,
         amount: Number(qrAmount) || 0,
-        paidWithPoints: qrPaidWithPoints
+        paidWithPoints: qrPaidWithPoints,
+        redeemCode: qrRedeemCode.trim() || null
       });
       setQrScanResult(res);
-      setSuccess(`QR okundu. +${res.pointsEarned} GP. Bakiye: ${res.newPointsBalance} GP`);
+      setSuccess(`QR okundu. ${res.memberName || ''} · ${res.operation || 'işlem'}`);
       fetchData();
     } catch (err: any) {
       setQrScanError(err.message || 'QR Kod doğrulanamadı.');
@@ -969,7 +988,10 @@ export const Admin: React.FC = () => {
                 { id: 'audit', label: 'Denetim', icon: FileCheck }
               ]
             }
-          ].map((grp, idx) => (
+          ].map((grp, idx) => {
+            const items = grp.items.filter((item) => isAdminUser || staffMenuIds.has(item.id));
+            if (items.length === 0) return null;
+            return (
             <div key={idx} style={{ marginBottom: '1.1rem' }}>
               {!sidebarCollapsed && (
                 <div style={{ fontSize: '0.65rem', fontWeight: 700, color: 'rgba(255,255,255,0.55)', padding: '0 0.75rem 0.4rem', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
@@ -977,7 +999,7 @@ export const Admin: React.FC = () => {
                 </div>
               )}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                {grp.items.map((item) => {
+                {items.map((item) => {
                   const Icon = item.icon;
                   const isActive = activeMenu === item.id;
                   return (
@@ -1010,7 +1032,8 @@ export const Admin: React.FC = () => {
                 })}
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
 
         <div style={{ padding: sidebarCollapsed ? '0.75rem 0.5rem' : '0.9rem 1rem', borderTop: '1px solid rgba(255,255,255,0.12)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -1860,7 +1883,45 @@ export const Admin: React.FC = () => {
           {activeMenu === 'qr' && (
             <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
               <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>QR & Teslim Kayıtları</h1>
-              <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: 0 }}>Ismarlıyor teslim kodları ve sipariş durumları.</p>
+              <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: 0 }}>Kasa tarama: dinamik HMAC QR veya kupon RedeemCode.</p>
+
+              <form onSubmit={handleScanQrSubmit} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569' }}>Dinamik QR token
+                  <input required value={qrTokenInput} onChange={(e) => setQrTokenInput(e.target.value)} placeholder="GBQR:..." style={{ width: '100%', marginTop: 4, padding: '0.65rem', border: '1px solid #cbd5e1', borderRadius: 8 }} />
+                </label>
+                <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569' }}>Kupon RedeemCode (opsiyonel)
+                  <input value={qrRedeemCode} onChange={(e) => setQrRedeemCode(e.target.value)} placeholder="Kişiye özel kupon kodu" style={{ width: '100%', marginTop: 4, padding: '0.65rem', border: '1px solid #cbd5e1', borderRadius: 8 }} />
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
+                  <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569' }}>Tesis
+                    <select value={qrSelectedCafeId} onChange={(e) => setQrSelectedCafeId(e.target.value)} style={{ width: '100%', marginTop: 4, padding: '0.65rem', border: '1px solid #cbd5e1', borderRadius: 8 }}>
+                      <option value="">Seçin</option>
+                      {extractArray(cafesList).map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  </label>
+                  <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569' }}>Tutar (TL)
+                    <input type="number" min={0} value={qrAmount} onChange={(e) => setQrAmount(Number(e.target.value))} style={{ width: '100%', marginTop: 4, padding: '0.65rem', border: '1px solid #cbd5e1', borderRadius: 8 }} />
+                  </label>
+                </div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.8rem', fontWeight: 600 }}>
+                  <input type="checkbox" checked={qrPaidWithPoints} onChange={(e) => setQrPaidWithPoints(e.target.checked)} />
+                  GölPuan ile öde
+                </label>
+                {qrScanError && <p style={{ color: '#b91c1c', fontSize: '0.85rem', margin: 0 }}>{qrScanError}</p>}
+                <button type="submit" disabled={qrScanLoading} style={{ padding: '10px', background: '#1d5f60', border: 'none', borderRadius: 10, color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
+                  {qrScanLoading ? 'Okunuyor...' : 'Kasa işlemini uygula'}
+                </button>
+                {qrScanResult && (
+                  <div style={{ background: '#f8fafc', borderRadius: 12, padding: '0.85rem', fontSize: '0.85rem' }}>
+                    <div><strong>Üye:</strong> {qrScanResult.memberName || '—'}</div>
+                    <div><strong>İşlem:</strong> {qrScanResult.operation || '—'}</div>
+                    <div><strong>Puan:</strong> −{qrScanResult.pointsDeducted ?? 0} / +{qrScanResult.pointsEarned ?? 0} · bakiye {qrScanResult.newPointsBalance ?? '—'}</div>
+                    <div><strong>Kupon:</strong> {qrScanResult.couponTitle || qrScanResult.couponCode || '—'}</div>
+                    <div><strong>Sonuç:</strong> {qrScanResult.status || 'Completed'}</div>
+                  </div>
+                )}
+              </form>
+
               <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '16px', overflow: 'hidden' }}>
                 {getFilteredList(ordersList).length === 0 ? (
                   <p style={{ padding: '1.5rem', color: '#64748b' }}>Kayıtlı teslim işlemi yok.</p>

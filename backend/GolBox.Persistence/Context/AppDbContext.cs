@@ -37,7 +37,9 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<ApprovalRequest> ApprovalRequests => Set<ApprovalRequest>();
     public DbSet<Campaign> Campaigns => Set<Campaign>();
     public DbSet<NotificationRecord> Notifications => Set<NotificationRecord>();
+#pragma warning disable CS0618
     public DbSet<Coupon> Coupons => Set<Coupon>();
+#pragma warning restore CS0618
     public DbSet<StaffUser> StaffUsers => Set<StaffUser>();
     public DbSet<FieldDrop> FieldDrops => Set<FieldDrop>();
     public DbSet<UserFieldCapture> UserFieldCaptures => Set<UserFieldCapture>();

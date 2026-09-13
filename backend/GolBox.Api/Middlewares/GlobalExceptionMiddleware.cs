@@ -4,6 +4,7 @@ using System.Net;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using GolBox.Application.Common;
@@ -39,14 +40,24 @@ public class GlobalExceptionMiddleware
     private async Task HandleExceptionAsync(HttpContext context, Exception exception)
     {
         context.Response.ContentType = "application/json";
+
+        if (exception is DbUpdateConcurrencyException)
+        {
+            context.Response.StatusCode = (int)HttpStatusCode.Conflict;
+            var conflict = Result.Fail("Kayıt başka bir işlem tarafından güncellendi. Lütfen tekrar deneyin.");
+            var conflictJson = JsonSerializer.Serialize(conflict, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+            await context.Response.WriteAsync(conflictJson);
+            return;
+        }
+
         context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
 
         var message = "Sunucu tarafında beklenmeyen bir hata oluştu.";
-        var errors = new List<string> { exception.Message };
+        var errors = new List<string> { message };
 
         if (_env.IsDevelopment())
         {
-            errors.Add(exception.StackTrace ?? string.Empty);
+            errors = new List<string> { exception.Message, exception.StackTrace ?? string.Empty };
         }
 
         var response = Result.Fail(message, errors);

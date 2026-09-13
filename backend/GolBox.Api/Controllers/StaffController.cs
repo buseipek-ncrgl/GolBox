@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using GolBox.Application.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -10,7 +11,7 @@ using GolBox.Domain.Entities;
 
 namespace GolBox.Api.Controllers;
 
-[Authorize]
+[Authorize(Policy = AuthorizationPolicies.AdminOnly)]
 public class StaffController : BaseApiController
 {
     private readonly IAppDbContext _context;
@@ -64,6 +65,10 @@ public class StaffController : BaseApiController
             CreatedDate = DateTime.UtcNow
         };
 
+        user.Role = string.Equals(request.Role, "Admin", StringComparison.OrdinalIgnoreCase)
+            ? "Admin"
+            : "Staff";
+
         _context.StaffUsers.Add(staff);
         await _context.SaveChangesAsync();
 
@@ -71,7 +76,7 @@ public class StaffController : BaseApiController
         await AuditLogsController.LogAsync(
             _context,
             currentUser?.Email ?? "admin@golbox.gov.tr",
-            "SuperAdmin",
+            currentUser?.Role ?? "Admin",
             "Staff_Assigned",
             "Staff",
             "StaffUser",

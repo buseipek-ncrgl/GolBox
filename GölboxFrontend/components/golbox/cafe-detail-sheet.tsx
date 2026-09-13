@@ -3,7 +3,6 @@
 import { useState } from "react"
 import { Check, MapPin, Plus, X } from "lucide-react"
 import { CafeCover } from "@/components/golbox/cafe-cover"
-import { cafes as mockCafes } from "@/lib/golbox-data"
 import { useGolToast } from "@/components/golbox/gol-toast"
 import { useGolbox } from "@/lib/golbox-context"
 import { LoginScreen } from "@/components/golbox/screens/login-screen"
@@ -12,41 +11,38 @@ export function CafeDetailSheet({ cafeId, onClose }: { cafeId: string; onClose: 
   const { cafes: liveCafes, token, createOrder, loading } = useGolbox()
   const notify = useGolToast()
   const live = liveCafes.find((cafe) => cafe.id === cafeId)
-  const mock = mockCafes.find((cafe) => cafe.id === cafeId)
   const [prep, setPrep] = useState<string[]>([])
   const [showLogin, setShowLogin] = useState(false)
   const [sending, setSending] = useState(false)
 
-  if (!live && !mock) return null
+  if (!live) {
+    return (
+      <div className="absolute inset-0 z-50">
+        <button type="button" aria-label="Kapat" onClick={onClose} className="gol-fade absolute inset-0 bg-foreground/40 backdrop-blur-[2px]" />
+        <div className="gol-sheet-up absolute inset-x-0 bottom-0 top-24 flex flex-col items-center justify-center gap-3 rounded-t-[2rem] bg-background px-6 text-center">
+          <p className="font-semibold text-foreground">Kafe bulunamadı</p>
+          <p className="text-sm text-muted-foreground">Bu tesis canlı listede yok.</p>
+          <button type="button" onClick={onClose} className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">
+            Kapat
+          </button>
+        </div>
+      </div>
+    )
+  }
 
-  const name = live?.name ?? mock!.name
-  const address = live?.address ?? mock!.address
-  const category = live?.categoryName ?? mock?.category ?? "Kitap Kafe"
-  const imageUrl = live?.imageUrl
-  const open = live ? live.isActive !== false : mock?.open !== false
-  const statusLabel = live
-    ? open
-      ? "Açık"
-      : "Kapalı"
-    : mock?.open
-      ? `Açık · ${mock.closeAt}`
-      : "Kapalı"
-
-  const liveItems = live?.menuItems ?? []
-  const mockGroups = mock?.menu ?? []
+  const name = live.name
+  const address = live.address
+  const category = live.categoryName ?? "Kitap Kafe"
+  const imageUrl = live.imageUrl
+  const open = live.isActive !== false
+  const statusLabel = open ? "Açık" : "Kapalı"
+  const liveItems = live.menuItems ?? []
 
   const toggleLive = (id: string) => {
     setPrep((prev) => (prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]))
   }
 
-  const toggleMock = (itemName: string) => {
-    const alreadyAdded = prep.includes(itemName)
-    setPrep((prev) => (alreadyAdded ? prev.filter((item) => item !== itemName) : [...prev, itemName]))
-    if (!alreadyAdded) notify(`${itemName} hazırlığa eklendi`)
-  }
-
   const submitLive = async () => {
-    if (!live) return
     if (!token) {
       setShowLogin(true)
       return
@@ -62,11 +58,6 @@ export function CafeDetailSheet({ cafeId, onClose }: { cafeId: string; onClose: 
       notify("Ismarlıyor listene eklendi")
       onClose()
     }
-  }
-
-  const submitMock = () => {
-    notify("Hazırlığın kaydedildi · kasada QR yeter")
-    onClose()
   }
 
   return (
@@ -102,11 +93,6 @@ export function CafeDetailSheet({ cafeId, onClose }: { cafeId: string; onClose: 
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium text-card-foreground">{address}</p>
-              {mock && !live && (
-                <p className="text-xs text-muted-foreground">
-                  {mock.distance} · {mock.walk}
-                </p>
-              )}
             </div>
             <span
               className={`rounded-full px-3 py-1 text-xs font-medium ${
@@ -119,74 +105,40 @@ export function CafeDetailSheet({ cafeId, onClose }: { cafeId: string; onClose: 
 
           <section className="space-y-3">
             <div>
-              <h3 className="text-sm font-semibold text-foreground">{live ? "Ismarlıyor" : "Hazırlık Alanı"}</h3>
+              <h3 className="text-sm font-semibold text-foreground">Ismarlıyor</h3>
               <p className="text-xs text-muted-foreground">
-                {live
-                  ? "Seçtiklerin seni bekleyen ikramlara düşer. Katalog ödülü ve saha kutusu buradan ayrıdır."
-                  : "Seçtiklerin kasada seni bekler. Ödeme QR ile yapılır."}
+                Seçtiklerin seni bekleyen ikramlara düşer. Katalog ödülü ve saha kutusu buradan ayrıdır.
               </p>
             </div>
 
-            {live ? (
-              <ul className="overflow-hidden rounded-2xl border border-border bg-card">
-                {liveItems.length === 0 ? (
-                  <li className="px-4 py-6 text-center text-sm text-muted-foreground">Menü henüz yüklenmedi.</li>
-                ) : (
-                  liveItems.map((item) => {
-                    const active = prep.includes(item.id)
-                    return (
-                      <li key={item.id} className="flex items-center gap-3 border-b border-border px-4 py-3 last:border-0">
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium text-card-foreground">{item.name}</p>
-                          <p className="text-xs text-muted-foreground">₺{item.price}</p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => toggleLive(item.id)}
-                          aria-pressed={active}
-                          aria-label={`${item.name} ekle`}
-                          className={`flex size-8 items-center justify-center rounded-full transition-colors ${
-                            active ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"
-                          }`}
-                        >
-                          {active ? <Check className="size-4" /> : <Plus className="size-4" />}
-                        </button>
-                      </li>
-                    )
-                  })
-                )}
-              </ul>
-            ) : (
-              mockGroups.map((group) => (
-                <div key={group.section} className="space-y-2">
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{group.section}</p>
-                  <ul className="overflow-hidden rounded-2xl border border-border bg-card">
-                    {group.items.map((item) => {
-                      const active = prep.includes(item.name)
-                      return (
-                        <li key={item.name} className="flex items-center gap-3 border-b border-border px-4 py-3 last:border-0">
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-medium text-card-foreground">{item.name}</p>
-                            <p className="text-xs text-muted-foreground">{item.price}</p>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => toggleMock(item.name)}
-                            aria-pressed={active}
-                            aria-label={`${item.name} hazırlığa ekle`}
-                            className={`flex size-8 items-center justify-center rounded-full transition-colors ${
-                              active ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"
-                            }`}
-                          >
-                            {active ? <Check className="size-4" /> : <Plus className="size-4" />}
-                          </button>
-                        </li>
-                      )
-                    })}
-                  </ul>
-                </div>
-              ))
-            )}
+            <ul className="overflow-hidden rounded-2xl border border-border bg-card">
+              {liveItems.length === 0 ? (
+                <li className="px-4 py-6 text-center text-sm text-muted-foreground">Menü henüz yüklenmedi.</li>
+              ) : (
+                liveItems.map((item) => {
+                  const active = prep.includes(item.id)
+                  return (
+                    <li key={item.id} className="flex items-center gap-3 border-b border-border px-4 py-3 last:border-0">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-card-foreground">{item.name}</p>
+                        <p className="text-xs text-muted-foreground">₺{item.price}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => toggleLive(item.id)}
+                        aria-pressed={active}
+                        aria-label={`${item.name} ekle`}
+                        className={`flex size-8 items-center justify-center rounded-full transition-colors ${
+                          active ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"
+                        }`}
+                      >
+                        {active ? <Check className="size-4" /> : <Plus className="size-4" />}
+                      </button>
+                    </li>
+                  )
+                })
+              )}
+            </ul>
           </section>
         </div>
 
@@ -195,16 +147,10 @@ export function CafeDetailSheet({ cafeId, onClose }: { cafeId: string; onClose: 
             <button
               type="button"
               disabled={sending || loading}
-              onClick={live ? submitLive : submitMock}
+              onClick={submitLive}
               className="flex w-full items-center justify-center rounded-full bg-primary py-3.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
             >
-              {live
-                ? sending
-                  ? "Gönderiliyor..."
-                  : token
-                    ? `${prep.length} ürün · Ismarla`
-                    : "Giriş yap ve ısmarla"
-                : `${prep.length} ürün hazır · Kasada QR göster`}
+              {sending ? "Gönderiliyor..." : token ? `${prep.length} ürün · Ismarla` : "Giriş yap ve ısmarla"}
             </button>
           </div>
         )}

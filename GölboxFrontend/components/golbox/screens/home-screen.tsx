@@ -68,6 +68,7 @@ export function HomeScreen({
     sessionReady,
     sessionError,
     refreshData,
+    publicSettings,
   } = useGolbox()
   const { origin, permission } = useCitizenLocation()
   const capture = useCaptureSession(origin, fieldDrops)
@@ -206,6 +207,7 @@ export function HomeScreen({
 
       <EarnPointsSection
         drop={isLoggedIn ? nearbyDrop : null}
+        visitBonusPoints={publicSettings.visitBonusPoints}
         onAction={(action) => onNavigate(action)}
       />
 

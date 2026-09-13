@@ -51,6 +51,16 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, R
 
         if (existingToken.RevokedAt != null)
         {
+            var activeTokens = await _context.RefreshTokens
+                .Where(t => t.UserId == existingToken.UserId && t.RevokedAt == null)
+                .ToListAsync(cancellationToken);
+            foreach (var token in activeTokens)
+            {
+                token.RevokedAt = DateTime.UtcNow;
+                token.RevokedByIp = request.IpAddress;
+            }
+
+            await _context.SaveChangesAsync(cancellationToken);
             return Result<AuthDto>.Fail("Bu Refresh Token iptal edilmiş. Güvenlik ihlali şüphesi.");
         }
 
@@ -83,12 +93,13 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, R
             user.LastName,
             user.Email,
             user.PointsBalance,
-            new List<string> { "User" }
+            new List<string> { string.IsNullOrWhiteSpace(user.Role) ? "User" : user.Role }
         );
 
+        var expiresMinutes = 480;
         var authDto = new AuthDto(
             newAccessToken,
-            900,
+            expiresMinutes * 60,
             newRawRefreshToken,
             userDto
         );

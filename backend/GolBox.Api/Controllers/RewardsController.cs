@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using MediatR;
+using GolBox.Application.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using GolBox.Application.Features.Rewards.Commands;
@@ -54,6 +55,7 @@ public class RewardsController : BaseApiController
     }
 
     [HttpPost]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
     public async Task<IActionResult> CreateReward([FromBody] CreateRewardRequest request)
     {
         var reward = new Reward
@@ -69,11 +71,13 @@ public class RewardsController : BaseApiController
 
         _context.Rewards.Add(reward);
         await _context.SaveChangesAsync();
+        await AuditLogsController.LogAsync(_context, "admin", "Admin", "Reward_Create", "Rewards", "Reward", reward.Id.ToString(), null, reward.Title, null);
 
         return Ok(Result<object>.Ok(new { id = reward.Id }, "Ödül başarıyla oluşturuldu."));
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
     public async Task<IActionResult> DeleteReward(Guid id)
     {
         var reward = await _context.Rewards.FindAsync(id);
@@ -84,13 +88,14 @@ public class RewardsController : BaseApiController
         reward.DeletedDate = DateTime.UtcNow;
         
         await _context.SaveChangesAsync();
+        await AuditLogsController.LogAsync(_context, "admin", "Admin", "Reward_Delete", "Rewards", "Reward", id.ToString(), reward.Title, null, null);
         return Ok(Result<object>.Ok(new { id }, "Ödül başarıyla silindi."));
     }
 }
 
 public class CreateRewardRequest
 {
-    public Guid OrganizationId { get; set; } = Guid.Parse("11111111-1111-1111-1111-111111111111");
+    public Guid OrganizationId { get; set; } = KnownOrganizations.Sehitkamil;
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public int RequiredPoints { get; set; }

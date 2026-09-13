@@ -64,7 +64,7 @@ public class ExpiredItemsCleanupService : BackgroundService
 
         // 2. Expire User Rewards / Coupons if expired
         var expiredRewards = await context.UserRewards
-            .Where(r => r.Status == "Active" && r.ExpiresAt < now)
+            .Where(r => r.Status == "Claimed" && r.ExpiresAt < now)
             .ToListAsync(cancellationToken);
 
         if (expiredRewards.Count > 0)

@@ -18,6 +18,15 @@ export const Login: React.FC = () => {
 
     try {
       const loginResponse = await api.login({ email, password });
+      const roles = [
+        loginResponse.user?.role,
+        ...(Array.isArray(loginResponse.user?.roles) ? loginResponse.user.roles : []),
+      ].filter(Boolean) as string[];
+      const allowed = roles.some((role) => role === 'Admin' || role === 'Staff');
+      if (!allowed) {
+        setError('Bu panele yalnızca personel ve yöneticiler girebilir.');
+        return;
+      }
       login(loginResponse.accessToken, loginResponse.refreshToken, loginResponse.user);
     } catch (err: any) {
       setError(err.message || 'Giriş işlemi başarısız. E-posta ve şifrenizi kontrol edin.');

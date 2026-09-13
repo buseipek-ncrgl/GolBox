@@ -1,10 +1,16 @@
 using System.Text;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using GolBox.Api.Hubs;
 using GolBox.Api.Middlewares;
+using GolBox.Api.Security;
 using GolBox.Api.Services;
+using GolBox.Application.Authorization;
 using GolBox.Application.Common;
 using GolBox.Application.Interfaces;
 using GolBox.Infrastructure.Services;
@@ -12,24 +18,37 @@ using GolBox.Persistence.Context;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. Controller ve HttpContextAccessor Servisleri
+StartupSecrets.Validate(builder.Configuration, builder.Environment);
+
 builder.Services.AddControllers();
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddSingleton<IUserIdProvider, NameIdentifierUserIdProvider>();
 builder.Services.AddSignalR();
 
-// CORS Yapılandırması
+var configuredOrigins = builder.Configuration.GetSection("Security:Cors:AllowedOrigins").Get<string[]>()
+    ?? Array.Empty<string>();
+if (configuredOrigins.Length == 0 && builder.Environment.IsDevelopment())
+{
+    configuredOrigins =
+    [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:5173"
+    ];
+}
+
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy =>
+    options.AddPolicy("AppCors", policy =>
     {
-        policy.SetIsOriginAllowed(_ => true)
+        policy.WithOrigins(configuredOrigins)
               .AllowAnyMethod()
               .AllowAnyHeader()
               .AllowCredentials();
     });
 });
 
-// 2. DbContext Tanımlaması (SQLite & MSSQL Desteği)
 var connStr = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
@@ -43,10 +62,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     }
 });
 
-// Interface ve Context mapping
 builder.Services.AddScoped<IAppDbContext>(provider => provider.GetRequiredService<AppDbContext>());
-
-// 3. Katmanlar Arası Bağımlılık Enjeksiyonları (Dependency Injection)
 builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
@@ -54,13 +70,11 @@ builder.Services.AddScoped<ITokenDecoder, TokenDecoder>();
 builder.Services.AddSingleton<IDynamicQrService, DynamicQrService>();
 builder.Services.AddHostedService<ExpiredItemsCleanupService>();
 
-// 4. MediatR CQRS Kaydı (Application Katmanındaki tüm handler'ları tarar)
-builder.Services.AddMediatR(cfg => 
+builder.Services.AddMediatR(cfg =>
     cfg.RegisterServicesFromAssembly(typeof(Result).Assembly));
 
-// 5. JWT Authentication Yapılandırması
 var jwtSettings = builder.Configuration.GetSection("Jwt");
-var secretKey = jwtSettings["Key"] ?? "default_very_long_security_key_for_testing_purposes_only";
+var secretKey = jwtSettings["Key"]!;
 var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
 
 builder.Services.AddAuthentication(options =>
@@ -81,11 +95,61 @@ builder.Services.AddAuthentication(options =>
         IssuerSigningKey = key,
         ClockSkew = TimeSpan.Zero
     };
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            var accessToken = context.Request.Query["access_token"];
+            var path = context.HttpContext.Request.Path;
+            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+                context.Token = accessToken;
+            return Task.CompletedTask;
+        }
+    };
 });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy(AuthorizationPolicies.CitizenOnly, policy =>
+        policy.RequireRole(AuthorizationPolicies.RoleCitizen, AuthorizationPolicies.RoleUser));
+    options.AddPolicy(AuthorizationPolicies.StaffOrAdmin, policy =>
+        policy.RequireRole(AuthorizationPolicies.RoleStaff, AuthorizationPolicies.RoleAdmin));
+    options.AddPolicy(AuthorizationPolicies.AdminOnly, policy =>
+        policy.RequireRole(AuthorizationPolicies.RoleAdmin));
+});
 
-// 6. Swagger / OpenAPI Yapılandırması (Bearer Auth desteği ile)
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("auth", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 8,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            }));
+    options.AddPolicy("qr", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 30,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            }));
+    options.AddPolicy("capture", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 15,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            }));
+});
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
@@ -124,7 +188,6 @@ builder.Services.AddSwaggerGen(options =>
 
 var app = builder.Build();
 
-// Veritabanı Seed İşlemleri
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -141,7 +204,6 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-// 7. HTTP Pipeline Yapılandırması
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
 if (app.Environment.IsDevelopment())
@@ -154,14 +216,13 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseStaticFiles();
-
-app.UseCors("AllowAll");
-
+app.UseCors("AppCors");
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-app.MapHub<GolBox.Api.Hubs.OrderHub>("/hubs/orders");
-app.MapHub<GolBox.Api.Hubs.NotificationHub>("/hubs/notifications");
+app.MapHub<OrderHub>("/hubs/orders").RequireAuthorization();
+app.MapHub<NotificationHub>("/hubs/notifications");
 
 app.Run();
