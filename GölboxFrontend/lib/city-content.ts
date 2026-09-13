@@ -1,23 +1,29 @@
-export type CityContentType =
-  | "announcement"
-  | "event"
-  | "campaign"
-  | "mayor_message"
-  | "institutional"
-  | "golpuan"
-  | "culture"
-  | "sports"
-  | "youth"
-  | "science"
+export const CityContentTypes = {
+  Hero: "Hero",
+  Announcement: "Announcement",
+  EventPromo: "EventPromo",
+  MayorMessage: "MayorMessage",
+  Campaign: "Campaign",
+  Institutional: "Institutional",
+} as const
 
-export type CityCtaTarget =
-  | "mayor"
-  | "agenda"
-  | "catalog"
-  | "cafes"
-  | "map"
-  | "qr"
-  | "earn"
+export type CityContentType = (typeof CityContentTypes)[keyof typeof CityContentTypes]
+
+export const ContentCtaTypes = {
+  None: "None",
+  ExternalUrl: "ExternalUrl",
+  InternalRoute: "InternalRoute",
+  Activity: "Activity",
+  Cafe: "Cafe",
+  RewardCatalog: "RewardCatalog",
+  Map: "Map",
+  Profile: "Profile",
+} as const
+
+export type ContentCtaType = (typeof ContentCtaTypes)[keyof typeof ContentCtaTypes]
+
+export const INTERNAL_ROUTES = ["home", "map", "qr", "profile", "catalog", "cafes", "earn"] as const
+export type InternalRoute = (typeof INTERNAL_ROUTES)[number]
 
 export interface CityContentItem {
   id: string
@@ -27,191 +33,169 @@ export interface CityContentItem {
   body?: string
   imageUrl?: string
   ctaLabel: string
-  ctaTarget: CityCtaTarget
+  ctaType: ContentCtaType
+  ctaTarget?: string | null
   startAt: string
-  endAt: string
+  endAt?: string | null
   priority: number
-  audience: "all" | "logged_in"
   isPublished: boolean
   categoryLabel: string
   meta?: string
   personName?: string
   personTitle?: string
-  /** CSS object-position for CMS photos. Defaults to center. */
+  personImageUrl?: string
+  activityId?: string | null
   imageFocus?: string
 }
 
-/** Visit bonus is read from GET /settings/public (`visitBonusPoints`). */
+export const CITY_CONTENT_SOURCE = "backend-api" as const
 
-export const CITY_CONTENT_SOURCE = "local-cms-adapter" as const
+const USE_DEV_CMS = process.env.NEXT_PUBLIC_USE_DEV_CMS === "true"
 
-const HERO_ITEMS: CityContentItem[] = [
-  {
-    id: "hero-bilimfest",
-    type: "event",
-    title: "Bilimfest Gaziantep",
-    subtitle: "Bilim, teknoloji ve keşif dolu üç gün.",
-    body: "Bilim Şehitkamil çatısı altında açık atölyeler, gösteriler ve aile programları. Kayıt ve program detayları etkinlik döneminde yayımlanır.",
-    imageUrl: "/city/bilimfest.jpg",
-    ctaLabel: "Etkinliği gör",
-    ctaTarget: "agenda",
-    startAt: "2026-09-01T00:00:00+03:00",
-    endAt: "2026-10-18T23:59:59+03:00",
-    priority: 10,
-    audience: "all",
-    isPublished: true,
-    categoryLabel: "Etkinlik",
-    meta: "15–17 Ekim",
-  },
-  {
-    id: "hero-mayor",
-    type: "mayor_message",
-    title: "Gençlerimizin ürettiği her projede yanlarındayız.",
-    subtitle: "Gençlerimizin ürettiği her projede yanlarındayız.",
-    body: "Şehitkamil’i bilimle, kültürle ve günlük hayatın kolaylığıyla büyütmeye devam ediyoruz. Bu uygulama; duyurular, kent mekânları ve GölPuan sadakatini aynı çatı altında, sakin bir deneyimle sunmak için var.\n\nGölPuan kitap kafelerde ve kent etkinliklerinde kazandığınız puandır. GölBox, sahadaki hediye kutularıdır. Ismarlıyor ise size ısmarlanan ikramdır. Üçü birbirine karışmaz.",
-    imageUrl: "/city/belediye.jpg",
-    ctaLabel: "Mesajı oku",
-    ctaTarget: "mayor",
-    startAt: "2026-01-01T00:00:00+03:00",
-    endAt: "2026-12-31T23:59:59+03:00",
-    priority: 20,
-    audience: "all",
-    isPublished: true,
-    categoryLabel: "Başkan’dan",
-    personName: "Av. Umut Yılmaz",
-    personTitle: "Şehitkamil Belediye Başkanı",
-    imageFocus: "center 22%",
-  },
-  {
-    id: "hero-kultur",
-    type: "culture",
-    title: "Kültür ve gençlik programları",
-    subtitle: "Bu hafta sahne, atölye ve kütüphane takvimi güncellendi.",
-    body: "Şehitkamil’de kültür merkezleri, gençlik çalışmaları ve kütüphane programları aynı takvimde toplanır. Katılım bilgisi etkinlik kartından okunur.",
-    imageUrl: "/city/kultur.jpg",
-    ctaLabel: "Gündemi gör",
-    ctaTarget: "agenda",
-    startAt: "2026-09-01T00:00:00+03:00",
-    endAt: "2026-12-31T23:59:59+03:00",
-    priority: 30,
-    audience: "all",
-    isPublished: true,
-    categoryLabel: "Kültür",
-    meta: "Bu hafta",
-  },
-  {
-    id: "hero-park",
-    type: "announcement",
-    title: "Millet bahçeleri açık",
-    subtitle: "Yürüyüş, spor ve aile alanları gün boyu hizmet veriyor.",
-    body: "Şehitkamil’deki millet bahçeleri ve açık spor alanları günlük kullanıma açıktır. Saha hediyeleri haritada ayrıca gösterilir; park duyurusu bir GölBox değildir.",
-    imageUrl: "/city/park.jpg",
-    ctaLabel: "Yakındakiler",
-    ctaTarget: "cafes",
-    startAt: "2026-09-01T00:00:00+03:00",
-    endAt: "2026-12-31T23:59:59+03:00",
-    priority: 40,
-    audience: "all",
-    isPublished: true,
-    categoryLabel: "Duyuru",
-    meta: "Bugün",
-  },
-]
-
-const AGENDA_ITEMS: CityContentItem[] = [
-  {
-    id: "agenda-bilimfest",
-    type: "science",
-    title: "Bilimfest Gaziantep",
-    subtitle: "Bilim, teknoloji ve keşif",
-    body: "Üç günlük açık bilim programı. Atölye kontenjanı etkinlik döneminde duyurulur.",
-    imageUrl: "/city/bilimfest.jpg",
-    ctaLabel: "Detayı oku",
-    ctaTarget: "agenda",
-    startAt: "2026-09-01T00:00:00+03:00",
-    endAt: "2026-10-18T23:59:59+03:00",
-    priority: 10,
-    audience: "all",
-    isPublished: true,
-    categoryLabel: "Etkinlik",
-    meta: "15–17 Ekim",
-  },
-  {
-    id: "agenda-library",
-    type: "culture",
-    title: "Kütüphanede sonbahar",
-    subtitle: "Çocuk saati ve sessiz çalışma alanları",
-    imageUrl: "/city/kultur.jpg",
-    ctaLabel: "Detayı oku",
-    ctaTarget: "agenda",
-    startAt: "2026-09-01T00:00:00+03:00",
-    endAt: "2026-12-31T23:59:59+03:00",
-    priority: 20,
-    audience: "all",
-    isPublished: true,
-    categoryLabel: "Kültür",
-    meta: "Her gün",
-  },
-  {
-    id: "agenda-youth",
-    type: "youth",
-    title: "Gençlik atölyeleri",
-    subtitle: "Tasarım ve kodlama grupları",
-    imageUrl: "/city/park.jpg",
-    ctaLabel: "Detayı oku",
-    ctaTarget: "agenda",
-    startAt: "2026-09-01T00:00:00+03:00",
-    endAt: "2026-12-31T23:59:59+03:00",
-    priority: 30,
-    audience: "all",
-    isPublished: true,
-    categoryLabel: "Gençlik",
-    meta: "Kayıt açık",
-  },
-  {
-    id: "agenda-sports",
-    type: "sports",
-    title: "Açık saha saatleri",
-    subtitle: "Mahalle spor tesisleri",
-    imageUrl: "/city/belediye.jpg",
-    ctaLabel: "Detayı oku",
-    ctaTarget: "agenda",
-    startAt: "2026-09-01T00:00:00+03:00",
-    endAt: "2026-12-31T23:59:59+03:00",
-    priority: 40,
-    audience: "all",
-    isPublished: true,
-    categoryLabel: "Spor",
-    meta: "Bu hafta",
-  },
-]
-
-export function isContentActive(item: CityContentItem, now = new Date()) {
-  if (!item.isPublished) return false
-  const start = new Date(item.startAt)
-  const end = new Date(item.endAt)
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return item.isPublished
-  return start <= now && now <= end
+const CATEGORY_LABEL: Record<CityContentType, string> = {
+  Hero: "Duyuru",
+  Announcement: "Duyuru",
+  EventPromo: "Etkinlik",
+  MayorMessage: "Başkan’dan",
+  Campaign: "Kampanya",
+  Institutional: "Kurumsal",
 }
 
-export function publishedHeroItems(now = new Date()) {
-  return HERO_ITEMS.filter((item) => isContentActive(item, now))
-    .sort((a, b) => a.priority - b.priority)
-    .slice(0, 5)
+function asType(value: string | undefined): CityContentType {
+  if (value && value in CATEGORY_LABEL) return value as CityContentType
+  return CityContentTypes.Announcement
 }
 
-export function publishedAgendaItems(now = new Date()) {
-  return AGENDA_ITEMS.filter((item) => isContentActive(item, now)).sort((a, b) => a.priority - b.priority)
+function asCta(value: string | undefined): ContentCtaType {
+  if (value && Object.values(ContentCtaTypes).includes(value as ContentCtaType)) return value as ContentCtaType
+  return ContentCtaTypes.None
 }
 
-export function findCityContent(id: string) {
-  return [...HERO_ITEMS, ...AGENDA_ITEMS].find((item) => item.id === id) ?? null
+export function mapPublicContent(raw: Record<string, unknown>): CityContentItem {
+  const type = asType(String(raw.type ?? ""))
+  return {
+    id: String(raw.id ?? ""),
+    type,
+    title: String(raw.title ?? ""),
+    subtitle: String(raw.subtitle ?? ""),
+    body: raw.body ? String(raw.body) : undefined,
+    imageUrl: raw.imageUrl ? String(raw.imageUrl) : undefined,
+    ctaLabel: String(raw.ctaLabel ?? "Detayı oku"),
+    ctaType: asCta(raw.ctaType ? String(raw.ctaType) : undefined),
+    ctaTarget: raw.ctaTarget ? String(raw.ctaTarget) : null,
+    startAt: String(raw.startAt ?? ""),
+    endAt: raw.endAt ? String(raw.endAt) : null,
+    priority: Number(raw.priority ?? 0),
+    isPublished: true,
+    categoryLabel: String(raw.categoryLabel ?? CATEGORY_LABEL[type]),
+    meta: raw.meta ? String(raw.meta) : undefined,
+    personName: raw.authorName ? String(raw.authorName) : undefined,
+    personTitle: raw.authorTitle ? String(raw.authorTitle) : undefined,
+    personImageUrl: raw.authorImageUrl ? String(raw.authorImageUrl) : undefined,
+    activityId: raw.activityId ? String(raw.activityId) : null,
+    imageFocus: raw.imageFocus ? String(raw.imageFocus) : undefined,
+  }
 }
 
-export function mayorMessage() {
-  return HERO_ITEMS.find((item) => item.type === "mayor_message") ?? null
+/** Explicit development fixture. Never used unless NEXT_PUBLIC_USE_DEV_CMS=true. */
+const DEV_FIXTURE: CityContentItem[] = USE_DEV_CMS
+  ? [
+      {
+        id: "dev-hero",
+        type: CityContentTypes.Hero,
+        title: "[DEV] CMS bağlantısı kapalı",
+        subtitle: "Yalnız NEXT_PUBLIC_USE_DEV_CMS=true iken görünür.",
+        body: "Production build bu kaydı taşımaz.",
+        ctaLabel: "Tamam",
+        ctaType: ContentCtaTypes.None,
+        startAt: new Date(0).toISOString(),
+        priority: 99,
+        isPublished: true,
+        categoryLabel: "Geliştirme",
+      },
+    ]
+  : []
+
+export function devCmsFixture() {
+  return USE_DEV_CMS ? DEV_FIXTURE : []
 }
 
-export function upcomingPersonalEvent(now = new Date()) {
-  return publishedAgendaItems(now).find((item) => item.type === "event" || item.type === "science") ?? null
+export function isAllowedInternalRoute(value: string | null | undefined): value is InternalRoute {
+  return Boolean(value && INTERNAL_ROUTES.includes(value as InternalRoute))
+}
+
+export function isAllowedExternalUrl(value: string | null | undefined) {
+  if (!value) return false
+  try {
+    const url = new URL(value)
+    if (url.protocol !== "https:" && url.protocol !== "http:") return false
+    if (url.username || url.password) return false
+    const host = url.hostname.toLowerCase()
+    return (
+      host === "sehitkamil.bel.tr" ||
+      host === "www.sehitkamil.bel.tr" ||
+      host === "gaziantep.bel.tr" ||
+      host === "www.gaziantep.bel.tr" ||
+      host.endsWith(".sehitkamil.bel.tr") ||
+      host.endsWith(".gaziantep.bel.tr")
+    )
+  } catch {
+    return false
+  }
+}
+
+export type ContentCtaAction =
+  | { kind: "detail" }
+  | { kind: "mayor" }
+  | { kind: "activity"; activityId: string }
+  | { kind: "cafe"; cafeId?: string }
+  | { kind: "catalog" }
+  | { kind: "map" }
+  | { kind: "profile" }
+  | { kind: "qr" }
+  | { kind: "earn" }
+  | { kind: "external"; url: string }
+
+export function resolveContentCta(item: CityContentItem): ContentCtaAction {
+  if (item.type === CityContentTypes.MayorMessage) return { kind: "mayor" }
+  if (item.activityId) return { kind: "activity", activityId: item.activityId }
+
+  switch (item.ctaType) {
+    case ContentCtaTypes.Activity:
+      return item.ctaTarget ? { kind: "activity", activityId: item.ctaTarget } : { kind: "detail" }
+    case ContentCtaTypes.Cafe:
+      return { kind: "cafe", cafeId: item.ctaTarget || undefined }
+    case ContentCtaTypes.RewardCatalog:
+      return { kind: "catalog" }
+    case ContentCtaTypes.Map:
+      return { kind: "map" }
+    case ContentCtaTypes.Profile:
+      return { kind: "profile" }
+    case ContentCtaTypes.ExternalUrl:
+      return isAllowedExternalUrl(item.ctaTarget) ? { kind: "external", url: item.ctaTarget! } : { kind: "detail" }
+    case ContentCtaTypes.InternalRoute: {
+      if (!isAllowedInternalRoute(item.ctaTarget)) return { kind: "detail" }
+      if (item.ctaTarget === "map") return { kind: "map" }
+      if (item.ctaTarget === "profile") return { kind: "profile" }
+      if (item.ctaTarget === "qr") return { kind: "qr" }
+      if (item.ctaTarget === "catalog") return { kind: "catalog" }
+      if (item.ctaTarget === "cafes") return { kind: "cafe" }
+      if (item.ctaTarget === "earn") return { kind: "earn" }
+      return { kind: "detail" }
+    }
+    default:
+      return { kind: "detail" }
+  }
+}
+
+export function mayorFromList(items: CityContentItem[]) {
+  return items.find((item) => item.type === CityContentTypes.MayorMessage) ?? null
+}
+
+export function upcomingEventFromList(items: CityContentItem[], now = new Date()) {
+  return items.find((item) => {
+    if (item.type !== CityContentTypes.EventPromo) return false
+    if (item.endAt && new Date(item.endAt) < now) return false
+    return true
+  }) ?? null
 }

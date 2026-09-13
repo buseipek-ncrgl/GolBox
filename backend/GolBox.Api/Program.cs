@@ -65,6 +65,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped<IAppDbContext>(provider => provider.GetRequiredService<AppDbContext>());
 builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
 builder.Services.AddScoped<ITokenService, TokenService>();
+builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<ICityContentCache, CityContentCache>();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<ITokenDecoder, TokenDecoder>();
 builder.Services.AddSingleton<IDynamicQrService, DynamicQrService>();
@@ -195,7 +197,7 @@ using (var scope = app.Services.CreateScope())
     {
         var context = services.GetRequiredService<AppDbContext>();
         var passwordHasher = services.GetRequiredService<IPasswordHasher>();
-        await DbInitializer.SeedAsync(context, passwordHasher);
+        await DbInitializer.SeedAsync(context, passwordHasher, app.Environment.IsDevelopment());
     }
     catch (Exception ex)
     {
@@ -223,6 +225,6 @@ app.UseAuthorization();
 
 app.MapControllers();
 app.MapHub<OrderHub>("/hubs/orders").RequireAuthorization();
-app.MapHub<NotificationHub>("/hubs/notifications");
+app.MapHub<NotificationHub>("/hubs/notifications").RequireAuthorization();
 
 app.Run();

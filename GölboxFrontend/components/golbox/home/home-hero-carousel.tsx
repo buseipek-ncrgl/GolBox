@@ -15,7 +15,7 @@ function slideWidth(node: HTMLElement) {
 }
 
 function heroCopy(item: CityContentItem) {
-  const isMayor = item.type === "mayor_message"
+  const isMayor = item.type === "MayorMessage"
   return {
     category: item.categoryLabel,
     title: isMayor ? (item.personName ?? item.title) : item.title,

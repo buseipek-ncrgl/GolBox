@@ -3,6 +3,7 @@
 import { CityImage } from "@/components/golbox/city-image"
 import type { CityContentItem } from "@/lib/city-content"
 import { HomeSectionHeader } from "@/components/golbox/home-section-header"
+import { InlineError } from "@/components/golbox/inline-error"
 
 export function AgendaCard({
   item,
@@ -40,11 +41,23 @@ export function CityAgendaSection({
   items,
   onOpen,
   onSeeAll,
+  error,
+  onRetry,
 }: {
   items: CityContentItem[]
   onOpen: (item: CityContentItem) => void
   onSeeAll: () => void
+  error?: boolean
+  onRetry?: () => void
 }) {
+  if (error) {
+    return (
+      <section aria-label="Şehitkamil’de gündem" className="space-y-3">
+        <HomeSectionHeader title="Şehitkamil’de gündem" tone="editorial" />
+        <InlineError message="Gündem yüklenemedi." onRetry={onRetry} />
+      </section>
+    )
+  }
   if (items.length === 0) return null
   return (
     <section aria-label="Şehitkamil’de gündem" className="space-y-3">

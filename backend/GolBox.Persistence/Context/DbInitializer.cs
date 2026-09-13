@@ -9,10 +9,11 @@ namespace GolBox.Persistence.Context;
 
 public static class DbInitializer
 {
-    public static async System.Threading.Tasks.Task SeedAsync(AppDbContext context, IPasswordHasher passwordHasher)
+    public static async System.Threading.Tasks.Task SeedAsync(AppDbContext context, IPasswordHasher passwordHasher, bool isDevelopment = false)
     {
         await context.Database.EnsureCreatedAsync();
         await EnsureProviderSchemaAsync(context);
+        await EnsureCityPlatformSchemaAsync(context);
 
         if (context.Database.IsSqlServer())
         {
@@ -609,6 +610,9 @@ public static class DbInitializer
         }
 
         await EnsurePersonalCouponPolicyAsync(context, orgId);
+
+        if (isDevelopment)
+            await SeedDevelopmentCityContentAsync(context);
     }
 
     private static async System.Threading.Tasks.Task EnsurePersonalCouponPolicyAsync(AppDbContext context, Guid orgId)
@@ -638,6 +642,212 @@ public static class DbInitializer
                 ur.ExpiresAt = year;
         }
 
+        await context.SaveChangesAsync();
+    }
+
+    private static async System.Threading.Tasks.Task EnsureCityPlatformSchemaAsync(AppDbContext context)
+    {
+        if (context.Database.IsSqlServer())
+        {
+            await context.Database.ExecuteSqlRawAsync(@"
+            IF COL_LENGTH('dbo.Activities', 'ImageUrl') IS NULL
+                ALTER TABLE [Activities] ADD [ImageUrl] nvarchar(1000) NULL;
+            IF COL_LENGTH('dbo.Activities', 'Capacity') IS NULL
+                ALTER TABLE [Activities] ADD [Capacity] int NULL;
+            IF COL_LENGTH('dbo.Notifications', 'MinAge') IS NULL
+                ALTER TABLE [Notifications] ADD [MinAge] int NULL;
+            IF COL_LENGTH('dbo.Notifications', 'MaxAge') IS NULL
+                ALTER TABLE [Notifications] ADD [MaxAge] int NULL;
+            IF COL_LENGTH('dbo.Notifications', 'EducationLevel') IS NULL
+                ALTER TABLE [Notifications] ADD [EducationLevel] nvarchar(80) NULL;
+            IF COL_LENGTH('dbo.Notifications', 'TargetType') IS NULL
+                ALTER TABLE [Notifications] ADD [TargetType] nvarchar(40) NULL;
+            IF COL_LENGTH('dbo.Notifications', 'TargetId') IS NULL
+                ALTER TABLE [Notifications] ADD [TargetId] nvarchar(256) NULL;
+
+            IF OBJECT_ID(N'dbo.CityContents', N'U') IS NULL
+            BEGIN
+                CREATE TABLE [CityContents] (
+                    [Id] uniqueidentifier NOT NULL PRIMARY KEY,
+                    [OrganizationId] uniqueidentifier NOT NULL,
+                    [Type] nvarchar(40) NOT NULL,
+                    [Title] nvarchar(256) NOT NULL,
+                    [Subtitle] nvarchar(512) NULL,
+                    [Body] nvarchar(max) NULL,
+                    [ImageUrl] nvarchar(1000) NULL,
+                    [ImageFocus] nvarchar(64) NULL,
+                    [CtaLabel] nvarchar(80) NULL,
+                    [CtaType] nvarchar(40) NOT NULL,
+                    [CtaTarget] nvarchar(1000) NULL,
+                    [Priority] int NOT NULL,
+                    [StartAt] datetime2 NOT NULL,
+                    [EndAt] datetime2 NULL,
+                    [IsPublished] bit NOT NULL,
+                    [AudienceType] nvarchar(40) NOT NULL,
+                    [AudienceMinAge] int NULL,
+                    [AudienceMaxAge] int NULL,
+                    [AudienceEducationLevel] nvarchar(80) NULL,
+                    [AuthorName] nvarchar(160) NULL,
+                    [AuthorTitle] nvarchar(160) NULL,
+                    [AuthorImageUrl] nvarchar(1000) NULL,
+                    [ActivityId] uniqueidentifier NULL,
+                    [CreatedDate] datetime2 NOT NULL,
+                    [CreatedBy] uniqueidentifier NULL,
+                    [UpdatedDate] datetime2 NULL,
+                    [UpdatedBy] uniqueidentifier NULL,
+                    [DeletedDate] datetime2 NULL,
+                    [DeletedBy] uniqueidentifier NULL,
+                    [IsDeleted] bit NOT NULL
+                );
+                CREATE INDEX [IX_CityContents_Org_Published_Type] ON [CityContents] ([OrganizationId], [IsPublished], [Type]);
+                CREATE INDEX [IX_CityContents_Org_Window_Priority] ON [CityContents] ([OrganizationId], [StartAt], [EndAt], [Priority]);
+            END;
+
+            IF OBJECT_ID(N'dbo.UserNotifications', N'U') IS NULL
+            BEGIN
+                CREATE TABLE [UserNotifications] (
+                    [Id] uniqueidentifier NOT NULL PRIMARY KEY,
+                    [OrganizationId] uniqueidentifier NOT NULL,
+                    [UserId] uniqueidentifier NOT NULL,
+                    [BroadcastId] uniqueidentifier NULL,
+                    [Title] nvarchar(256) NOT NULL,
+                    [Body] nvarchar(2000) NOT NULL,
+                    [Type] nvarchar(40) NOT NULL,
+                    [TargetType] nvarchar(40) NULL,
+                    [TargetId] nvarchar(256) NULL,
+                    [IsRead] bit NOT NULL,
+                    [ReadAt] datetime2 NULL,
+                    [CreatedDate] datetime2 NOT NULL,
+                    [CreatedBy] uniqueidentifier NULL,
+                    [UpdatedDate] datetime2 NULL,
+                    [UpdatedBy] uniqueidentifier NULL,
+                    [DeletedDate] datetime2 NULL,
+                    [DeletedBy] uniqueidentifier NULL,
+                    [IsDeleted] bit NOT NULL
+                );
+                CREATE INDEX [IX_UserNotifications_User_Read_Created] ON [UserNotifications] ([UserId], [IsRead], [CreatedDate]);
+                CREATE INDEX [IX_UserNotifications_Org_Created] ON [UserNotifications] ([OrganizationId], [CreatedDate]);
+            END;
+            ");
+            return;
+        }
+
+        if (!context.Database.IsSqlite())
+            return;
+
+        await AddSqliteColumnIfMissingAsync(context, "Activities", "ImageUrl", "TEXT NULL");
+        await AddSqliteColumnIfMissingAsync(context, "Activities", "Capacity", "INTEGER NULL");
+        await AddSqliteColumnIfMissingAsync(context, "Notifications", "MinAge", "INTEGER NULL");
+        await AddSqliteColumnIfMissingAsync(context, "Notifications", "MaxAge", "INTEGER NULL");
+        await AddSqliteColumnIfMissingAsync(context, "Notifications", "EducationLevel", "TEXT NULL");
+        await AddSqliteColumnIfMissingAsync(context, "Notifications", "TargetType", "TEXT NULL");
+        await AddSqliteColumnIfMissingAsync(context, "Notifications", "TargetId", "TEXT NULL");
+
+        await context.Database.ExecuteSqlRawAsync(@"
+            CREATE TABLE IF NOT EXISTS CityContents (
+                Id TEXT NOT NULL PRIMARY KEY,
+                OrganizationId TEXT NOT NULL,
+                Type TEXT NOT NULL,
+                Title TEXT NOT NULL,
+                Subtitle TEXT NULL,
+                Body TEXT NULL,
+                ImageUrl TEXT NULL,
+                ImageFocus TEXT NULL,
+                CtaLabel TEXT NULL,
+                CtaType TEXT NOT NULL,
+                CtaTarget TEXT NULL,
+                Priority INTEGER NOT NULL,
+                StartAt TEXT NOT NULL,
+                EndAt TEXT NULL,
+                IsPublished INTEGER NOT NULL,
+                AudienceType TEXT NOT NULL,
+                AudienceMinAge INTEGER NULL,
+                AudienceMaxAge INTEGER NULL,
+                AudienceEducationLevel TEXT NULL,
+                AuthorName TEXT NULL,
+                AuthorTitle TEXT NULL,
+                AuthorImageUrl TEXT NULL,
+                ActivityId TEXT NULL,
+                CreatedDate TEXT NOT NULL,
+                CreatedBy TEXT NULL,
+                UpdatedDate TEXT NULL,
+                UpdatedBy TEXT NULL,
+                DeletedDate TEXT NULL,
+                DeletedBy TEXT NULL,
+                IsDeleted INTEGER NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS IX_CityContents_Org_Published_Type ON CityContents (OrganizationId, IsPublished, Type);
+            CREATE INDEX IF NOT EXISTS IX_CityContents_Org_Window_Priority ON CityContents (OrganizationId, StartAt, EndAt, Priority);
+            CREATE TABLE IF NOT EXISTS UserNotifications (
+                Id TEXT NOT NULL PRIMARY KEY,
+                OrganizationId TEXT NOT NULL,
+                UserId TEXT NOT NULL,
+                BroadcastId TEXT NULL,
+                Title TEXT NOT NULL,
+                Body TEXT NOT NULL,
+                Type TEXT NOT NULL,
+                TargetType TEXT NULL,
+                TargetId TEXT NULL,
+                IsRead INTEGER NOT NULL,
+                ReadAt TEXT NULL,
+                CreatedDate TEXT NOT NULL,
+                CreatedBy TEXT NULL,
+                UpdatedDate TEXT NULL,
+                UpdatedBy TEXT NULL,
+                DeletedDate TEXT NULL,
+                DeletedBy TEXT NULL,
+                IsDeleted INTEGER NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS IX_UserNotifications_User_Read_Created ON UserNotifications (UserId, IsRead, CreatedDate);
+            CREATE INDEX IF NOT EXISTS IX_UserNotifications_Org_Created ON UserNotifications (OrganizationId, CreatedDate);
+        ");
+    }
+
+    private static async System.Threading.Tasks.Task SeedDevelopmentCityContentAsync(AppDbContext context)
+    {
+        if (await context.CityContents.AnyAsync())
+            return;
+
+        var orgId = await context.Organizations.Select(o => o.Id).FirstOrDefaultAsync();
+        if (orgId == Guid.Empty)
+            return;
+
+        var now = DateTime.UtcNow;
+        context.CityContents.Add(new CityContent
+        {
+            Id = Guid.Parse("c1111111-1111-1111-1111-111111111111"),
+            OrganizationId = orgId,
+            Type = "Hero",
+            Title = "[DEV] Şehitkamil+ deneme bandı",
+            Subtitle = "Yalnız geliştirme ortamı içeriği.",
+            Body = "Bu kayıt production seed değildir. Admin CMS ile değiştirilebilir.",
+            ImageUrl = "/city/belediye.jpg",
+            CtaLabel = "Gündemi gör",
+            CtaType = "InternalRoute",
+            CtaTarget = "home",
+            Priority = 10,
+            StartAt = now.AddDays(-1),
+            EndAt = now.AddYears(1),
+            IsPublished = true,
+            AudienceType = "Everyone"
+        });
+        context.CityContents.Add(new CityContent
+        {
+            Id = Guid.Parse("c2222222-2222-2222-2222-222222222222"),
+            OrganizationId = orgId,
+            Type = "Announcement",
+            Title = "[DEV] Gündem denemesi",
+            Subtitle = "Local geliştirme kaydı",
+            Body = "Production ortamında bu içerik yazılmaz.",
+            ImageUrl = "/city/park.jpg",
+            CtaLabel = "Detayı oku",
+            CtaType = "None",
+            Priority = 20,
+            StartAt = now.AddDays(-1),
+            EndAt = now.AddYears(1),
+            IsPublished = true,
+            AudienceType = "Everyone"
+        });
         await context.SaveChangesAsync();
     }
 

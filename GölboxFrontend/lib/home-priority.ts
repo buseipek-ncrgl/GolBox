@@ -1,5 +1,5 @@
 import type { ClaimedReward, FieldDropNearby, Order, Reward } from "@/lib/golbox-context"
-import { upcomingPersonalEvent, type CityContentItem } from "@/lib/city-content"
+import type { CityContentItem } from "@/lib/city-content"
 import { isActiveCoupon } from "@/components/golbox/coupon-pass"
 
 export type PersonalPriorityKind = "ismarliyor" | "golbox" | "coupon" | "event"
@@ -53,6 +53,7 @@ export function selectPersonalPriority(input: {
   fieldDrops: FieldDropNearby[]
   capturedIds: string[]
   claimedRewards: ClaimedReward[]
+  upcomingEvent?: CityContentItem | null
 }): PersonalPriority | null {
   if (!input.isLoggedIn) return null
 
@@ -97,7 +98,7 @@ export function selectPersonalPriority(input: {
     }
   }
 
-  const event = upcomingPersonalEvent()
+  const event = input.upcomingEvent ?? null
   if (event) {
     return {
       kind: "event",

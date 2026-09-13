@@ -22,6 +22,9 @@ public class ActivityConfiguration : IEntityTypeConfiguration<Activity>
             .IsRequired()
             .HasMaxLength(256);
 
+        builder.Property(a => a.ImageUrl)
+            .HasMaxLength(1000);
+
         builder.Property(a => a.Status)
             .IsRequired()
             .HasMaxLength(50);

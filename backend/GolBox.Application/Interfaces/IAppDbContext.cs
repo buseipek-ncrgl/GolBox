@@ -30,6 +30,8 @@ public interface IAppDbContext
     DbSet<ApprovalRequest> ApprovalRequests { get; }
     DbSet<Campaign> Campaigns { get; }
     DbSet<NotificationRecord> Notifications { get; }
+    DbSet<CityContent> CityContents { get; }
+    DbSet<UserNotification> UserNotifications { get; }
 #pragma warning disable CS0618
     DbSet<Coupon> Coupons { get; }
 #pragma warning restore CS0618

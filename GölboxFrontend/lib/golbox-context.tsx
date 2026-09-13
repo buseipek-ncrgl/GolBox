@@ -3,7 +3,8 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react"
 import { useGolToast } from "@/components/golbox/gol-toast"
 import * as signalR from "@microsoft/signalr"
-import { API_BASE_URL, HUB_URL } from "@/lib/api-config"
+import { API_BASE_URL, HUB_URL, NOTIFICATION_HUB_URL } from "@/lib/api-config"
+import { fetchUnreadCount } from "@/lib/city-content-api"
 
 export interface UserProfile {
   id: string
@@ -167,6 +168,8 @@ interface GolboxContextType {
   loadNearbyFieldDrops: (latitude: number, longitude: number) => Promise<void>
   loadMyCaptures: () => Promise<void>
   captureFieldDrop: (id: string, latitude: number, longitude: number) => Promise<boolean>
+  unreadCount: number
+  refreshUnreadCount: () => Promise<void>
 }
 
 const CART_PREFIX = "gol_cart_"
@@ -234,6 +237,7 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
     rewardExpireDays: 365,
     pointsExchangeRate: 1,
   })
+  const [unreadCount, setUnreadCount] = useState(0)
   const showToast = useGolToast()
 
   // Load token from localStorage on mount
@@ -357,6 +361,7 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
       setPointTransactions([])
       setMyCaptures([])
       setClaimedRewards([])
+      setUnreadCount(0)
     }
     void refreshData()
   }, [token, refreshData])
@@ -384,6 +389,43 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
       connection.stop()
     }
   }, [token, refreshData, showToast])
+
+  const refreshUnreadCount = useCallback(async () => {
+    if (!token) {
+      setUnreadCount(0)
+      return
+    }
+    try {
+      setUnreadCount(await fetchUnreadCount(token))
+    } catch {
+      setUnreadCount(0)
+    }
+  }, [token])
+
+  useEffect(() => {
+    void refreshUnreadCount()
+  }, [refreshUnreadCount])
+
+  useEffect(() => {
+    if (!token) return
+
+    const connection = new signalR.HubConnectionBuilder()
+      .withUrl(NOTIFICATION_HUB_URL, {
+        accessTokenFactory: () => token,
+      })
+      .withAutomaticReconnect()
+      .build()
+
+    connection.on("ReceiveNotification", (payload: { title?: string }) => {
+      if (payload?.title) showToast(payload.title)
+      void refreshUnreadCount()
+    })
+
+    connection.start().catch((err) => console.log("Notification hub error:", err))
+    return () => {
+      connection.stop()
+    }
+  }, [token, refreshUnreadCount, showToast])
 
   const uploadFile = async (file: File): Promise<string | null> => {
     try {
@@ -772,7 +814,9 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
         refreshData,
         loadNearbyFieldDrops,
         loadMyCaptures,
-        captureFieldDrop
+        captureFieldDrop,
+        unreadCount,
+        refreshUnreadCount,
       }}
     >
       {children}

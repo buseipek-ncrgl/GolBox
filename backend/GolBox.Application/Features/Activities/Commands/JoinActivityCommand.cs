@@ -62,6 +62,14 @@ public class JoinActivityCommandHandler : IRequestHandler<JoinActivityCommand, R
             return Result.Fail("Bu etkinliğe zaten katıldınız.");
         }
 
+        if (activity.Capacity.HasValue && activity.Capacity.Value > 0)
+        {
+            var joinedCount = await _context.UserActivities
+                .CountAsync(ua => ua.ActivityId == activity.Id, cancellationToken);
+            if (joinedCount >= activity.Capacity.Value)
+                return Result.Fail("Etkinlik kontenjanı dolmuştur.");
+        }
+
         // 1. Join Activity
         var userActivity = new UserActivity
         {

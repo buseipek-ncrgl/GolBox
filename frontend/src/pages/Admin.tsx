@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { useAuth } from '../store/AuthContext';
+import { HomeContentPanel } from './HomeContentPanel';
 import { 
   LayoutDashboard, Users, Building2, Coffee, ShoppingBag, 
   History, Award, Sparkles, CheckSquare, Calendar, Bell, 
@@ -72,7 +73,7 @@ export const Admin: React.FC = () => {
   // 14 Core Specification Sidebar Modules
   const [activeMenu, setActiveMenu] = useState<
     'overview' | 'users' | 'cafes' | 'products' | 'points' | 
-    'qr' | 'rewards' | 'fieldDrops' | 'ismarliyor' | 'campaigns' | 'events' | 
+    'qr' | 'rewards' | 'fieldDrops' | 'ismarliyor' | 'homeContent' | 'campaigns' | 'events' | 
     'notifications' | 'reports' | 'roles' | 'audit'
   >('overview');
 
@@ -128,6 +129,10 @@ export const Admin: React.FC = () => {
   const [pushTitle, setPushTitle] = useState('');
   const [pushMessage, setPushMessage] = useState('');
   const [pushTargetGroup, setPushTargetGroup] = useState('All');
+  const [pushMinAge, setPushMinAge] = useState('');
+  const [pushMaxAge, setPushMaxAge] = useState('');
+  const [pushEducation, setPushEducation] = useState('');
+  const [pushUserId, setPushUserId] = useState('');
 
   // Image Upload State
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string>('');
@@ -311,8 +316,10 @@ export const Admin: React.FC = () => {
         const c = await api.getCampaigns();
         setCampaignsList(extractArray(c));
       } else if (activeMenu === 'events') {
-        const a = await api.getActivities();
+        const a = await api.getAdminActivities().catch(() => api.getActivities());
         setEventsList(extractArray(a));
+      } else if (activeMenu === 'homeContent') {
+        // HomeContentPanel loads its own data.
       } else if (activeMenu === 'notifications') {
         const n = await api.getNotifications();
         setNotificationsList(extractArray(n));
@@ -590,6 +597,8 @@ export const Admin: React.FC = () => {
         description: newEventDesc,
         location: newEventLocation || 'Şehitkamil Gençlik Merkezi',
         pointsReward: Number(newEventPoints),
+        capacity: Number(newEventQuota) || undefined,
+        imageUrl: uploadedImageUrl || undefined,
         startDate: new Date().toISOString(),
         endDate: new Date(Date.now() + 7 * 86400000).toISOString()
       });
@@ -652,7 +661,11 @@ export const Admin: React.FC = () => {
         title: pushTitle,
         message: pushMessage,
         targetUserGroup: pushTargetGroup || 'All',
-        notificationType: 'General'
+        notificationType: 'General',
+        minAge: pushMinAge === '' ? undefined : Number(pushMinAge),
+        maxAge: pushMaxAge === '' ? undefined : Number(pushMaxAge),
+        educationLevel: pushEducation || undefined,
+        targetUserId: pushUserId || undefined
       });
       setSuccess('Bildirim kaydedildi.');
       setPushTitle('');
@@ -890,6 +903,7 @@ export const Admin: React.FC = () => {
       rewards: 'Ödüller',
       fieldDrops: 'Saha hediyeleri',
       ismarliyor: 'Ismarlıyor',
+      homeContent: 'Ana Sayfa İçerikleri',
       campaigns: 'Kampanyalar',
       events: 'Etkinlikler',
       notifications: 'Duyurular',
@@ -975,6 +989,7 @@ export const Admin: React.FC = () => {
             {
               section: 'İletişim',
               items: [
+                { id: 'homeContent', label: 'Ana Sayfa İçerikleri', icon: FileText },
                 { id: 'campaigns', label: 'Kampanyalar', icon: Megaphone },
                 { id: 'events', label: 'Etkinlikler', icon: Calendar },
                 { id: 'notifications', label: 'Duyurular', icon: Bell }
@@ -1687,6 +1702,10 @@ export const Admin: React.FC = () => {
             </div>
           )}
 
+          {activeMenu === 'homeContent' && isAdminUser && (
+            <HomeContentPanel onError={setError} onSuccess={setSuccess} />
+          )}
+
           {/* ------------------------------------------------------------- */}
           {/* 9. KAMPANYALAR & İNDİRİMLER (PRO CREATION & DATES & CRITERIA) */}
           {/* ------------------------------------------------------------- */}
@@ -1811,6 +1830,31 @@ export const Admin: React.FC = () => {
                   <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Bildirim Mesajı</label>
                   <textarea rows={3} placeholder="Duyuru detayını yazın..." value={pushMessage} onChange={(e) => setPushMessage(e.target.value)} required style={{ width: '100%', padding: '0.65rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px' }} />
                 </div>
+                <div>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Hedef kitle</label>
+                  <select value={pushTargetGroup} onChange={(e) => setPushTargetGroup(e.target.value)} style={{ width: '100%', padding: '0.65rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px' }}>
+                    <option value="All">Herkese</option>
+                    <option value="AgeRange">Yaş aralığı</option>
+                    <option value="EducationLevel">Eğitim seviyesi</option>
+                    <option value="SingleUser">Belirli kullanıcı</option>
+                  </select>
+                </div>
+                {pushTargetGroup === 'AgeRange' && (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
+                    <input type="number" placeholder="Min yaş" value={pushMinAge} onChange={(e) => setPushMinAge(e.target.value)} style={{ width: '100%', padding: '0.65rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px' }} />
+                    <input type="number" placeholder="Max yaş" value={pushMaxAge} onChange={(e) => setPushMaxAge(e.target.value)} style={{ width: '100%', padding: '0.65rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px' }} />
+                  </div>
+                )}
+                {pushTargetGroup === 'EducationLevel' && (
+                  <select value={pushEducation} onChange={(e) => setPushEducation(e.target.value)} style={{ width: '100%', padding: '0.65rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px' }}>
+                    <option value="">Seçin</option>
+                    <option value="Lise">Lise</option>
+                    <option value="Üniversite">Üniversite</option>
+                  </select>
+                )}
+                {pushTargetGroup === 'SingleUser' && (
+                  <input placeholder="Kullanıcı Id" value={pushUserId} onChange={(e) => setPushUserId(e.target.value)} style={{ width: '100%', padding: '0.65rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px' }} />
+                )}
                 <button type="submit" style={{ padding: '0.75rem', background: '#1d5f60', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
                   <Send size={16} /> Toplu Anlık Bildirim Gönder
                 </button>
@@ -2538,6 +2582,10 @@ export const Admin: React.FC = () => {
                 <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#1d5f60', display: 'block', marginBottom: '4px' }}>GölPuan Ödülü (GP)</label>
                 <input type="number" min={10} value={newEventPoints} onChange={(e) => setNewEventPoints(Number(e.target.value))} required style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '2px solid #1d5f60', borderRadius: '8px', color: '#0f172a', outline: 'none', fontWeight: 700 }} />
               </div>
+            </div>
+            <div>
+              <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Kontenjan (opsiyonel)</label>
+              <input type="number" min={0} value={newEventQuota} onChange={(e) => setNewEventQuota(Number(e.target.value))} style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px' }} />
             </div>
 
             <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>

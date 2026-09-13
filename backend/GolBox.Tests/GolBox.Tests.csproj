@@ -8,6 +8,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="9.0.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
     <PackageReference Include="xunit" Version="2.9.2" />
@@ -18,8 +20,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\GolBox.Api\GolBox.Api.csproj" />
     <ProjectReference Include="..\GolBox.Application\GolBox.Application.csproj" />
     <ProjectReference Include="..\GolBox.Infrastructure\GolBox.Infrastructure.csproj" />
+    <ProjectReference Include="..\GolBox.Persistence\GolBox.Persistence.csproj" />
   </ItemGroup>
 
 </Project>

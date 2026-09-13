@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { Screen } from "@/components/golbox/screen"
 import { AppHeader } from "@/components/golbox/app-header"
 import { CaptureOverlay } from "@/components/golbox/capture-overlay"
@@ -15,6 +15,7 @@ import { CityAgendaSection } from "@/components/golbox/home/city-agenda-section"
 import { NearbySection } from "@/components/golbox/home/nearby-section"
 import { EarnPointsSection } from "@/components/golbox/home/earn-points-section"
 import {
+  ActivityDetailSheet,
   AgendaDetailSheet,
   AgendaListSheet,
   EarnInfoSheet,
@@ -23,13 +24,25 @@ import {
 } from "@/components/golbox/home/home-sheets"
 import { isActiveCoupon } from "@/components/golbox/coupon-pass"
 import { GPValue } from "@/components/golbox/gp-value"
+import { InlineError } from "@/components/golbox/inline-error"
+import { SectionSkeleton } from "@/components/golbox/section-skeleton"
 import {
-  findCityContent,
-  mayorMessage,
-  publishedAgendaItems,
-  publishedHeroItems,
+  mayorFromList,
+  resolveContentCta,
+  upcomingEventFromList,
   type CityContentItem,
 } from "@/lib/city-content"
+import {
+  fetchAgendaContent,
+  fetchHeroContent,
+  fetchMyNotifications,
+  fetchPublicActivities,
+  fetchPublicActivity,
+  joinPublicActivity,
+  markNotificationRead,
+  type CitizenNotification,
+  type PublicActivity,
+} from "@/lib/city-content-api"
 import { selectPersonalPriority } from "@/lib/home-priority"
 import { useGolbox } from "@/lib/golbox-context"
 import { useCitizenLocation } from "@/lib/use-citizen-location"
@@ -41,6 +54,7 @@ type HomeSheet =
   | { type: "agenda-item"; item: CityContentItem }
   | { type: "agenda-list" }
   | { type: "notifications" }
+  | { type: "activity"; activityId: string }
   | { type: "earn" }
   | { type: "location" }
   | null
@@ -69,16 +83,83 @@ export function HomeScreen({
     sessionError,
     refreshData,
     publicSettings,
+    unreadCount,
+    refreshUnreadCount,
   } = useGolbox()
   const { origin, permission } = useCitizenLocation()
   const capture = useCaptureSession(origin, fieldDrops)
   const [showRewards, setShowRewards] = useState(false)
   const [rewardsTab, setRewardsTab] = useState<RewardsTab>("catalog")
   const [sheet, setSheet] = useState<HomeSheet>(null)
+  const [heroItems, setHeroItems] = useState<CityContentItem[]>([])
+  const [agendaItems, setAgendaItems] = useState<CityContentItem[]>([])
+  const [heroError, setHeroError] = useState(false)
+  const [agendaError, setAgendaError] = useState(false)
+  const [heroLoading, setHeroLoading] = useState(true)
+  const [notifications, setNotifications] = useState<CitizenNotification[]>([])
+  const [notificationsLoading, setNotificationsLoading] = useState(false)
+  const [activity, setActivity] = useState<PublicActivity | null>(null)
+  const [activityBusy, setActivityBusy] = useState(false)
+  const [upcomingEvent, setUpcomingEvent] = useState<CityContentItem | null>(null)
 
   const isLoggedIn = Boolean(token)
-  const heroItems = useMemo(() => publishedHeroItems(), [])
-  const agendaItems = useMemo(() => publishedAgendaItems(), [])
+
+  const loadHomeContent = useCallback(async () => {
+    setHeroLoading(true)
+    setHeroError(false)
+    setAgendaError(false)
+    try {
+      const hero = await fetchHeroContent(token)
+      setHeroItems(hero)
+    } catch {
+      setHeroItems([])
+      setHeroError(true)
+    } finally {
+      setHeroLoading(false)
+    }
+
+    let upcoming: CityContentItem | null = null
+    try {
+      const agenda = await fetchAgendaContent(token, 1, 12)
+      setAgendaItems(agenda.items)
+      upcoming = upcomingEventFromList(agenda.items)
+    } catch {
+      setAgendaItems([])
+      setAgendaError(true)
+    }
+
+    try {
+      const activities = await fetchPublicActivities(token, 1, 8)
+      const first = activities.items[0]
+      if (!upcoming && first) {
+        upcoming = {
+          id: first.id,
+          type: "EventPromo",
+          title: first.title,
+          subtitle: first.location,
+          body: first.description,
+          imageUrl: first.imageUrl || undefined,
+          ctaLabel: "Etkinliği gör",
+          ctaType: "Activity",
+          ctaTarget: first.id,
+          startAt: first.startDate,
+          endAt: first.endDate,
+          priority: 1,
+          isPublished: true,
+          categoryLabel: "Etkinlik",
+          activityId: first.id,
+        }
+      }
+    } catch {
+      /* priority event is optional */
+    }
+    setUpcomingEvent(upcoming)
+  }, [token])
+
+  useEffect(() => {
+    void loadHomeContent()
+  }, [loadHomeContent])
+
   const nearbyDrop = fieldDrops.find((drop) => !capture.capturedIds.includes(drop.id)) ?? null
   const activeCoupons = claimedRewards.filter(isActiveCoupon)
   const priority = selectPersonalPriority({
@@ -87,33 +168,52 @@ export function HomeScreen({
     fieldDrops,
     capturedIds: capture.capturedIds,
     claimedRewards,
+    upcomingEvent,
   })
 
   const lastMove = isLoggedIn && pointTransactions[0] ? pointTransactions[0] : null
 
   const openContent = (item: CityContentItem) => {
-    if (item.ctaTarget === "mayor" || item.type === "mayor_message") {
-      setSheet({ type: "mayor", item: mayorMessage() ?? item })
+    const action = resolveContentCta(item)
+    if (action.kind === "mayor") {
+      setSheet({ type: "mayor", item: mayorFromList([item, ...heroItems, ...agendaItems]) ?? item })
       return
     }
-    if (item.ctaTarget === "cafes") {
-      onOpenCafes()
+    if (action.kind === "cafe") {
+      if (action.cafeId) onOpenCafe(action.cafeId)
+      else onOpenCafes()
       return
     }
-    if (item.ctaTarget === "catalog") {
+    if (action.kind === "catalog") {
       setRewardsTab("catalog")
       setShowRewards(true)
       return
     }
-    if (item.ctaTarget === "map") {
+    if (action.kind === "map") {
       onNavigate("map")
       return
     }
-    if (item.ctaTarget === "qr") {
+    if (action.kind === "qr") {
       onNavigate("qr")
       return
     }
-    setSheet({ type: "agenda-item", item: findCityContent(item.id) ?? item })
+    if (action.kind === "profile") {
+      onNavigate("profile")
+      return
+    }
+    if (action.kind === "earn") {
+      setSheet({ type: "earn" })
+      return
+    }
+    if (action.kind === "external") {
+      window.open(action.url, "_blank", "noopener,noreferrer")
+      return
+    }
+    if (action.kind === "activity") {
+      setSheet({ type: "activity", activityId: action.activityId })
+      return
+    }
+    setSheet({ type: "agenda-item", item })
   }
 
   const openRewards = (tab: RewardsTab) => {
@@ -149,6 +249,87 @@ export function HomeScreen({
     capture.openCapture(id)
   }
 
+  useEffect(() => {
+    if (sheet?.type !== "notifications" || !token) return
+    let cancelled = false
+    setNotificationsLoading(true)
+    void fetchMyNotifications(token)
+      .then((page) => {
+        if (!cancelled) setNotifications(page.items)
+      })
+      .catch(() => {
+        if (!cancelled) setNotifications([])
+      })
+      .finally(() => {
+        if (!cancelled) setNotificationsLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [sheet, token])
+
+  useEffect(() => {
+    if (sheet?.type !== "activity") {
+      setActivity(null)
+      return
+    }
+    let cancelled = false
+    void fetchPublicActivity(sheet.activityId, token)
+      .then((item) => {
+        if (!cancelled) setActivity(item)
+      })
+      .catch(() => {
+        if (!cancelled) setActivity(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [sheet, token])
+
+  const handleNotificationOpen = async (item: CitizenNotification) => {
+    if (token && !item.isRead) {
+      try {
+        await markNotificationRead(token, item.id)
+        setNotifications((current) => current.map((row) => (row.id === item.id ? { ...row, isRead: true } : row)))
+        await refreshUnreadCount()
+      } catch {
+        /* keep list usable */
+      }
+    }
+    if (item.targetType === "Activity" && item.targetId) {
+      setSheet({ type: "activity", activityId: item.targetId })
+      return
+    }
+    if (item.targetType === "Content" && item.targetId) {
+      const found = [...heroItems, ...agendaItems].find((row) => row.id === item.targetId)
+      if (found) {
+        openContent(found)
+        return
+      }
+    }
+    if (item.targetType === "Cafe" && item.targetId) {
+      onOpenCafe(item.targetId)
+      return
+    }
+  }
+
+  const handleJoinActivity = async () => {
+    if (!token || !activity) {
+      capture.setShowLogin(true)
+      return
+    }
+    setActivityBusy(true)
+    try {
+      await joinPublicActivity(activity.id, token)
+      setActivity(await fetchPublicActivity(activity.id, token))
+      await refreshData()
+    } catch {
+      /* join error stays on current sheet */
+    } finally {
+      setActivityBusy(false)
+    }
+  }
+
   if (showRewards) {
     return (
       <RewardsScreen
@@ -163,11 +344,18 @@ export function HomeScreen({
     <Screen className="space-y-6">
       <AppHeader
         firstName={user?.firstName}
+        unreadCount={unreadCount}
         onNotifications={() => setSheet({ type: "notifications" })}
         onProfile={() => onNavigate("profile")}
       />
 
-      <HomeHeroCarousel items={heroItems} compact={Boolean(priority)} onOpen={openContent} />
+      {heroError ? (
+        <InlineError message="Duyurular yüklenemedi." onRetry={() => void loadHomeContent()} />
+      ) : heroLoading ? (
+        <SectionSkeleton lines={1} />
+      ) : (
+        <HomeHeroCarousel items={heroItems} compact={Boolean(priority)} onOpen={openContent} />
+      )}
 
       <PersonalPrioritySection
         item={priority}
@@ -191,6 +379,8 @@ export function HomeScreen({
 
       <CityAgendaSection
         items={agendaItems}
+        error={agendaError}
+        onRetry={() => void loadHomeContent()}
         onOpen={openContent}
         onSeeAll={() => setSheet({ type: "agenda-list" })}
       />
@@ -251,17 +441,37 @@ export function HomeScreen({
         <AgendaListSheet
           items={agendaItems}
           onClose={() => setSheet(null)}
-          onOpen={(item) => setSheet({ type: "agenda-item", item })}
+          onOpen={(item) => {
+            const action = resolveContentCta(item)
+            if (action.kind === "activity") setSheet({ type: "activity", activityId: action.activityId })
+            else setSheet({ type: "agenda-item", item })
+          }}
+        />
+      )}
+      {sheet?.type === "activity" && (
+        <ActivityDetailSheet
+          activity={activity}
+          isLoggedIn={isLoggedIn}
+          busy={activityBusy}
+          onClose={() => setSheet(null)}
+          onJoin={() => void handleJoinActivity()}
+          onLogin={() => {
+            setSheet(null)
+            capture.setShowLogin(true)
+          }}
         />
       )}
       {sheet?.type === "notifications" && (
         <NotificationsSheet
           isLoggedIn={isLoggedIn}
+          items={notifications}
+          loading={notificationsLoading}
           onClose={() => setSheet(null)}
           onLogin={() => {
             setSheet(null)
             capture.setShowLogin(true)
           }}
+          onOpen={(item) => void handleNotificationOpen(item)}
         />
       )}
       {sheet?.type === "earn" && (

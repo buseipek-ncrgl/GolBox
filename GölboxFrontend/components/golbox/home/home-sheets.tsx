@@ -3,7 +3,9 @@
 import { CityImage } from "@/components/golbox/city-image"
 import { OverlaySheet } from "@/components/golbox/overlay-sheet"
 import { EmptyState } from "@/components/golbox/empty-state"
+import { GPValue } from "@/components/golbox/gp-value"
 import type { CityContentItem } from "@/lib/city-content"
+import type { CitizenNotification, PublicActivity } from "@/lib/city-content-api"
 
 export function MayorMessageSheet({
   item,
@@ -107,24 +109,26 @@ export function AgendaListSheet({
 
 export function NotificationsSheet({
   isLoggedIn,
+  items,
+  loading,
   onClose,
   onLogin,
+  onOpen,
 }: {
   isLoggedIn: boolean
+  items: CitizenNotification[]
+  loading?: boolean
   onClose: () => void
   onLogin: () => void
+  onOpen: (item: CitizenNotification) => void
 }) {
   return (
     <OverlaySheet title="Bildirimler" onClose={onClose}>
-      <EmptyState
-        title={isLoggedIn ? "Henüz bildirimin yok." : "Bildirimler hesabına bağlı."}
-        description={
-          isLoggedIn
-            ? "Belediye duyuruları ve kişisel hatırlatmalar burada görünecek."
-            : "Giriş yapınca kişisel bildirimlerin bu listede durur."
-        }
-        action={
-          !isLoggedIn ? (
+      {!isLoggedIn ? (
+        <EmptyState
+          title="Bildirimler hesabına bağlı."
+          description="Giriş yapınca kişisel bildirimlerin bu listede durur."
+          action={
             <button
               type="button"
               onClick={onLogin}
@@ -132,9 +136,99 @@ export function NotificationsSheet({
             >
               Giriş yap
             </button>
-          ) : null
-        }
-      />
+          }
+        />
+      ) : loading ? (
+        <p className="text-sm text-muted-foreground">Bildirimler yükleniyor…</p>
+      ) : items.length === 0 ? (
+        <EmptyState title="Yeni bildirimin yok." />
+      ) : (
+        <ul className="space-y-2">
+          {items.map((item) => (
+            <li key={item.id}>
+              <button
+                type="button"
+                onClick={() => onOpen(item)}
+                className="gol-card flex w-full gap-3 p-3 text-left"
+              >
+                <span
+                  className={`mt-1.5 size-2 shrink-0 rounded-full ${item.isRead ? "bg-transparent" : "bg-[color:var(--color-danger)]"}`}
+                  aria-hidden
+                />
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold text-foreground">{item.title}</span>
+                  <span className="mt-0.5 line-clamp-2 text-[13px] text-muted-foreground">{item.body}</span>
+                  <span className="mt-1 block text-[12px] text-muted-foreground">
+                    {new Date(item.createdAt).toLocaleString("tr-TR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </OverlaySheet>
+  )
+}
+
+export function ActivityDetailSheet({
+  activity,
+  isLoggedIn,
+  busy,
+  onClose,
+  onJoin,
+  onLogin,
+}: {
+  activity: PublicActivity | null
+  isLoggedIn: boolean
+  busy?: boolean
+  onClose: () => void
+  onJoin: () => void
+  onLogin: () => void
+}) {
+  if (!activity) {
+    return (
+      <OverlaySheet title="Etkinlik" onClose={onClose}>
+        <EmptyState title="Yayınlanmış etkinlik bulunmuyor." />
+      </OverlaySheet>
+    )
+  }
+
+  const start = new Date(activity.startDate)
+  const end = new Date(activity.endDate)
+  const when = `${start.toLocaleString("tr-TR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })} – ${end.toLocaleString("tr-TR", { hour: "2-digit", minute: "2-digit" })}`
+  const remaining =
+    activity.capacity != null ? Math.max(0, activity.capacity - activity.joinedCount) : null
+
+  return (
+    <OverlaySheet title="Etkinlik" onClose={onClose}>
+      <div className="h-40 overflow-hidden rounded-[var(--gol-radius-lg)] bg-[color:var(--color-brand-900)]">
+        <CityImage src={activity.imageUrl} alt="" focus="center" className="h-full w-full" />
+      </div>
+      <h3 className="mt-4 font-serif text-2xl leading-snug text-foreground">{activity.title}</h3>
+      <p className="mt-1 text-sm text-muted-foreground">{when}</p>
+      {activity.location ? <p className="mt-1 text-sm text-muted-foreground">{activity.location}</p> : null}
+      <p className="mt-3 text-[15px] leading-relaxed text-foreground">{activity.description}</p>
+      <div className="mt-4 flex flex-wrap gap-2 text-[12px] font-semibold text-muted-foreground">
+        {remaining != null ? <span>Kalan kontenjan: {remaining}</span> : null}
+        {activity.rewardPoints > 0 ? (
+          <span>
+            Kazanım: <GPValue amount={activity.rewardPoints} signed className="text-[12px]" />
+          </span>
+        ) : null}
+      </div>
+      {activity.isJoined ? (
+        <p className="mt-5 min-h-11 text-sm font-semibold text-primary">Katıldın</p>
+      ) : (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={isLoggedIn ? onJoin : onLogin}
+          className="mt-5 min-h-11 w-full rounded-[14px] bg-primary px-5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+        >
+          {isLoggedIn ? "Katıl" : "Katılmak için giriş yap"}
+        </button>
+      )}
     </OverlaySheet>
   )
 }
