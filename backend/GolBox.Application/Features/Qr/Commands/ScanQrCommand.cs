@@ -265,7 +265,7 @@ public class ScanQrCommandHandler : IRequestHandler<ScanQrCommand, Result<ScanRe
 /// </summary>
 internal static class AuditLogsControllerSafe
 {
-    public static async Task TryLogAsync(
+    public static async System.Threading.Tasks.Task TryLogAsync(
         IAppDbContext context,
         string userEmail,
         string userRole,

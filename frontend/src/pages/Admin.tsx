@@ -64,12 +64,6 @@ export const Admin: React.FC = () => {
     || 'Admin';
   const isAdminUser = adminRole === 'Admin';
   const staffMenuIds = new Set(['overview', 'users', 'cafes', 'products', 'points', 'qr', 'fieldDrops', 'ismarliyor', 'events']);
-
-  useEffect(() => {
-    if (!isAdminUser && !staffMenuIds.has(activeMenu)) {
-      setActiveMenu('overview');
-    }
-  }, [isAdminUser, activeMenu]);
   const adminInitials = `${currentUser?.firstName?.[0] || ''}${currentUser?.lastName?.[0] || ''}`.trim() || 'GB';
   
   // Sidebar Collapse State
@@ -81,6 +75,12 @@ export const Admin: React.FC = () => {
     'qr' | 'rewards' | 'fieldDrops' | 'ismarliyor' | 'campaigns' | 'events' | 
     'notifications' | 'reports' | 'roles' | 'audit'
   >('overview');
+
+  useEffect(() => {
+    if (!isAdminUser && !staffMenuIds.has(activeMenu)) {
+      setActiveMenu('overview');
+    }
+  }, [isAdminUser, activeMenu]);
 
   // Data states
   const [loading, setLoading] = useState(true);

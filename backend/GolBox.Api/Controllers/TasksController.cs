@@ -5,7 +5,6 @@ using GolBox.Application.Authorization;
 using GolBox.Application.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using GolBox.Application.Common;
 using GolBox.Application.Features.Tasks.Commands;
 using GolBox.Application.Features.Tasks.Queries;
 using GolBox.Application.Interfaces;

@@ -7,7 +7,6 @@ using GolBox.Application.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using GolBox.Application.Common;
 using GolBox.Application.Features.Users.Commands;
 using GolBox.Application.Features.Users.Queries;
 using GolBox.Application.Interfaces;
