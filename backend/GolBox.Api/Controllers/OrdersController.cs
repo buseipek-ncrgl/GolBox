@@ -28,7 +28,12 @@ public class OrdersController : BaseApiController
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetOrders()
+    public async Task<IActionResult> GetOrders(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = AdminPaging.DefaultPageSize,
+        [FromQuery] string? status = null,
+        [FromQuery] Guid? cafeId = null,
+        [FromQuery] string? search = null)
     {
         var currentUserId = _currentUserService.UserId;
         if (currentUserId == null || currentUserId == Guid.Empty)
@@ -38,15 +43,43 @@ public class OrdersController : BaseApiController
         if (!_currentUserService.IsStaffOrAdmin)
             query = query.Where(o => o.UserId == currentUserId.Value);
 
-        var orders = await query
+        if (!string.IsNullOrWhiteSpace(status) && status != "All")
+        {
+            var canonical = OrderStatuses.Canonicalize(status);
+            query = query.Where(o => o.Status == canonical || o.Status == status);
+        }
+        if (cafeId.HasValue)
+            query = query.Where(o => o.CafeId == cafeId.Value);
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            query = query.Where(o =>
+                o.CollectionCode.Contains(term) ||
+                o.User.FirstName.Contains(term) ||
+                o.User.LastName.Contains(term));
+        }
+
+        query = query
             .Include(o => o.User)
             .Include(o => o.Cafe)
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.MenuItem)
-            .OrderByDescending(o => o.CreatedDate)
-            .ToListAsync();
+            .OrderByDescending(o => o.CreatedDate);
 
-        var dtoList = orders.Select(o => new
+        if (!_currentUserService.IsStaffOrAdmin)
+        {
+            var citizenOrders = await query.ToListAsync();
+            return Ok(Result<object>.Ok(MapOrders(citizenOrders)));
+        }
+
+        (page, pageSize) = AdminPaging.Normalize(page, pageSize);
+        var totalCount = await query.CountAsync();
+        var orders = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+        return Ok(Result<object>.Ok(new { items = MapOrders(orders), page, pageSize, totalCount }));
+    }
+
+    private static object MapOrders(System.Collections.Generic.List<Order> orders) =>
+        orders.Select(o => new
         {
             o.Id,
             o.UserId,
@@ -72,9 +105,6 @@ public class OrdersController : BaseApiController
             }).ToList()
         }).ToList();
 
-        return Ok(Result<object>.Ok(dtoList));
-    }
-
     [HttpPut("{id}/status")]
     [Authorize(Policy = AuthorizationPolicies.StaffOrAdmin)]
     public async Task<IActionResult> UpdateOrderStatus(Guid id, [FromBody] UpdateOrderStatusRequest request)
@@ -83,14 +113,15 @@ public class OrdersController : BaseApiController
         if (order == null)
             return NotFound(Result<object>.Fail("Sipariş bulunamadı."));
 
+        var currentStatus = OrderStatuses.Canonicalize(order.Status);
         var newStatus = OrderStatuses.Canonicalize(request.Status);
+        if (!OrderStatuses.CanTransition(currentStatus, newStatus))
+            return BadRequest(Result<object>.Fail(OrderStatuses.TransitionError(currentStatus, newStatus)));
+
         if (newStatus == OrderStatuses.Cancelled)
         {
-            if (order.Status == OrderStatuses.Completed)
-                return BadRequest(Result<object>.Fail("Tamamlanmış sipariş iptal edilemez."));
-
-            if (order.Status == OrderStatuses.Cancelled)
-                return Ok(Result<object>.Ok(new { id = order.Id, status = order.Status }, "Sipariş zaten iptal."));
+            if (currentStatus == OrderStatuses.Cancelled)
+                return Ok(Result<object>.Ok(new { id = order.Id, status = currentStatus }, "Sipariş zaten iptal."));
 
             if (order.PaidWithPoints && order.PointsUsed > 0)
             {
@@ -102,6 +133,7 @@ public class OrdersController : BaseApiController
             }
         }
 
+        var previousStatus = order.Status;
         order.Status = newStatus;
         order.UpdatedDate = DateTime.UtcNow;
 
@@ -124,7 +156,19 @@ public class OrdersController : BaseApiController
         await _hubContext.Clients.User(order.UserId.ToString()).SendAsync("OrderStatusUpdated", payload);
         await _hubContext.Clients.Group(OrderHub.StaffGroup).SendAsync("OrderStatusUpdated", payload);
 
-        return Ok(Result<object>.Ok(new { id = order.Id, status = order.Status }, $"Sipariş durumu '{order.Status}' olarak güncellendi."));
+        await AuditLogsController.LogAsync(
+            _context,
+            _currentUserService.Email ?? "staff",
+            _currentUserService.Role ?? "Staff",
+            "Order_Status",
+            "Orders",
+            "Order",
+            order.Id.ToString(),
+            previousStatus,
+            order.Status,
+            order.CollectionCode);
+
+        return Ok(Result<object>.Ok(new { id = order.Id, status = order.Status }, "Sipariş durumu güncellendi."));
     }
 
     [HttpPost]

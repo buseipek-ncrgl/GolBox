@@ -1,7 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Plus, Save, Trash2, Upload, Search } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Plus, Save, Trash2, Upload } from 'lucide-react';
 import { api } from '../services/api';
 import { AdminMapPicker } from '../components/admin/AdminMapPicker';
+import { ConfirmDialog } from '../components/admin/ConfirmDialog';
+import { EmptyState, FilterBar, ListError, PaginationBar } from '../components/admin/FilterBar';
+import { AdminSkeletonCard } from '../components/admin/AdminSkeleton';
 
 const CATEGORIES = [
   { id: 'Cafe', label: 'Göl Kafeler' },
@@ -76,16 +80,33 @@ export const PlacesPanel: React.FC<{
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('');
+  const [published, setPublished] = useState('');
+  const [active, setActive] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [total, setTotal] = useState(0);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(emptyForm());
   const [uploading, setUploading] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [fail, setFail] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
     try {
-      const data = await api.getAdminPlaces({ category: category || undefined, search: search || undefined });
+      const data = await api.getAdminPlaces({
+        category: category || undefined,
+        search: search || undefined,
+        published: published === '' ? undefined : published === 'true',
+        active: active === '' ? undefined : active === 'true',
+        page,
+        pageSize
+      });
       setItems(data?.items || (Array.isArray(data) ? data : []));
+      setTotal(data?.totalCount || (data?.items || []).length);
+      setFail(null);
     } catch (err: any) {
+      setFail(err.message || 'Tesisler yüklenemedi.');
       onError(err.message || 'Tesisler yüklenemedi.');
     } finally {
       setLoading(false);
@@ -95,7 +116,7 @@ export const PlacesPanel: React.FC<{
   useEffect(() => {
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [category]);
+  }, [category, published, active, page, pageSize]);
 
   const openNew = () => {
     setForm(emptyForm());
@@ -209,137 +230,172 @@ export const PlacesPanel: React.FC<{
         </button>
       </div>
 
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <div style={{ position: 'relative', flex: 1, minWidth: 220 }}>
-          <Search size={16} style={{ position: 'absolute', left: 12, top: 12, color: '#64748b' }} />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void load()} placeholder="Ad, mahalle, ilçe" style={{ ...inputStyle, paddingLeft: 36 }} />
-        </div>
-        <select value={category} onChange={(e) => setCategory(e.target.value)} style={{ ...inputStyle, width: 220 }}>
-          <option value="">Tüm kategoriler</option>
-          {CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
-        </select>
-      </div>
+      <FilterBar
+        search={search}
+        onSearch={(v) => { setSearch(v); setPage(1); }}
+        searchPlaceholder="Ad, mahalle, ilçe"
+        activeCount={[search, category, published, active].filter(Boolean).length}
+        onClear={() => { setSearch(''); setCategory(''); setPublished(''); setActive(''); setPage(1); void load(); }}
+        filters={
+          <>
+            <select value={category} onChange={(e) => { setCategory(e.target.value); setPage(1); }} style={{ ...inputStyle, width: 220 }}>
+              <option value="">Tüm kategoriler</option>
+              {CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+            </select>
+            <select value={published} onChange={(e) => { setPublished(e.target.value); setPage(1); }} style={{ ...inputStyle, width: 160 }}>
+              <option value="">Yayın durumu</option>
+              <option value="true">Yayında</option>
+              <option value="false">Taslak</option>
+            </select>
+            <select value={active} onChange={(e) => { setActive(e.target.value); setPage(1); }} style={{ ...inputStyle, width: 140 }}>
+              <option value="">Aktif/pasif</option>
+              <option value="true">Aktif</option>
+              <option value="false">Pasif</option>
+            </select>
+            <button type="button" onClick={() => { setPage(1); void load(); }} style={{ background: '#1d5f60', color: '#fff', border: 'none', borderRadius: 8, padding: '0 14px', fontWeight: 700, cursor: 'pointer' }}>Filtrele</button>
+          </>
+        }
+      />
 
       {editing && (
         <form onSubmit={(e) => { e.preventDefault(); void save(); }} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 16, padding: '1.25rem' }}>
-          <p style={sectionTitle}>Temel</p>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            <label style={labelStyle}>Ad<input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} style={inputStyle} /></label>
-            <label style={labelStyle}>Kategori
-              <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} style={inputStyle}>
-                {CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
-              </select>
-            </label>
-          </div>
-          <label style={{ ...labelStyle, marginTop: 8 }}>Kısa açıklama<input value={form.shortDescription} onChange={(e) => setForm({ ...form, shortDescription: e.target.value })} style={inputStyle} /></label>
-          <label style={{ ...labelStyle, marginTop: 8 }}>Açıklama<textarea rows={4} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} style={inputStyle} /></label>
-
-          <p style={sectionTitle}>Konum</p>
-          <label style={labelStyle}>Adres<input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} style={inputStyle} /></label>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8 }}>
-            <label style={labelStyle}>İlçe<input value={form.district} onChange={(e) => setForm({ ...form, district: e.target.value })} style={inputStyle} /></label>
-            <label style={labelStyle}>Mahalle<input value={form.neighborhood} onChange={(e) => setForm({ ...form, neighborhood: e.target.value })} style={inputStyle} /></label>
-          </div>
-          <div style={{ marginTop: 10 }}>
-            <AdminMapPicker latitude={form.latitude} longitude={form.longitude} onChange={onMapChange} />
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8 }}>
-            <label style={labelStyle}>Enlem<input type="number" step="0.000001" value={form.latitude} onChange={(e) => setForm({ ...form, latitude: Number(e.target.value) })} style={inputStyle} /></label>
-            <label style={labelStyle}>Boylam<input type="number" step="0.000001" value={form.longitude} onChange={(e) => setForm({ ...form, longitude: Number(e.target.value) })} style={inputStyle} /></label>
-          </div>
-
-          <p style={sectionTitle}>İletişim</p>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-            <label style={labelStyle}>Telefon<input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} style={inputStyle} /></label>
-            <label style={labelStyle}>E-posta<input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} style={inputStyle} /></label>
-            <label style={labelStyle}>Web<input value={form.websiteUrl} onChange={(e) => setForm({ ...form, websiteUrl: e.target.value })} style={inputStyle} /></label>
-          </div>
-
-          <p style={sectionTitle}>Görseller</p>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <input value={form.coverImageUrl} onChange={(e) => setForm({ ...form, coverImageUrl: e.target.value })} placeholder="Kapak URL" style={inputStyle} />
-            <label style={{ ...inputStyle, width: 'auto', cursor: 'pointer' }}>
-              <Upload size={16} /> {uploading ? '…' : 'Yükle'}
-              <input type="file" accept="image/*" hidden onChange={(e) => e.target.files?.[0] && void upload(e.target.files[0])} />
-            </label>
-          </div>
-          {form.images.length > 0 && (
-            <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
-              {form.images.map((image) => (
-                <button key={image.id} type="button" onClick={() => form.id && void api.deleteAdminPlaceImage(form.id, image.id).then(() => openEdit(form.id))} style={{ width: 72, height: 72, borderRadius: 12, overflow: 'hidden', border: image.isCover ? '2px solid #1d5f60' : '1px solid #e2e8f0', padding: 0, cursor: 'pointer' }}>
-                  <img src={image.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                </button>
-              ))}
+          {form.category === 'Cafe' && (
+            <div style={{ background: '#e8f2f2', border: '1px solid #c5d6d3', borderRadius: 12, padding: '0.85rem 1rem', marginBottom: 12, display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#1d5f60' }}>Bu tesisin kafe operasyonu Göl Kafeler bölümünden yönetilir.</span>
+              <Link to="/admin/gol-kafeler" style={{ fontWeight: 800, color: '#1d5f60' }}>Göl Kafeler</Link>
             </div>
           )}
+          <details open>
+            <summary style={sectionTitle}>1. Temel bilgi</summary>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <label style={labelStyle}>Ad<input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} style={inputStyle} /></label>
+              <label style={labelStyle}>Kategori
+                <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} style={inputStyle}>
+                  {CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+                </select>
+              </label>
+            </div>
+            <label style={{ ...labelStyle, marginTop: 8 }}>Kısa açıklama<input value={form.shortDescription} onChange={(e) => setForm({ ...form, shortDescription: e.target.value })} style={inputStyle} /></label>
+            <label style={{ ...labelStyle, marginTop: 8 }}>Açıklama<textarea rows={4} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} style={inputStyle} /></label>
+          </details>
 
-          <p style={sectionTitle}>Çalışma saatleri</p>
-          <div style={{ display: 'grid', gap: 6 }}>
-            {form.openingHours.map((hour, index) => (
-              <div key={hour.dayOfWeek} style={{ display: 'grid', gridTemplateColumns: '120px 1fr 1fr auto', gap: 8, alignItems: 'center' }}>
-                <span style={{ fontSize: 13, fontWeight: 600 }}>{DAYS[hour.dayOfWeek]}</span>
-                <input type="time" value={hour.openTime || ''} disabled={hour.isClosed} onChange={(e) => {
-                  const next = [...form.openingHours];
-                  next[index] = { ...hour, openTime: e.target.value };
-                  setForm({ ...form, openingHours: next });
-                }} style={inputStyle} />
-                <input type="time" value={hour.closeTime || ''} disabled={hour.isClosed} onChange={(e) => {
-                  const next = [...form.openingHours];
-                  next[index] = { ...hour, closeTime: e.target.value };
-                  setForm({ ...form, openingHours: next });
-                }} style={inputStyle} />
-                <label style={{ fontSize: 12, display: 'flex', gap: 6, alignItems: 'center' }}>
-                  <input type="checkbox" checked={hour.isClosed} onChange={(e) => {
-                    const next = [...form.openingHours];
-                    next[index] = { ...hour, isClosed: e.target.checked };
-                    setForm({ ...form, openingHours: next });
-                  }} /> Kapalı
-                </label>
+          <details open>
+            <summary style={sectionTitle}>2. Konum</summary>
+            <label style={labelStyle}>Adres<input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} style={inputStyle} /></label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8 }}>
+              <label style={labelStyle}>İlçe<input value={form.district} onChange={(e) => setForm({ ...form, district: e.target.value })} style={inputStyle} /></label>
+              <label style={labelStyle}>Mahalle<input value={form.neighborhood} onChange={(e) => setForm({ ...form, neighborhood: e.target.value })} style={inputStyle} /></label>
+            </div>
+            <div style={{ marginTop: 10 }}>
+              <AdminMapPicker latitude={form.latitude} longitude={form.longitude} onChange={onMapChange} />
+            </div>
+            <details style={{ marginTop: 8 }}>
+              <summary style={{ fontSize: 12, fontWeight: 700, color: '#64748b', cursor: 'pointer' }}>Gelişmiş: enlem / boylam</summary>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8 }}>
+                <label style={labelStyle}>Enlem<input type="number" step="0.000001" value={form.latitude} onChange={(e) => setForm({ ...form, latitude: Number(e.target.value) })} style={inputStyle} /></label>
+                <label style={labelStyle}>Boylam<input type="number" step="0.000001" value={form.longitude} onChange={(e) => setForm({ ...form, longitude: Number(e.target.value) })} style={inputStyle} /></label>
               </div>
-            ))}
-          </div>
+            </details>
+          </details>
 
-          <p style={sectionTitle}>Olanaklar</p>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {AMENITIES.map((amenity) => {
-              const on = form.amenities.includes(amenity.id);
-              return (
-                <button key={amenity.id} type="button" onClick={() => setForm({
-                  ...form,
-                  amenities: on ? form.amenities.filter((id) => id !== amenity.id) : [...form.amenities, amenity.id]
-                })} style={{ minHeight: 44, padding: '0 12px', borderRadius: 999, border: on ? 'none' : '1px solid #d7e3e0', background: on ? '#1d5f60' : '#fff', color: on ? '#fff' : '#1c2e2e', fontWeight: 700, cursor: 'pointer' }}>
-                  {amenity.label}
-                </button>
-              );
-            })}
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 10 }}>
-            <label style={labelStyle}>Tekerlekli sandalye
-              <select value={form.wheelchairAccessible} onChange={(e) => setForm({ ...form, wheelchairAccessible: e.target.value as any })} style={inputStyle}>
-                <option value="">Bilinmiyor</option>
-                <option value="true">Evet</option>
-                <option value="false">Hayır</option>
-              </select>
-            </label>
-            <label style={labelStyle}>Erişilebilir WC
-              <select value={form.accessibleToilet} onChange={(e) => setForm({ ...form, accessibleToilet: e.target.value as any })} style={inputStyle}>
-                <option value="">Bilinmiyor</option>
-                <option value="true">Evet</option>
-                <option value="false">Hayır</option>
-              </select>
-            </label>
-          </div>
+          <details>
+            <summary style={sectionTitle}>3. Çalışma saatleri</summary>
+            <div style={{ display: 'grid', gap: 6 }}>
+              {form.openingHours.map((hour, index) => (
+                <div key={hour.dayOfWeek} style={{ display: 'grid', gridTemplateColumns: '120px 1fr 1fr auto', gap: 8, alignItems: 'center' }}>
+                  <span style={{ fontSize: 13, fontWeight: 600 }}>{DAYS[hour.dayOfWeek]}</span>
+                  <input type="time" value={hour.openTime || ''} disabled={hour.isClosed} onChange={(e) => {
+                    const next = [...form.openingHours];
+                    next[index] = { ...hour, openTime: e.target.value };
+                    setForm({ ...form, openingHours: next });
+                  }} style={inputStyle} />
+                  <input type="time" value={hour.closeTime || ''} disabled={hour.isClosed} onChange={(e) => {
+                    const next = [...form.openingHours];
+                    next[index] = { ...hour, closeTime: e.target.value };
+                    setForm({ ...form, openingHours: next });
+                  }} style={inputStyle} />
+                  <label style={{ fontSize: 12, display: 'flex', gap: 6, alignItems: 'center' }}>
+                    <input type="checkbox" checked={hour.isClosed} onChange={(e) => {
+                      const next = [...form.openingHours];
+                      next[index] = { ...hour, isClosed: e.target.checked };
+                      setForm({ ...form, openingHours: next });
+                    }} /> Kapalı
+                  </label>
+                </div>
+              ))}
+            </div>
+          </details>
 
-          <p style={sectionTitle}>Yayın</p>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-            <label style={{ ...labelStyle, alignItems: 'center', display: 'flex', gap: 8 }}>
-              <input type="checkbox" checked={form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} /> Aktif
-            </label>
-            <label style={{ ...labelStyle, alignItems: 'center', display: 'flex', gap: 8 }}>
-              <input type="checkbox" checked={form.isPublished} onChange={(e) => setForm({ ...form, isPublished: e.target.checked })} /> Yayında
-            </label>
-            <label style={labelStyle}>Sıra<input type="number" value={form.sortOrder} onChange={(e) => setForm({ ...form, sortOrder: Number(e.target.value) })} style={inputStyle} /></label>
-          </div>
+          <details>
+            <summary style={sectionTitle}>4. Görseller</summary>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input value={form.coverImageUrl} onChange={(e) => setForm({ ...form, coverImageUrl: e.target.value })} placeholder="Kapak URL" style={inputStyle} />
+              <label style={{ ...inputStyle, width: 'auto', cursor: 'pointer' }}>
+                <Upload size={16} /> {uploading ? '…' : 'Yükle'}
+                <input type="file" accept="image/*" hidden onChange={(e) => e.target.files?.[0] && void upload(e.target.files[0])} />
+              </label>
+            </div>
+            {form.images.length > 0 && (
+              <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                {form.images.map((image) => (
+                  <button key={image.id} type="button" onClick={() => form.id && void api.deleteAdminPlaceImage(form.id, image.id).then(() => openEdit(form.id))} style={{ width: 72, height: 72, borderRadius: 12, overflow: 'hidden', border: image.isCover ? '2px solid #1d5f60' : '1px solid #e2e8f0', padding: 0, cursor: 'pointer' }}>
+                    <img src={image.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  </button>
+                ))}
+              </div>
+            )}
+          </details>
+
+          <details>
+            <summary style={sectionTitle}>5. Özellikler</summary>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+              <label style={labelStyle}>Telefon<input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} style={inputStyle} /></label>
+              <label style={labelStyle}>E-posta<input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} style={inputStyle} /></label>
+              <label style={labelStyle}>Web<input value={form.websiteUrl} onChange={(e) => setForm({ ...form, websiteUrl: e.target.value })} style={inputStyle} /></label>
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
+              {AMENITIES.map((amenity) => {
+                const on = form.amenities.includes(amenity.id);
+                return (
+                  <button key={amenity.id} type="button" onClick={() => setForm({
+                    ...form,
+                    amenities: on ? form.amenities.filter((id) => id !== amenity.id) : [...form.amenities, amenity.id]
+                  })} style={{ minHeight: 44, padding: '0 12px', borderRadius: 999, border: on ? 'none' : '1px solid #d7e3e0', background: on ? '#1d5f60' : '#fff', color: on ? '#fff' : '#1c2e2e', fontWeight: 700, cursor: 'pointer' }}>
+                    {amenity.label}
+                  </button>
+                );
+              })}
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 10 }}>
+              <label style={labelStyle}>Tekerlekli sandalye
+                <select value={form.wheelchairAccessible} onChange={(e) => setForm({ ...form, wheelchairAccessible: e.target.value as any })} style={inputStyle}>
+                  <option value="">Bilinmiyor</option>
+                  <option value="true">Evet</option>
+                  <option value="false">Hayır</option>
+                </select>
+              </label>
+              <label style={labelStyle}>Erişilebilir WC
+                <select value={form.accessibleToilet} onChange={(e) => setForm({ ...form, accessibleToilet: e.target.value as any })} style={inputStyle}>
+                  <option value="">Bilinmiyor</option>
+                  <option value="true">Evet</option>
+                  <option value="false">Hayır</option>
+                </select>
+              </label>
+            </div>
+          </details>
+
+          <details>
+            <summary style={sectionTitle}>6. Yayın</summary>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+              <label style={{ ...labelStyle, alignItems: 'center', display: 'flex', gap: 8 }}>
+                <input type="checkbox" checked={form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} /> Aktif
+              </label>
+              <label style={{ ...labelStyle, alignItems: 'center', display: 'flex', gap: 8 }}>
+                <input type="checkbox" checked={form.isPublished} onChange={(e) => setForm({ ...form, isPublished: e.target.checked })} /> Yayında
+              </label>
+              <label style={labelStyle}>Sıra<input type="number" value={form.sortOrder} onChange={(e) => setForm({ ...form, sortOrder: Number(e.target.value) })} style={inputStyle} /></label>
+            </div>
+          </details>
 
           <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
             <button type="submit" style={{ background: '#1d5f60', color: '#fff', border: 'none', padding: '0.7rem 1.2rem', borderRadius: 10, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -347,7 +403,7 @@ export const PlacesPanel: React.FC<{
             </button>
             <button type="button" onClick={() => setEditing(false)} style={{ background: '#fff', border: '1px solid #d7e3e0', padding: '0.7rem 1.2rem', borderRadius: 10, fontWeight: 700, cursor: 'pointer' }}>Vazgeç</button>
             {form.id ? (
-              <button type="button" onClick={() => void api.deleteAdminPlace(form.id).then(() => { onSuccess('Tesis silindi.'); setEditing(false); return load(); })} style={{ marginLeft: 'auto', background: '#fff', color: '#b91c1c', border: '1px solid #fecaca', padding: '0.7rem 1.2rem', borderRadius: 10, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button type="button" onClick={() => setDeleteConfirm(true)} style={{ marginLeft: 'auto', background: '#fff', color: '#b91c1c', border: '1px solid #fecaca', padding: '0.7rem 1.2rem', borderRadius: 10, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Trash2 size={16} /> Sil
               </button>
             ) : null}
@@ -355,8 +411,9 @@ export const PlacesPanel: React.FC<{
         </form>
       )}
 
-      {loading ? <p style={{ color: '#64748b' }}>Yükleniyor…</p> : items.length === 0 ? (
-        <div style={{ background: '#fff', border: '1px dashed #d7e3e0', borderRadius: 20, padding: '2rem', color: '#5b6f6e' }}>Henüz tesis kaydı yok. Production’a uydurma tesis eklenmez.</div>
+      {fail && <ListError message={fail} onRetry={load} />}
+      {loading ? <AdminSkeletonCard /> : items.length === 0 ? (
+        <EmptyState title="Henüz tesis yok." actionLabel="Yeni tesis oluştur" onAction={openNew} />
       ) : (
         <div style={{ display: 'grid', gap: 8 }}>
           {items.map((item) => (
@@ -374,6 +431,22 @@ export const PlacesPanel: React.FC<{
           ))}
         </div>
       )}
+      <PaginationBar page={page} pageSize={pageSize} totalCount={total} onPage={setPage} onPageSize={(s) => { setPageSize(s); setPage(1); }} />
+      <ConfirmDialog
+        open={deleteConfirm}
+        title="Tesisi kaldır"
+        message="Bu tesis kaydı kaldırılacak. Devam edilsin mi?"
+        confirmLabel="Kaldır"
+        danger
+        onCancel={() => setDeleteConfirm(false)}
+        onConfirm={async () => {
+          await api.deleteAdminPlace(form.id);
+          onSuccess('Tesis silindi.');
+          setDeleteConfirm(false);
+          setEditing(false);
+          await load();
+        }}
+      />
     </div>
   );
 };

@@ -36,10 +36,35 @@ public class NotificationsController : BaseApiController
 
     [HttpGet]
     [Authorize(Policy = AuthorizationPolicies.StaffOrAdmin)]
-    public async Task<IActionResult> GetNotifications()
+    public async Task<IActionResult> GetNotifications(
+        [FromQuery] string? search = null,
+        [FromQuery] string? targetGroup = null,
+        [FromQuery] string? preset = null,
+        [FromQuery] DateTime? from = null,
+        [FromQuery] DateTime? to = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = AdminPaging.DefaultPageSize)
     {
-        var list = await _context.Notifications
+        (page, pageSize) = AdminPaging.Normalize(page, pageSize);
+        var query = _context.Notifications.AsQueryable();
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            query = query.Where(n => n.Title.Contains(term) || n.Message.Contains(term));
+        }
+        if (!string.IsNullOrWhiteSpace(targetGroup) && targetGroup != "AllTypes")
+            query = query.Where(n => n.TargetUserGroup == targetGroup);
+        if (!string.IsNullOrWhiteSpace(preset) || from.HasValue || to.HasValue)
+        {
+            var range = AdminDateRange.Resolve(preset, from, to);
+            query = query.Where(n => n.CreatedDate >= range.FromUtc && n.CreatedDate < range.ToUtc);
+        }
+
+        var totalCount = await query.CountAsync();
+        var list = await query
             .OrderByDescending(n => n.CreatedDate)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .Select(n => new
             {
                 n.Id,
@@ -56,7 +81,7 @@ public class NotificationsController : BaseApiController
                 n.TargetId
             })
             .ToListAsync();
-        return Ok(Result<object>.Ok(list));
+        return Ok(Result<object>.Ok(new { items = list, page, pageSize, totalCount }));
     }
 
     [HttpGet("my")]
@@ -145,12 +170,42 @@ public class NotificationsController : BaseApiController
         return Ok(Result<object>.Ok(new UnreadCountDto(0), "Tüm bildirimler okundu."));
     }
 
+    [HttpPost("preview")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    public async Task<IActionResult> PreviewNotification([FromBody] SendCitizenNotificationRequest request, CancellationToken cancellationToken = default)
+    {
+        var contentCheck = AdminSafetyRules.ValidateNotificationContent(request.Title, request.Message);
+        if (!contentCheck.Success)
+            return BadRequest(Result<object>.Fail(contentCheck.Message));
+        var targetCheck = AdminSafetyRules.ValidateNotificationTargetGroup(request.TargetUserGroup, request.TargetUserId);
+        if (!targetCheck.Success)
+            return BadRequest(Result<object>.Fail(targetCheck.Message));
+        if (!NotificationTargetTypes.IsKnown(request.TargetType))
+            return BadRequest(Result<object>.Fail("Geçersiz yönlendirme hedefi."));
+
+        var org = await _context.Organizations.OrderBy(o => o.CreatedDate).FirstOrDefaultAsync(cancellationToken);
+        var orgId = org?.Id ?? KnownOrganizations.Sehitkamil;
+        var recipients = await ResolveRecipientsAsync(orgId, request, cancellationToken);
+        return Ok(Result<object>.Ok(new
+        {
+            recipientCount = recipients.Count,
+            targetUserGroup = request.TargetUserGroup.Trim(),
+            everyoneWarning = request.TargetUserGroup.Equals(NotificationTargetGroups.All, StringComparison.OrdinalIgnoreCase)
+        }));
+    }
+
     [HttpPost("send")]
     [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
-    public async Task<IActionResult> SendNotification([FromBody] SendCitizenNotificationRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> SendNotification([FromBody] SendCitizenNotificationRequest request, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(request.Title) || string.IsNullOrWhiteSpace(request.Message))
-            return BadRequest(Result<object>.Fail("Başlık ve mesaj zorunludur."));
+        var contentCheck = AdminSafetyRules.ValidateNotificationContent(request.Title, request.Message);
+        if (!contentCheck.Success)
+            return BadRequest(Result<object>.Fail(contentCheck.Message));
+        var targetCheck = AdminSafetyRules.ValidateNotificationTargetGroup(request.TargetUserGroup, request.TargetUserId);
+        if (!targetCheck.Success)
+            return BadRequest(Result<object>.Fail(targetCheck.Message));
+        if (!NotificationTargetTypes.IsKnown(request.TargetType))
+            return BadRequest(Result<object>.Fail("Geçersiz yönlendirme hedefi."));
 
         var org = await _context.Organizations.OrderBy(o => o.CreatedDate).FirstOrDefaultAsync(cancellationToken);
         var orgId = org?.Id ?? KnownOrganizations.Sehitkamil;
@@ -166,12 +221,12 @@ public class NotificationsController : BaseApiController
             Message = request.Message.Trim(),
             ImageUrl = MediaUrlNormalizer.Normalize(request.ImageUrl),
             NotificationType = string.IsNullOrWhiteSpace(request.NotificationType) ? "General" : request.NotificationType.Trim(),
-            TargetUserGroup = string.IsNullOrWhiteSpace(request.TargetUserGroup) ? NotificationTargetGroups.All : request.TargetUserGroup.Trim(),
+            TargetUserGroup = request.TargetUserGroup.Trim(),
             TargetUserId = request.TargetUserId,
             MinAge = request.MinAge,
             MaxAge = request.MaxAge,
             EducationLevel = request.EducationLevel,
-            TargetType = request.TargetType,
+            TargetType = string.IsNullOrWhiteSpace(request.TargetType) ? NotificationTargetTypes.None : NotificationTargetTypes.Canonical(request.TargetType),
             TargetId = request.TargetId,
             ScheduledDate = request.ScheduledDate,
             SentDate = request.ScheduledDate == null ? DateTime.UtcNow : null,
@@ -225,7 +280,9 @@ public class NotificationsController : BaseApiController
 
     private async Task<List<Guid>> ResolveRecipientsAsync(Guid orgId, SendCitizenNotificationRequest request, CancellationToken cancellationToken)
     {
-        var group = request.TargetUserGroup ?? NotificationTargetGroups.All;
+        var group = string.IsNullOrWhiteSpace(request.TargetUserGroup)
+            ? string.Empty
+            : request.TargetUserGroup.Trim();
         var query = _context.Users.AsNoTracking()
             .Where(u => u.OrganizationId == orgId && (u.Role == "User" || u.Role == "Citizen"));
 

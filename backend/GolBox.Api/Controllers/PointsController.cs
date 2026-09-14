@@ -34,15 +34,41 @@ public class PointsController : BaseApiController
 
     [HttpGet("ledger")]
     [Authorize(Policy = AuthorizationPolicies.StaffOrAdmin)]
-    public async Task<IActionResult> GetLedger([FromQuery] int page = 1, [FromQuery] int pageSize = 50)
+    public async Task<IActionResult> GetLedger(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = AdminPaging.DefaultPageSize,
+        [FromQuery] string? type = null,
+        [FromQuery] Guid? userId = null,
+        [FromQuery] string? search = null,
+        [FromQuery] string? preset = null,
+        [FromQuery] DateTime? from = null,
+        [FromQuery] DateTime? to = null)
     {
-        var query = _context.PointTransactions
-            .Include(pt => pt.User)
-            .OrderByDescending(pt => pt.CreatedDate);
+        (page, pageSize) = AdminPaging.Normalize(page, pageSize);
+        var query = _context.PointTransactions.Include(pt => pt.User).AsQueryable();
 
+        if (!string.IsNullOrWhiteSpace(preset) || from.HasValue || to.HasValue)
+        {
+            var range = AdminDateRange.Resolve(preset, from, to);
+            query = query.Where(pt => pt.CreatedDate >= range.FromUtc && pt.CreatedDate < range.ToUtc);
+        }
+
+        if (userId.HasValue)
+            query = query.Where(pt => pt.UserId == userId.Value);
+        if (!string.IsNullOrWhiteSpace(type) && type != "All")
+            query = query.Where(pt => pt.Type == type);
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            query = query.Where(pt =>
+                (pt.User != null && (pt.User.FirstName.Contains(term) || pt.User.LastName.Contains(term) || pt.User.Email.Contains(term))) ||
+                pt.Description.Contains(term));
+        }
+
+        query = query.OrderByDescending(pt => pt.CreatedDate);
         var totalCount = await query.CountAsync();
-        var items = await query
-            .Skip(Math.Max(page - 1, 0) * pageSize)
+        var pageRows = await query
+            .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .Select(pt => new
             {
@@ -53,17 +79,34 @@ public class PointsController : BaseApiController
                 pt.Amount,
                 pt.Type,
                 pt.Description,
+                pt.ReferenceType,
+                pt.CreatedBy,
                 pt.CreatedDate
             })
             .ToListAsync();
 
-        return Ok(Result<object>.Ok(new
+        var actorIds = pageRows.Where(r => r.CreatedBy.HasValue).Select(r => r.CreatedBy!.Value).Distinct().ToList();
+        var actors = actorIds.Count == 0
+            ? new Dictionary<Guid, string>()
+            : await _context.Users.Where(u => actorIds.Contains(u.Id))
+                .ToDictionaryAsync(u => u.Id, u => (u.FirstName + " " + u.LastName).Trim());
+
+        var items = pageRows.Select(pt => new
         {
-            items,
-            page,
-            pageSize,
-            totalCount
-        }));
+            pt.Id,
+            pt.UserId,
+            pt.UserFullName,
+            pt.UserEmail,
+            pt.Amount,
+            pt.Type,
+            pt.Description,
+            source = pt.ReferenceType,
+            pt.CreatedBy,
+            actorName = pt.CreatedBy.HasValue && actors.TryGetValue(pt.CreatedBy.Value, out var name) ? name : null,
+            pt.CreatedDate
+        }).ToList();
+
+        return Ok(Result<object>.Ok(new { items, page, pageSize, totalCount }));
     }
 
     [HttpPost("grant")]

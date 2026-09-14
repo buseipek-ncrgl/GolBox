@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Plus, Save, Trash2, Eye, Upload } from 'lucide-react';
 import { api } from '../services/api';
+import { ConfirmDialog } from '../components/admin/ConfirmDialog';
 
 const TYPES = [
   { id: 'Hero', label: 'Hero' },
@@ -12,15 +13,14 @@ const TYPES = [
 ];
 
 const CTA_TYPES = [
-  { id: 'None', label: 'Yok / detay' },
-  { id: 'InternalRoute', label: 'İç rota' },
-  { id: 'Activity', label: 'Etkinlik' },
-  { id: 'Cafe', label: 'Göl Kafeler' },
-  { id: 'Place', label: 'Tesisler' },
-  { id: 'RewardCatalog', label: 'Katalog' },
-  { id: 'Map', label: 'Harita / GölBox' },
-  { id: 'Profile', label: 'Profil' },
-  { id: 'ExternalUrl', label: 'Dış bağlantı' }
+  { id: 'None', label: 'Hiçbir işlem yapma' },
+  { id: 'Activity', label: 'Etkinliği aç' },
+  { id: 'Place', label: 'Tesisi aç' },
+  { id: 'Cafe', label: 'Göl Kafe aç' },
+  { id: 'RewardCatalog', label: 'Kataloğu aç' },
+  { id: 'InternalRoute', label: 'Kuponlarımı aç' },
+  { id: 'Map', label: 'Haritayı aç' },
+  { id: 'Profile', label: 'Profil' }
 ];
 
 const INTERNAL_ROUTES: { id: string; label: string }[] = [
@@ -105,18 +105,22 @@ export const HomeContentPanel: React.FC<{
   const [uploading, setUploading] = useState(false);
   const [activities, setActivities] = useState<any[]>([]);
   const [places, setPlaces] = useState<any[]>([]);
+  const [cafes, setCafes] = useState<any[]>([]);
+  const [archiveTarget, setArchiveTarget] = useState<any>(null);
 
   const load = async () => {
     setLoading(true);
     try {
-      const [content, events, facility] = await Promise.all([
+      const [content, events, facility, cafeList] = await Promise.all([
         api.getCityContent({ type: typeFilter || undefined, status: statusFilter || undefined, search: search || undefined }),
         api.getAdminActivities().catch(() => api.getActivities().catch(() => [])),
-        api.getAdminPlaces().catch(() => ({ items: [] }))
+        api.getAdminPlaces().catch(() => ({ items: [] })),
+        api.getCafes().catch(() => [])
       ]);
       setItems(content?.items || (Array.isArray(content) ? content : []));
       setActivities(events?.items || (Array.isArray(events) ? events : []));
       setPlaces(facility?.items || (Array.isArray(facility) ? facility : []));
+      setCafes(Array.isArray(cafeList) ? cafeList : (cafeList?.items || []));
     } catch (err: any) {
       onError(err.message || 'İçerikler yüklenemedi.');
     } finally {
@@ -212,16 +216,7 @@ export const HomeContentPanel: React.FC<{
     }
   };
 
-  const remove = async (item: any) => {
-    if (!window.confirm('Bu içerik arşivlensin mi?')) return;
-    try {
-      await api.deleteCityContent(item.id);
-      onSuccess('İçerik arşivlendi.');
-      await load();
-    } catch (err: any) {
-      onError(err.message || 'Silinemedi.');
-    }
-  };
+  const remove = (item: any) => setArchiveTarget(item);
 
   const upload = async (file: File, field: 'imageUrl' | 'authorImageUrl') => {
     setUploading(true);
@@ -323,16 +318,16 @@ export const HomeContentPanel: React.FC<{
                 <label style={labelStyle}>CTA metni
                   <input value={form.ctaLabel} onChange={(e) => setForm({ ...form, ctaLabel: e.target.value })} style={inputStyle} />
                 </label>
-                <label style={labelStyle}>CTA tipi
+                <label style={labelStyle}>Tıklayınca ne olsun?
                   <select value={form.ctaType} onChange={(e) => setForm({ ...form, ctaType: e.target.value })} style={inputStyle}>
                     {CTA_TYPES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
                   </select>
                 </label>
               </div>
               {form.ctaType === 'InternalRoute' ? (
-                <label style={labelStyle}>İç rota
-                  <select value={form.ctaTarget} onChange={(e) => setForm({ ...form, ctaTarget: e.target.value })} style={inputStyle}>
-                    <option value="">Seçin</option>
+                <label style={labelStyle}>Kuponlarım / iç sayfa
+                  <select value={form.ctaTarget} onChange={(e) => setForm({ ...form, ctaTarget: e.target.value || 'coupons' })} style={inputStyle}>
+                    <option value="coupons">Kuponlarım</option>
                     {INTERNAL_ROUTES.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
                   </select>
                 </label>
@@ -348,6 +343,13 @@ export const HomeContentPanel: React.FC<{
                   <select value={form.ctaTarget} onChange={(e) => setForm({ ...form, ctaType: 'Place', ctaTarget: e.target.value })} style={inputStyle}>
                     <option value="">Seçin</option>
                     {places.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                </label>
+              ) : form.ctaType === 'Cafe' ? (
+                <label style={labelStyle}>Göl Kafe
+                  <select value={form.ctaTarget} onChange={(e) => setForm({ ...form, ctaType: 'Cafe', ctaTarget: e.target.value })} style={inputStyle}>
+                    <option value="">Seçin</option>
+                    {cafes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </label>
               ) : form.ctaType !== 'None' && form.ctaType !== 'Map' && form.ctaType !== 'Profile' && form.ctaType !== 'RewardCatalog' ? (
@@ -421,6 +423,24 @@ export const HomeContentPanel: React.FC<{
           </form>
         </div>
       )}
+      <ConfirmDialog
+        open={!!archiveTarget}
+        title="İçeriği arşivle"
+        message="Bu içerik arşivlensin mi?"
+        confirmLabel="Arşivle"
+        danger
+        onCancel={() => setArchiveTarget(null)}
+        onConfirm={async () => {
+          try {
+            await api.deleteCityContent(archiveTarget.id);
+            onSuccess('İçerik arşivlendi.');
+            setArchiveTarget(null);
+            await load();
+          } catch (err: any) {
+            onError(err.message || 'Silinemedi.');
+          }
+        }}
+      />
     </div>
   );
 };

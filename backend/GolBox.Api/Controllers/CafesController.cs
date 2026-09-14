@@ -28,6 +28,7 @@ public class CafesController : BaseApiController
     {
         var cafes = await _context.Cafes
             .Include(c => c.Category)
+            .Include(c => c.Place)
             .OrderBy(c => c.Name)
             .ToListAsync();
 
@@ -43,10 +44,63 @@ public class CafesController : BaseApiController
             CategoryId = c.CategoryId,
             CategoryName = c.Category?.Name ?? "Genel",
             c.OrganizationId,
-            c.PlaceId
+            c.PlaceId,
+            PlaceName = c.Place != null ? c.Place.Name : null,
+            PlaceAddress = c.Place != null ? c.Place.Address : null
         }).ToList();
 
         return Ok(Result<object>.Ok(dtoList));
+    }
+
+    [HttpGet("admin")]
+    [Authorize(Policy = AuthorizationPolicies.StaffOrAdmin)]
+    public async Task<IActionResult> GetAdminCafes(
+        [FromQuery] bool? active = null,
+        [FromQuery] string? search = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = AdminPaging.DefaultPageSize)
+    {
+        (page, pageSize) = AdminPaging.Normalize(page, pageSize);
+        var query = _context.Cafes.Include(c => c.Place).Include(c => c.Category).AsQueryable();
+        if (active.HasValue)
+            query = query.Where(c => c.IsActive == active.Value);
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            query = query.Where(c => c.Name.Contains(term) || c.Address.Contains(term));
+        }
+        var totalCount = await query.CountAsync();
+        var rows = await query.OrderBy(c => c.Name).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+        var ids = rows.Select(c => c.Id).ToList();
+        var menuCounts = await _context.MenuItems.Where(m => ids.Contains(m.CafeId))
+            .GroupBy(m => m.CafeId)
+            .Select(g => new { CafeId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.CafeId, x => x.Count);
+        var pendingCounts = await _context.Orders
+            .Where(o => ids.Contains(o.CafeId) && (o.Status == OrderStatuses.Pending || o.Status == OrderStatuses.Preparing || o.Status == OrderStatuses.Ready))
+            .GroupBy(o => o.CafeId)
+            .Select(g => new { CafeId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.CafeId, x => x.Count);
+
+        var items = rows.Select(c => new
+        {
+            c.Id,
+            c.Name,
+            c.Address,
+            c.Latitude,
+            c.Longitude,
+            c.IsActive,
+            c.ImageUrl,
+            CategoryId = c.CategoryId,
+            CategoryName = c.Category?.Name ?? "Genel",
+            c.OrganizationId,
+            c.PlaceId,
+            PlaceName = c.Place != null ? c.Place.Name : null,
+            PlaceAddress = c.Place != null ? c.Place.Address : null,
+            menuCount = menuCounts.TryGetValue(c.Id, out var mc) ? mc : 0,
+            pendingOrders = pendingCounts.TryGetValue(c.Id, out var pc) ? pc : 0
+        }).ToList();
+        return Ok(Result<object>.Ok(new { items, page, pageSize, totalCount }));
     }
 
     [HttpPost]
@@ -114,6 +168,8 @@ public class CafesController : BaseApiController
             cafe.CategoryId = request.CategoryId.Value;
         if (request.IsActive.HasValue)
             cafe.IsActive = request.IsActive.Value;
+        if (request.PlaceId.HasValue)
+            cafe.PlaceId = request.PlaceId.Value == Guid.Empty ? null : request.PlaceId;
 
         cafe.UpdatedDate = DateTime.UtcNow;
         await PlaceCafeSync.EnsureLinkedPlaceAsync(_context, cafe);
@@ -161,4 +217,5 @@ public class UpdateCafeRequest
     public Guid? CategoryId { get; set; }
     public string? ImageUrl { get; set; }
     public bool? IsActive { get; set; }
+    public Guid? PlaceId { get; set; }
 }

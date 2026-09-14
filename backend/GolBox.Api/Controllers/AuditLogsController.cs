@@ -22,23 +22,52 @@ public class AuditLogsController : BaseApiController
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetLogs([FromQuery] string? module = null, [FromQuery] string? search = null)
+    public async Task<IActionResult> GetLogs(
+        [FromQuery] string? module = null,
+        [FromQuery] string? search = null,
+        [FromQuery] string? action = null,
+        [FromQuery] string? staff = null,
+        [FromQuery] string? preset = null,
+        [FromQuery] DateTime? from = null,
+        [FromQuery] DateTime? to = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = AdminPaging.DefaultPageSize)
     {
+        (page, pageSize) = AdminPaging.Normalize(page, pageSize);
         var query = _context.AuditLogs.AsQueryable();
 
         if (!string.IsNullOrEmpty(module) && module != "All")
-        {
             query = query.Where(l => l.ModuleName == module);
+
+        if (!string.IsNullOrWhiteSpace(action) && action != "All")
+            query = query.Where(l => l.ActionType == action);
+
+        if (!string.IsNullOrWhiteSpace(staff))
+        {
+            var term = staff.Trim();
+            query = query.Where(l => l.UserEmail.Contains(term));
         }
 
         if (!string.IsNullOrEmpty(search))
         {
-            query = query.Where(l => l.UserEmail.Contains(search) || l.ActionType.Contains(search) || (l.Reason != null && l.Reason.Contains(search)));
+            query = query.Where(l =>
+                l.UserEmail.Contains(search) ||
+                l.ActionType.Contains(search) ||
+                (l.Reason != null && l.Reason.Contains(search)) ||
+                (l.EntityId != null && l.EntityId.Contains(search)));
         }
 
+        if (!string.IsNullOrWhiteSpace(preset) || from.HasValue || to.HasValue)
+        {
+            var range = AdminDateRange.Resolve(preset, from, to);
+            query = query.Where(l => l.CreatedDate >= range.FromUtc && l.CreatedDate < range.ToUtc);
+        }
+
+        var totalCount = await query.CountAsync();
         var logs = await query
             .OrderByDescending(l => l.CreatedDate)
-            .Take(100)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .Select(l => new
             {
                 l.Id,
@@ -57,7 +86,7 @@ public class AuditLogsController : BaseApiController
             })
             .ToListAsync();
 
-        return Ok(Result<object>.Ok(logs));
+        return Ok(Result<object>.Ok(new { items = logs, page, pageSize, totalCount }));
     }
 
     public static async System.Threading.Tasks.Task LogAsync(IAppDbContext context, string userEmail, string userRole, string actionType, string moduleName, string entityName, string? entityId, string? oldVal, string? newVal, string? reason, string? ip = "127.0.0.1")

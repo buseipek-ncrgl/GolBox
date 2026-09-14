@@ -48,6 +48,28 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, Result<AuthDto>
             return Result<AuthDto>.Fail("Geçersiz e-posta adresi veya şifre.");
         }
 
+        var staffProfile = await _context.StaffUsers.FirstOrDefaultAsync(s => s.UserId == user.Id, cancellationToken);
+        if (staffProfile != null && !staffProfile.IsActive)
+            return Result<AuthDto>.Fail("Hesabınız pasif. Yönetici ile iletişime geçin.");
+
+        if (user.Role is "Admin" or "Staff")
+        {
+            if (staffProfile == null)
+            {
+                staffProfile = new StaffUser
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = user.Id,
+                    RegistrationNumber = "",
+                    Role = user.Role,
+                    IsActive = true,
+                    CreatedDate = DateTime.UtcNow
+                };
+                _context.StaffUsers.Add(staffProfile);
+            }
+            staffProfile.LastLoginDate = DateTime.UtcNow;
+        }
+
         var accessToken = _tokenService.GenerateAccessToken(user);
         var rawRefreshToken = _tokenService.GenerateRefreshToken();
 

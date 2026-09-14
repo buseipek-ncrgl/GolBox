@@ -31,8 +31,9 @@ public class AdminPlacesController : ControllerBase
         [FromQuery] string? category,
         [FromQuery] string? search,
         [FromQuery] bool? published,
+        [FromQuery] bool? active,
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 50,
+        [FromQuery] int pageSize = 25,
         CancellationToken cancellationToken = default)
     {
         page = Math.Max(1, page);
@@ -45,6 +46,8 @@ public class AdminPlacesController : ControllerBase
             .WhereSearch(search);
         if (published.HasValue)
             query = query.Where(p => p.IsPublished == published.Value);
+        if (active.HasValue)
+            query = query.Where(p => p.IsActive == active.Value);
 
         var total = await query.CountAsync(cancellationToken);
         var rows = await query
