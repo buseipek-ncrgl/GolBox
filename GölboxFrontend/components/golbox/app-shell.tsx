@@ -5,9 +5,9 @@ import { Signal, Wifi, BatteryFull } from "lucide-react"
 import type { TabId } from "@/lib/golbox-data"
 import { BottomNav } from "@/components/golbox/bottom-nav"
 import { CafeDetailSheet } from "@/components/golbox/cafe-detail-sheet"
-import { CafesOverlay } from "@/components/golbox/cafes-overlay"
 import { PlacesOverlay } from "@/components/golbox/places-overlay"
 import { PlaceDetailSheet } from "@/components/golbox/place-detail-sheet"
+import { ActivityOverlay } from "@/components/golbox/home/home-sheets"
 import { HomeScreen } from "@/components/golbox/screens/home-screen"
 import { QrScreen } from "@/components/golbox/screens/qr-screen"
 import { ProfileScreen } from "@/components/golbox/screens/profile-screen"
@@ -29,17 +29,17 @@ function StatusBar() {
 export function AppShell() {
   const [tab, setTab] = useState<TabId>("home")
   const [cafeId, setCafeId] = useState<string | null>(null)
-  const [showCafes, setShowCafes] = useState(false)
   const [placeId, setPlaceId] = useState<string | null>(null)
   const [showPlaces, setShowPlaces] = useState(false)
+  const [activityId, setActivityId] = useState<string | null>(null)
   const [mapLayer, setMapLayer] = useState<"places" | "golbox">("golbox")
   const [mapFocusPlaceId, setMapFocusPlaceId] = useState<string | null>(null)
 
   const goto = (next: TabId) => {
     setCafeId(null)
-    setShowCafes(false)
     setPlaceId(null)
     setShowPlaces(false)
+    setActivityId(null)
     if (next === "map") {
       setMapLayer("golbox")
       setMapFocusPlaceId(null)
@@ -56,9 +56,9 @@ export function AppShell() {
           <HomeScreen
             onNavigate={goto}
             onOpenCafe={setCafeId}
-            onOpenCafes={() => setShowCafes(true)}
             onOpenPlace={setPlaceId}
             onOpenPlaces={() => setShowPlaces(true)}
+            onOpenActivity={setActivityId}
           />
         )}
         {tab === "qr" && <QrScreen />}
@@ -78,20 +78,29 @@ export function AppShell() {
       {showPlaces && (
         <PlacesOverlay onOpenPlace={setPlaceId} onClose={() => setShowPlaces(false)} />
       )}
-      {showCafes && (
-        <CafesOverlay onOpenCafe={setCafeId} onClose={() => setShowCafes(false)} />
-      )}
       {placeId && (
         <PlaceDetailSheet
           placeId={placeId}
           onClose={() => setPlaceId(null)}
           onOpenCafe={setCafeId}
+          onOpenActivity={setActivityId}
           onOpenMap={(place) => {
             setPlaceId(null)
             setShowPlaces(false)
+            setActivityId(null)
             setMapFocusPlaceId(place.id)
             setMapLayer("places")
             setTab("map")
+          }}
+        />
+      )}
+      {activityId && (
+        <ActivityOverlay
+          activityId={activityId}
+          onClose={() => setActivityId(null)}
+          onOpenPlace={(id) => {
+            setActivityId(null)
+            setPlaceId(id)
           }}
         />
       )}

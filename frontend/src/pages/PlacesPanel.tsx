@@ -11,7 +11,7 @@ const CATEGORIES = [
   { id: 'SportsFacility', label: 'Spor' },
   { id: 'CultureCenter', label: 'Kültür' },
   { id: 'Theatre', label: 'Sahne / Tiyatro' },
-  { id: 'Park', label: 'Park' },
+  { id: 'Park', label: 'Parklar' },
   { id: 'Other', label: 'Diğer' }
 ];
 

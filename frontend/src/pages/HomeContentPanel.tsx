@@ -15,15 +15,25 @@ const CTA_TYPES = [
   { id: 'None', label: 'Yok / detay' },
   { id: 'InternalRoute', label: 'İç rota' },
   { id: 'Activity', label: 'Etkinlik' },
-  { id: 'Cafe', label: 'Kafe' },
-  { id: 'Place', label: 'Tesis' },
+  { id: 'Cafe', label: 'Göl Kafeler' },
+  { id: 'Place', label: 'Tesisler' },
   { id: 'RewardCatalog', label: 'Katalog' },
-  { id: 'Map', label: 'Harita' },
+  { id: 'Map', label: 'Harita / GölBox' },
   { id: 'Profile', label: 'Profil' },
   { id: 'ExternalUrl', label: 'Dış bağlantı' }
 ];
 
-const INTERNAL_ROUTES = ['home', 'map', 'qr', 'profile', 'catalog', 'cafes', 'places', 'earn'];
+const INTERNAL_ROUTES: { id: string; label: string }[] = [
+  { id: 'home', label: 'Ana Sayfa' },
+  { id: 'map', label: 'Harita / GölBox' },
+  { id: 'qr', label: 'QR' },
+  { id: 'profile', label: 'Profil' },
+  { id: 'catalog', label: 'Katalog' },
+  { id: 'coupons', label: 'Kuponlarım' },
+  { id: 'places', label: 'Tesisler' },
+  { id: 'cafes', label: 'Göl Kafeler (Tesisler)' },
+  { id: 'earn', label: 'GölPuan Kazan' }
+];
 
 const emptyForm = () => ({
   id: '',
@@ -323,7 +333,7 @@ export const HomeContentPanel: React.FC<{
                 <label style={labelStyle}>İç rota
                   <select value={form.ctaTarget} onChange={(e) => setForm({ ...form, ctaTarget: e.target.value })} style={inputStyle}>
                     <option value="">Seçin</option>
-                    {INTERNAL_ROUTES.map((r) => <option key={r} value={r}>{r}</option>)}
+                    {INTERNAL_ROUTES.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
                   </select>
                 </label>
               ) : form.ctaType === 'Activity' || form.type === 'EventPromo' ? (
@@ -334,7 +344,7 @@ export const HomeContentPanel: React.FC<{
                   </select>
                 </label>
               ) : form.ctaType === 'Place' ? (
-                <label style={labelStyle}>Tesis
+                <label style={labelStyle}>Tesisler
                   <select value={form.ctaTarget} onChange={(e) => setForm({ ...form, ctaType: 'Place', ctaTarget: e.target.value })} style={inputStyle}>
                     <option value="">Seçin</option>
                     {places.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}

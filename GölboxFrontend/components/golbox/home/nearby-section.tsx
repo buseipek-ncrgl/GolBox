@@ -7,7 +7,7 @@ import { InlineError } from "@/components/golbox/inline-error"
 import { SectionSkeleton } from "@/components/golbox/section-skeleton"
 import { StatusChip } from "@/components/golbox/status-chip"
 import { formatDistance } from "@/lib/golbox-geo"
-import { openStatusLabel, type PlaceNearbyItem } from "@/lib/places"
+import { categoryLabel, openStatusLabel, type PlaceNearbyItem } from "@/lib/places"
 
 export function NearbyPlaceCard({
   place,
@@ -26,9 +26,11 @@ export function NearbyPlaceCard({
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-semibold text-foreground">{place.name}</p>
         <p className="mt-0.5 truncate text-[12px] text-muted-foreground">
+          {categoryLabel(place.category)}
           {Number.isFinite(place.distanceMeters)
-            ? `${formatDistance(place.distanceMeters)}${place.addressSummary ? ` · ${place.addressSummary}` : ""}`
-            : place.addressSummary || ""}
+            ? ` · ${formatDistance(place.distanceMeters)}`
+            : ""}
+          {place.addressSummary ? ` · ${place.addressSummary}` : ""}
         </p>
         <div className="mt-1.5">
           <StatusChip tone={place.openStatus === "Open" ? "success" : "neutral"}>
@@ -69,7 +71,7 @@ export function NearbySection({
     return (
       <section aria-label="Yakınında" className="space-y-3">
         <HomeSectionHeader title="Yakınında" tone="utility" />
-        <InlineError message="Yakındaki yerler yüklenemedi." onRetry={onRetry} />
+        <InlineError message="Yakındaki tesisler yüklenemedi." onRetry={onRetry} />
       </section>
     )
   }

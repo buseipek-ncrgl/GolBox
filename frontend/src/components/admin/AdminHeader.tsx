@@ -35,7 +35,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
         </button>
         <div>
           <h1 className="text-lg font-bold tracking-tight text-foreground sm:text-xl">
-            GölBox <span className="text-xs font-normal text-muted-foreground">Yönetim Paneli</span>
+            Şehitkamil+ <span className="text-xs font-normal text-muted-foreground">Yönetim Paneli</span>
           </h1>
         </div>
       </div>

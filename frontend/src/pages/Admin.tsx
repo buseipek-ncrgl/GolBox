@@ -438,11 +438,11 @@ export const Admin: React.FC = () => {
         imageUrl: editCafeImageUrl || undefined,
         categoryId: selectedCafeDetail.categoryId || '22222222-2222-2222-2222-222222222222'
       });
-      setSuccess(`Tesis '${editCafeName}' kaydedildi.`);
+      setSuccess(`Göl Kafe '${editCafeName}' kaydedildi.`);
       setSelectedCafeDetail(null);
       fetchData();
     } catch (err: any) {
-      setError(err.message || 'Tesis güncellenemedi.');
+      setError(err.message || 'Göl Kafe güncellenemedi.');
     } finally {
       setSavingCafeEdit(false);
     }
@@ -461,10 +461,10 @@ export const Admin: React.FC = () => {
 
       const cafeId = createdId(res);
       if (!cafeId) {
-        throw new Error('Tesis oluşturuldu ancak kimlik dönmedi.');
+        throw new Error('Göl Kafe oluşturuldu ancak kimlik dönmedi.');
       }
 
-      setSuccess(`Tesis '${newCafeName}' eklendi.`);
+      setSuccess(`Göl Kafe '${newCafeName}' eklendi.`);
       setShowAddCafeModal(false);
       setNewCafeName('');
       setNewCafeAddress('');
@@ -473,7 +473,7 @@ export const Admin: React.FC = () => {
       setSelectedProductIdsForCafe([]);
       fetchData();
     } catch (err: any) {
-      setError(err.message || 'Tesis eklenemedi.');
+      setError(err.message || 'Göl Kafe eklenemedi.');
     }
   };
 
@@ -485,7 +485,7 @@ export const Admin: React.FC = () => {
 
     const cafeId = targetCafeId === 'ALL' ? cafesList[0]?.id : targetCafeId;
     if (!cafeId) {
-      setError('Ürün eklemek için önce bir tesis ekleyin.');
+      setError('Menü ürünü eklemek için önce bir Göl Kafe ekleyin.');
       return;
     }
 
@@ -901,20 +901,20 @@ export const Admin: React.FC = () => {
 
   const getMenuLabel = (key: string) => {
     const labels: Record<string, string> = {
-      overview: 'Genel bakış',
+      overview: 'Genel Bakış',
       users: 'Vatandaşlar',
       cafes: 'Göl Kafeler',
       places: 'Tesisler',
-      products: 'Menü ve ürünler',
-      points: 'GölPuan defteri',
-      qr: 'QR işlemleri',
+      products: 'Menü ve Ürünler',
+      points: 'GölPuan Defteri',
+      qr: 'QR İşlemleri',
       rewards: 'Ödüller',
-      fieldDrops: 'Saha hediyeleri',
+      fieldDrops: 'Saha Hediyeleri',
       ismarliyor: 'Ismarlıyor',
       homeContent: 'Ana Sayfa İçerikleri',
       campaigns: 'Kampanyalar',
       events: 'Etkinlikler',
-      notifications: 'Duyurular',
+      notifications: 'Duyurular / Bildirimler',
       reports: 'Raporlar',
       roles: 'Yetkilendirme',
       audit: 'Denetim'
@@ -960,7 +960,7 @@ export const Admin: React.FC = () => {
                 ŞB
               </div>
               <div>
-                <div style={{ fontWeight: 700, fontSize: '1.05rem', color: '#ffffff', lineHeight: 1.2, fontFamily: 'Fraunces, Georgia, serif' }}>GölBox</div>
+                <div style={{ fontWeight: 700, fontSize: '1.05rem', color: '#ffffff', lineHeight: 1.2, fontFamily: 'Fraunces, Georgia, serif' }}>Şehitkamil+</div>
                 <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.72)', fontWeight: 600 }}>Şehitkamil Belediyesi</div>
               </div>
             </div>
@@ -978,20 +978,20 @@ export const Admin: React.FC = () => {
             {
               section: 'İşlem',
               items: [
-                { id: 'overview', label: 'Genel bakış', icon: LayoutDashboard },
+                { id: 'overview', label: 'Genel Bakış', icon: LayoutDashboard },
                 { id: 'users', label: 'Vatandaşlar', icon: Users },
                 { id: 'places', label: 'Tesisler', icon: Landmark },
                 { id: 'cafes', label: 'Göl Kafeler', icon: Building2 },
-                { id: 'products', label: 'Menü ve ürünler', icon: Coffee }
+                { id: 'products', label: 'Menü ve Ürünler', icon: Coffee }
               ]
             },
             {
               section: 'Sadakat',
               items: [
-                { id: 'points', label: 'GölPuan defteri', icon: History },
-                { id: 'qr', label: 'QR işlemleri', icon: CreditCard },
+                { id: 'points', label: 'GölPuan Defteri', icon: History },
+                { id: 'qr', label: 'QR İşlemleri', icon: CreditCard },
                 { id: 'rewards', label: 'Ödüller', icon: Award },
-                { id: 'fieldDrops', label: 'Saha hediyeleri', icon: MapPin },
+                { id: 'fieldDrops', label: 'Saha Hediyeleri', icon: MapPin },
                 { id: 'ismarliyor', label: 'Ismarlıyor', icon: Gift }
               ]
             },
@@ -1001,7 +1001,7 @@ export const Admin: React.FC = () => {
                 { id: 'homeContent', label: 'Ana Sayfa İçerikleri', icon: FileText },
                 { id: 'campaigns', label: 'Kampanyalar', icon: Megaphone },
                 { id: 'events', label: 'Etkinlikler', icon: Calendar },
-                { id: 'notifications', label: 'Duyurular', icon: Bell }
+                { id: 'notifications', label: 'Duyurular / Bildirimler', icon: Bell }
               ]
             },
             {
@@ -1112,7 +1112,7 @@ export const Admin: React.FC = () => {
             </div>
             <button
               onClick={() => setActiveMenu('notifications')}
-              title="Duyurular"
+              title="Duyurular / Bildirimler"
               style={{ background: '#fff', border: '1px solid #d7e3e0', cursor: 'pointer', padding: '8px', borderRadius: '14px', display: 'flex' }}
             >
               <Bell size={18} color="#1d5f60" />
@@ -1830,7 +1830,7 @@ export const Admin: React.FC = () => {
           {activeMenu === 'notifications' && (
             <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
               <div>
-                <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Duyurular & Anlık Bildirim Gönderimi</h1>
+                <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Duyurular / Bildirimler</h1>
                 <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '4px' }}>Şehitkamil Belediyesi mobil vatandaşlarına özel anlık Push Notification gönderimi.</p>
               </div>
 

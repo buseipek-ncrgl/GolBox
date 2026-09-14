@@ -66,7 +66,7 @@ public static class ContentCtaTypes
 
     public static readonly string[] InternalRoutes =
     [
-        "home", "map", "qr", "profile", "catalog", "cafes", "places", "earn"
+        "home", "map", "qr", "profile", "catalog", "coupons", "cafes", "places", "earn"
     ];
 
     public static readonly string[] ExternalHosts =

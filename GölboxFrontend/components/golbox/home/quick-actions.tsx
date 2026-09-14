@@ -20,10 +20,10 @@ const ICONS = {
 }
 
 export const defaultQuickActions: QuickActionItem[] = [
-  { id: "coupons", title: "Kuponlarım", description: "Aktif kuponlarını gör", icon: "ticket" },
   { id: "places", title: "Tesisler", description: "Belediye yerlerini keşfet", icon: "places" },
   { id: "events", title: "Etkinlikler", description: "Şehirde neler var?", icon: "calendar" },
-  { id: "earn", title: "GölPuan kazan", description: "Kazanç yollarını gör", icon: "coins" },
+  { id: "coupons", title: "Kuponlarım", description: "Aktif kuponlarını gör", icon: "ticket" },
+  { id: "earn", title: "GölPuan Kazan", description: "Kazanç yollarını gör", icon: "coins" },
 ]
 
 export function QuickActionCard({
