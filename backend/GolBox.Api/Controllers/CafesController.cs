@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using GolBox.Application.Interfaces;
+using GolBox.Application.Places;
 using GolBox.Domain.Entities;
 using GolBox.Application.Common;
 
@@ -41,7 +42,8 @@ public class CafesController : BaseApiController
             c.ImageUrl,
             CategoryId = c.CategoryId,
             CategoryName = c.Category?.Name ?? "Genel",
-            c.OrganizationId
+            c.OrganizationId,
+            c.PlaceId
         }).ToList();
 
         return Ok(Result<object>.Ok(dtoList));
@@ -83,10 +85,11 @@ public class CafesController : BaseApiController
         };
 
         _context.Cafes.Add(cafe);
+        await PlaceCafeSync.EnsureLinkedPlaceAsync(_context, cafe);
         await _context.SaveChangesAsync();
         await AuditLogsController.LogAsync(_context, "staff", "Staff", "Cafe_Create", "Cafes", "Cafe", cafe.Id.ToString(), null, cafe.Name, null);
 
-        return Ok(Result<object>.Ok(new { id = cafe.Id }, "Tesis başarıyla oluşturuldu."));
+        return Ok(Result<object>.Ok(new { id = cafe.Id, placeId = cafe.PlaceId }, "Tesis başarıyla oluşturuldu."));
     }
 
     [HttpPut("{id}")]
@@ -113,10 +116,11 @@ public class CafesController : BaseApiController
             cafe.IsActive = request.IsActive.Value;
 
         cafe.UpdatedDate = DateTime.UtcNow;
+        await PlaceCafeSync.EnsureLinkedPlaceAsync(_context, cafe);
         await _context.SaveChangesAsync();
         await AuditLogsController.LogAsync(_context, "staff", "Staff", "Cafe_Update", "Cafes", "Cafe", cafe.Id.ToString(), null, cafe.Name, null);
 
-        return Ok(Result<object>.Ok(new { id = cafe.Id }, "Tesis başarıyla güncellendi."));
+        return Ok(Result<object>.Ok(new { id = cafe.Id, placeId = cafe.PlaceId }, "Tesis başarıyla güncellendi."));
     }
 
     [HttpDelete("{id}")]

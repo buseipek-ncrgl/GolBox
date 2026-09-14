@@ -79,7 +79,7 @@ export function PersonalPriorityCard({
   if (item.kind === "coupon") {
     return (
       <PriorityFrame
-        label="Kupon"
+        label="Kuponlarım"
         title={item.title}
         meta={`${item.daysRemaining} gün kaldı`}
         cta="Kuponu gör →"

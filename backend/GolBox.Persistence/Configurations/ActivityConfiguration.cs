@@ -38,5 +38,12 @@ public class ActivityConfiguration : IEntityTypeConfiguration<Activity>
             .WithMany()
             .HasForeignKey(a => a.OrganizationId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(a => a.Place)
+            .WithMany(p => p.Activities)
+            .HasForeignKey(a => a.PlaceId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasIndex(a => a.PlaceId);
     }
 }

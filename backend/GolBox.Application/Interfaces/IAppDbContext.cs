@@ -32,6 +32,10 @@ public interface IAppDbContext
     DbSet<NotificationRecord> Notifications { get; }
     DbSet<CityContent> CityContents { get; }
     DbSet<UserNotification> UserNotifications { get; }
+    DbSet<Place> Places { get; }
+    DbSet<PlaceImage> PlaceImages { get; }
+    DbSet<PlaceOpeningHour> PlaceOpeningHours { get; }
+    DbSet<PlaceAmenity> PlaceAmenities { get; }
 #pragma warning disable CS0618
     DbSet<Coupon> Coupons { get; }
 #pragma warning restore CS0618

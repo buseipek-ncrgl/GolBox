@@ -15,6 +15,7 @@ export const ContentCtaTypes = {
   InternalRoute: "InternalRoute",
   Activity: "Activity",
   Cafe: "Cafe",
+  Place: "Place",
   RewardCatalog: "RewardCatalog",
   Map: "Map",
   Profile: "Profile",
@@ -22,7 +23,7 @@ export const ContentCtaTypes = {
 
 export type ContentCtaType = (typeof ContentCtaTypes)[keyof typeof ContentCtaTypes]
 
-export const INTERNAL_ROUTES = ["home", "map", "qr", "profile", "catalog", "cafes", "earn"] as const
+export const INTERNAL_ROUTES = ["home", "map", "qr", "profile", "catalog", "coupons", "cafes", "places", "earn"] as const
 export type InternalRoute = (typeof INTERNAL_ROUTES)[number]
 
 export interface CityContentItem {
@@ -149,12 +150,25 @@ export type ContentCtaAction =
   | { kind: "mayor" }
   | { kind: "activity"; activityId: string }
   | { kind: "cafe"; cafeId?: string }
+  | { kind: "place"; placeId?: string }
   | { kind: "catalog" }
+  | { kind: "coupons" }
   | { kind: "map" }
   | { kind: "profile" }
   | { kind: "qr" }
   | { kind: "earn" }
   | { kind: "external"; url: string }
+
+function actionFromInternalRoute(route: InternalRoute): ContentCtaAction {
+  if (route === "map") return { kind: "map" }
+  if (route === "profile") return { kind: "profile" }
+  if (route === "qr") return { kind: "qr" }
+  if (route === "catalog") return { kind: "catalog" }
+  if (route === "coupons") return { kind: "coupons" }
+  if (route === "cafes" || route === "places") return { kind: "place" }
+  if (route === "earn") return { kind: "earn" }
+  return { kind: "detail" }
+}
 
 export function resolveContentCta(item: CityContentItem): ContentCtaAction {
   if (item.type === CityContentTypes.MayorMessage) return { kind: "mayor" }
@@ -165,6 +179,8 @@ export function resolveContentCta(item: CityContentItem): ContentCtaAction {
       return item.ctaTarget ? { kind: "activity", activityId: item.ctaTarget } : { kind: "detail" }
     case ContentCtaTypes.Cafe:
       return { kind: "cafe", cafeId: item.ctaTarget || undefined }
+    case ContentCtaTypes.Place:
+      return { kind: "place", placeId: item.ctaTarget || undefined }
     case ContentCtaTypes.RewardCatalog:
       return { kind: "catalog" }
     case ContentCtaTypes.Map:
@@ -175,17 +191,47 @@ export function resolveContentCta(item: CityContentItem): ContentCtaAction {
       return isAllowedExternalUrl(item.ctaTarget) ? { kind: "external", url: item.ctaTarget! } : { kind: "detail" }
     case ContentCtaTypes.InternalRoute: {
       if (!isAllowedInternalRoute(item.ctaTarget)) return { kind: "detail" }
-      if (item.ctaTarget === "map") return { kind: "map" }
-      if (item.ctaTarget === "profile") return { kind: "profile" }
-      if (item.ctaTarget === "qr") return { kind: "qr" }
-      if (item.ctaTarget === "catalog") return { kind: "catalog" }
-      if (item.ctaTarget === "cafes") return { kind: "cafe" }
-      if (item.ctaTarget === "earn") return { kind: "earn" }
-      return { kind: "detail" }
+      return actionFromInternalRoute(item.ctaTarget)
     }
     default:
       return { kind: "detail" }
   }
+}
+
+export type NotificationNavAction =
+  | ContentCtaAction
+  | { kind: "content"; contentId: string }
+  | { kind: "none" }
+
+/** Canonical inbox → surface mapping. Route `cafes` opens Tesisler, not a sibling cafe product. */
+export function resolveNotificationTarget(
+  targetType?: string | null,
+  targetId?: string | null,
+): NotificationNavAction {
+  const type = (targetType ?? "").trim().toLowerCase()
+  const id = (targetId ?? "").trim()
+
+  if (!type || type === "none") return { kind: "none" }
+  if (type === "activity") return id ? { kind: "activity", activityId: id } : { kind: "none" }
+  if (type === "place") return id ? { kind: "place", placeId: id } : { kind: "place" }
+  if (type === "cafe") return id ? { kind: "cafe", cafeId: id } : { kind: "place" }
+  if (type === "content") return id ? { kind: "content", contentId: id } : { kind: "none" }
+  if (type === "externalurl") return isAllowedExternalUrl(id) ? { kind: "external", url: id } : { kind: "none" }
+
+  if (type === "route" || type === "internalroute") {
+    if (!isAllowedInternalRoute(id)) return { kind: "none" }
+    return actionFromInternalRoute(id)
+  }
+
+  if (type === "reward" || type === "rewardcatalog" || type === "catalog") return { kind: "catalog" }
+  if (type === "coupon" || type === "coupons") return { kind: "coupons" }
+  if (type === "map" || type === "golbox" || type === "fielddrop") return { kind: "map" }
+  if (type === "profile") return { kind: "profile" }
+  if (type === "qr") return { kind: "qr" }
+  if (type === "places" || type === "cafes") return { kind: "place" }
+  if (type === "earn") return { kind: "earn" }
+
+  return { kind: "none" }
 }
 
 export function mayorFromList(items: CityContentItem[]) {

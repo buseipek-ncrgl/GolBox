@@ -67,6 +67,7 @@ builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<ICityContentCache, CityContentCache>();
+builder.Services.AddSingleton<IPlaceCache, PlaceCache>();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<ITokenDecoder, TokenDecoder>();
 builder.Services.AddSingleton<IDynamicQrService, DynamicQrService>();

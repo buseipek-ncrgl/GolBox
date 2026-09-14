@@ -208,7 +208,7 @@ export const Home: React.FC = () => {
 
           <h3 style={{ marginBottom: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
             <QrCode size={18} color="#ff6600" />
-            <span>GölBox Dijital Kimliğiniz</span>
+            <span>Şehitkamil+ Dijital Kimliğiniz</span>
           </h3>
 
           <div style={{

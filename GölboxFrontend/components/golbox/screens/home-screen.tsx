@@ -15,7 +15,6 @@ import { CityAgendaSection } from "@/components/golbox/home/city-agenda-section"
 import { NearbySection } from "@/components/golbox/home/nearby-section"
 import { EarnPointsSection } from "@/components/golbox/home/earn-points-section"
 import {
-  ActivityDetailSheet,
   AgendaDetailSheet,
   AgendaListSheet,
   EarnInfoSheet,
@@ -29,6 +28,7 @@ import { SectionSkeleton } from "@/components/golbox/section-skeleton"
 import {
   mayorFromList,
   resolveContentCta,
+  resolveNotificationTarget,
   upcomingEventFromList,
   type CityContentItem,
 } from "@/lib/city-content"
@@ -37,12 +37,11 @@ import {
   fetchHeroContent,
   fetchMyNotifications,
   fetchPublicActivities,
-  fetchPublicActivity,
-  joinPublicActivity,
   markNotificationRead,
   type CitizenNotification,
-  type PublicActivity,
 } from "@/lib/city-content-api"
+import { fetchNearbyPlaces } from "@/lib/places-api"
+import type { PlaceNearbyItem } from "@/lib/places"
 import { selectPersonalPriority } from "@/lib/home-priority"
 import { useGolbox } from "@/lib/golbox-context"
 import { useCitizenLocation } from "@/lib/use-citizen-location"
@@ -54,7 +53,6 @@ type HomeSheet =
   | { type: "agenda-item"; item: CityContentItem }
   | { type: "agenda-list" }
   | { type: "notifications" }
-  | { type: "activity"; activityId: string }
   | { type: "earn" }
   | { type: "location" }
   | null
@@ -64,24 +62,24 @@ type RewardsTab = "catalog" | "cart" | "coupons"
 export function HomeScreen({
   onNavigate,
   onOpenCafe,
-  onOpenCafes,
+  onOpenPlace,
+  onOpenPlaces,
+  onOpenActivity,
 }: {
   onNavigate: (tab: TabId) => void
   onOpenCafe: (id: string) => void
-  onOpenCafes: () => void
+  onOpenPlace: (id: string) => void
+  onOpenPlaces: () => void
+  onOpenActivity: (id: string) => void
 }) {
   const {
     token,
     user,
     fieldDrops,
     pointTransactions,
-    cafes,
     orders,
     rewards,
     claimedRewards,
-    sessionReady,
-    sessionError,
-    refreshData,
     publicSettings,
     unreadCount,
     refreshUnreadCount,
@@ -98,9 +96,10 @@ export function HomeScreen({
   const [heroLoading, setHeroLoading] = useState(true)
   const [notifications, setNotifications] = useState<CitizenNotification[]>([])
   const [notificationsLoading, setNotificationsLoading] = useState(false)
-  const [activity, setActivity] = useState<PublicActivity | null>(null)
-  const [activityBusy, setActivityBusy] = useState(false)
   const [upcomingEvent, setUpcomingEvent] = useState<CityContentItem | null>(null)
+  const [nearbyPlaces, setNearbyPlaces] = useState<PlaceNearbyItem[]>([])
+  const [nearbyReady, setNearbyReady] = useState(false)
+  const [nearbyError, setNearbyError] = useState(false)
 
   const isLoggedIn = Boolean(token)
 
@@ -136,7 +135,7 @@ export function HomeScreen({
           id: first.id,
           type: "EventPromo",
           title: first.title,
-          subtitle: first.location,
+          subtitle: first.placeName || first.location,
           body: first.description,
           imageUrl: first.imageUrl || undefined,
           ctaLabel: "Etkinliği gör",
@@ -160,6 +159,24 @@ export function HomeScreen({
     void loadHomeContent()
   }, [loadHomeContent])
 
+  const loadNearby = useCallback(async () => {
+    setNearbyReady(false)
+    setNearbyError(false)
+    try {
+      const rows = await fetchNearbyPlaces(origin.lat, origin.lng, 3, token)
+      setNearbyPlaces(rows)
+    } catch {
+      setNearbyPlaces([])
+      setNearbyError(true)
+    } finally {
+      setNearbyReady(true)
+    }
+  }, [origin.lat, origin.lng, token])
+
+  useEffect(() => {
+    void loadNearby()
+  }, [loadNearby])
+
   const nearbyDrop = fieldDrops.find((drop) => !capture.capturedIds.includes(drop.id)) ?? null
   const activeCoupons = claimedRewards.filter(isActiveCoupon)
   const priority = selectPersonalPriority({
@@ -173,20 +190,32 @@ export function HomeScreen({
 
   const lastMove = isLoggedIn && pointTransactions[0] ? pointTransactions[0] : null
 
-  const openContent = (item: CityContentItem) => {
-    const action = resolveContentCta(item)
-    if (action.kind === "mayor") {
-      setSheet({ type: "mayor", item: mayorFromList([item, ...heroItems, ...agendaItems]) ?? item })
+  const openRewards = (tab: RewardsTab) => {
+    if (tab !== "catalog" && !isLoggedIn) {
+      capture.setShowLogin(true)
       return
     }
+    setRewardsTab(tab)
+    setShowRewards(true)
+  }
+
+  const applyNavAction = (action: ReturnType<typeof resolveContentCta>) => {
     if (action.kind === "cafe") {
       if (action.cafeId) onOpenCafe(action.cafeId)
-      else onOpenCafes()
+      else onOpenPlaces()
+      return
+    }
+    if (action.kind === "place") {
+      if (action.placeId) onOpenPlace(action.placeId)
+      else onOpenPlaces()
       return
     }
     if (action.kind === "catalog") {
-      setRewardsTab("catalog")
-      setShowRewards(true)
+      openRewards("catalog")
+      return
+    }
+    if (action.kind === "coupons") {
+      openRewards("coupons")
       return
     }
     if (action.kind === "map") {
@@ -210,19 +239,21 @@ export function HomeScreen({
       return
     }
     if (action.kind === "activity") {
-      setSheet({ type: "activity", activityId: action.activityId })
-      return
+      onOpenActivity(action.activityId)
     }
-    setSheet({ type: "agenda-item", item })
   }
 
-  const openRewards = (tab: RewardsTab) => {
-    if (tab !== "catalog" && !isLoggedIn) {
-      capture.setShowLogin(true)
+  const openContent = (item: CityContentItem) => {
+    const action = resolveContentCta(item)
+    if (action.kind === "mayor") {
+      setSheet({ type: "mayor", item: mayorFromList([item, ...heroItems, ...agendaItems]) ?? item })
       return
     }
-    setRewardsTab(tab)
-    setShowRewards(true)
+    if (action.kind === "detail") {
+      setSheet({ type: "agenda-item", item })
+      return
+    }
+    applyNavAction(action)
   }
 
   const handleQuickAction = (id: QuickActionId) => {
@@ -230,8 +261,8 @@ export function HomeScreen({
       openRewards("coupons")
       return
     }
-    if (id === "cafes") {
-      onOpenCafes()
+    if (id === "places" || id === "cafes") {
+      onOpenPlaces()
       return
     }
     if (id === "events") {
@@ -268,24 +299,6 @@ export function HomeScreen({
     }
   }, [sheet, token])
 
-  useEffect(() => {
-    if (sheet?.type !== "activity") {
-      setActivity(null)
-      return
-    }
-    let cancelled = false
-    void fetchPublicActivity(sheet.activityId, token)
-      .then((item) => {
-        if (!cancelled) setActivity(item)
-      })
-      .catch(() => {
-        if (!cancelled) setActivity(null)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [sheet, token])
-
   const handleNotificationOpen = async (item: CitizenNotification) => {
     if (token && !item.isRead) {
       try {
@@ -296,38 +309,15 @@ export function HomeScreen({
         /* keep list usable */
       }
     }
-    if (item.targetType === "Activity" && item.targetId) {
-      setSheet({ type: "activity", activityId: item.targetId })
+    const action = resolveNotificationTarget(item.targetType, item.targetId)
+    setSheet(null)
+    if (action.kind === "content") {
+      const found = [...heroItems, ...agendaItems].find((row) => row.id === action.contentId)
+      if (found) openContent(found)
       return
     }
-    if (item.targetType === "Content" && item.targetId) {
-      const found = [...heroItems, ...agendaItems].find((row) => row.id === item.targetId)
-      if (found) {
-        openContent(found)
-        return
-      }
-    }
-    if (item.targetType === "Cafe" && item.targetId) {
-      onOpenCafe(item.targetId)
-      return
-    }
-  }
-
-  const handleJoinActivity = async () => {
-    if (!token || !activity) {
-      capture.setShowLogin(true)
-      return
-    }
-    setActivityBusy(true)
-    try {
-      await joinPublicActivity(activity.id, token)
-      setActivity(await fetchPublicActivity(activity.id, token))
-      await refreshData()
-    } catch {
-      /* join error stays on current sheet */
-    } finally {
-      setActivityBusy(false)
-    }
+    if (action.kind === "detail" || action.kind === "mayor" || action.kind === "none") return
+    applyNavAction(action)
   }
 
   if (showRewards) {
@@ -386,13 +376,12 @@ export function HomeScreen({
       />
 
       <NearbySection
-        cafes={cafes}
-        origin={origin}
-        ready={sessionReady}
-        error={sessionError}
-        onRetry={() => void refreshData()}
-        onOpen={onOpenCafe}
-        onSeeAll={onOpenCafes}
+        places={nearbyPlaces}
+        ready={nearbyReady}
+        error={nearbyError}
+        onRetry={() => void loadNearby()}
+        onOpen={onOpenPlace}
+        onSeeAll={onOpenPlaces}
       />
 
       <EarnPointsSection
@@ -442,22 +431,8 @@ export function HomeScreen({
           items={agendaItems}
           onClose={() => setSheet(null)}
           onOpen={(item) => {
-            const action = resolveContentCta(item)
-            if (action.kind === "activity") setSheet({ type: "activity", activityId: action.activityId })
-            else setSheet({ type: "agenda-item", item })
-          }}
-        />
-      )}
-      {sheet?.type === "activity" && (
-        <ActivityDetailSheet
-          activity={activity}
-          isLoggedIn={isLoggedIn}
-          busy={activityBusy}
-          onClose={() => setSheet(null)}
-          onJoin={() => void handleJoinActivity()}
-          onLogin={() => {
             setSheet(null)
-            capture.setShowLogin(true)
+            openContent(item)
           }}
         />
       )}

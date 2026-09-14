@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using GolBox.Application.Interfaces;
+using GolBox.Application.Places;
 using GolBox.Domain.Entities;
 
 namespace GolBox.Persistence.Context;
@@ -14,6 +15,7 @@ public static class DbInitializer
         await context.Database.EnsureCreatedAsync();
         await EnsureProviderSchemaAsync(context);
         await EnsureCityPlatformSchemaAsync(context);
+        await EnsurePlacesSchemaAsync(context);
 
         if (context.Database.IsSqlServer())
         {
@@ -613,6 +615,8 @@ public static class DbInitializer
 
         if (isDevelopment)
             await SeedDevelopmentCityContentAsync(context);
+
+        await LinkExistingCafesToPlacesAsync(context);
     }
 
     private static async System.Threading.Tasks.Task EnsurePersonalCouponPolicyAsync(AppDbContext context, Guid orgId)
@@ -801,6 +805,214 @@ public static class DbInitializer
             CREATE INDEX IF NOT EXISTS IX_UserNotifications_User_Read_Created ON UserNotifications (UserId, IsRead, CreatedDate);
             CREATE INDEX IF NOT EXISTS IX_UserNotifications_Org_Created ON UserNotifications (OrganizationId, CreatedDate);
         ");
+    }
+
+    private static async System.Threading.Tasks.Task EnsurePlacesSchemaAsync(AppDbContext context)
+    {
+        if (context.Database.IsSqlServer())
+        {
+            await context.Database.ExecuteSqlRawAsync(@"
+            IF OBJECT_ID(N'dbo.Places', N'U') IS NULL
+            BEGIN
+                CREATE TABLE [Places] (
+                    [Id] uniqueidentifier NOT NULL PRIMARY KEY,
+                    [OrganizationId] uniqueidentifier NOT NULL,
+                    [Name] nvarchar(256) NOT NULL,
+                    [Slug] nvarchar(160) NOT NULL,
+                    [Category] nvarchar(40) NOT NULL,
+                    [ShortDescription] nvarchar(512) NULL,
+                    [Description] nvarchar(max) NULL,
+                    [Address] nvarchar(500) NULL,
+                    [District] nvarchar(120) NULL,
+                    [Neighborhood] nvarchar(120) NULL,
+                    [Latitude] decimal(18,10) NULL,
+                    [Longitude] decimal(18,10) NULL,
+                    [Phone] nvarchar(40) NULL,
+                    [Email] nvarchar(256) NULL,
+                    [WebsiteUrl] nvarchar(500) NULL,
+                    [CoverImageUrl] nvarchar(1000) NULL,
+                    [IsActive] bit NOT NULL,
+                    [IsPublished] bit NOT NULL,
+                    [SortOrder] int NOT NULL,
+                    [WheelchairAccessible] bit NULL,
+                    [AccessibleToilet] bit NULL,
+                    [SearchNormalized] nvarchar(1000) NOT NULL,
+                    [CreatedDate] datetime2 NOT NULL,
+                    [CreatedBy] uniqueidentifier NULL,
+                    [UpdatedDate] datetime2 NULL,
+                    [UpdatedBy] uniqueidentifier NULL,
+                    [DeletedDate] datetime2 NULL,
+                    [DeletedBy] uniqueidentifier NULL,
+                    [IsDeleted] bit NOT NULL
+                );
+                CREATE UNIQUE INDEX [IX_Places_OrganizationId_Slug] ON [Places] ([OrganizationId], [Slug]);
+                CREATE INDEX [IX_Places_OrganizationId_IsPublished_IsActive] ON [Places] ([OrganizationId], [IsPublished], [IsActive]);
+                CREATE INDEX [IX_Places_OrganizationId_Category] ON [Places] ([OrganizationId], [Category]);
+                CREATE INDEX [IX_Places_OrganizationId_District] ON [Places] ([OrganizationId], [District]);
+                CREATE INDEX [IX_Places_OrganizationId_Neighborhood] ON [Places] ([OrganizationId], [Neighborhood]);
+                CREATE INDEX [IX_Places_Latitude_Longitude] ON [Places] ([Latitude], [Longitude]);
+                CREATE INDEX [IX_Places_SearchNormalized] ON [Places] ([SearchNormalized]);
+            END;
+
+            IF OBJECT_ID(N'dbo.PlaceImages', N'U') IS NULL
+            BEGIN
+                CREATE TABLE [PlaceImages] (
+                    [Id] uniqueidentifier NOT NULL PRIMARY KEY,
+                    [PlaceId] uniqueidentifier NOT NULL,
+                    [ImageUrl] nvarchar(1000) NOT NULL,
+                    [AltText] nvarchar(200) NULL,
+                    [SortOrder] int NOT NULL,
+                    [IsCover] bit NOT NULL,
+                    [CreatedDate] datetime2 NOT NULL,
+                    [CreatedBy] uniqueidentifier NULL,
+                    [UpdatedDate] datetime2 NULL,
+                    [UpdatedBy] uniqueidentifier NULL,
+                    [DeletedDate] datetime2 NULL,
+                    [DeletedBy] uniqueidentifier NULL,
+                    [IsDeleted] bit NOT NULL,
+                    CONSTRAINT [FK_PlaceImages_Places] FOREIGN KEY ([PlaceId]) REFERENCES [Places]([Id]) ON DELETE CASCADE
+                );
+                CREATE INDEX [IX_PlaceImages_PlaceId_SortOrder] ON [PlaceImages] ([PlaceId], [SortOrder]);
+            END;
+
+            IF OBJECT_ID(N'dbo.PlaceOpeningHours', N'U') IS NULL
+            BEGIN
+                CREATE TABLE [PlaceOpeningHours] (
+                    [Id] uniqueidentifier NOT NULL PRIMARY KEY,
+                    [PlaceId] uniqueidentifier NOT NULL,
+                    [DayOfWeek] int NOT NULL,
+                    [OpenTime] nvarchar(8) NULL,
+                    [CloseTime] nvarchar(8) NULL,
+                    [IsClosed] bit NOT NULL,
+                    [CreatedDate] datetime2 NOT NULL,
+                    [CreatedBy] uniqueidentifier NULL,
+                    [UpdatedDate] datetime2 NULL,
+                    [UpdatedBy] uniqueidentifier NULL,
+                    [DeletedDate] datetime2 NULL,
+                    [DeletedBy] uniqueidentifier NULL,
+                    [IsDeleted] bit NOT NULL,
+                    CONSTRAINT [FK_PlaceOpeningHours_Places] FOREIGN KEY ([PlaceId]) REFERENCES [Places]([Id]) ON DELETE CASCADE
+                );
+                CREATE UNIQUE INDEX [IX_PlaceOpeningHours_PlaceId_DayOfWeek] ON [PlaceOpeningHours] ([PlaceId], [DayOfWeek]) WHERE [IsDeleted] = 0;
+            END;
+
+            IF OBJECT_ID(N'dbo.PlaceAmenities', N'U') IS NULL
+            BEGIN
+                CREATE TABLE [PlaceAmenities] (
+                    [PlaceId] uniqueidentifier NOT NULL,
+                    [AmenityId] nvarchar(40) NOT NULL,
+                    CONSTRAINT [PK_PlaceAmenities] PRIMARY KEY ([PlaceId], [AmenityId]),
+                    CONSTRAINT [FK_PlaceAmenities_Places] FOREIGN KEY ([PlaceId]) REFERENCES [Places]([Id]) ON DELETE CASCADE
+                );
+            END;
+
+            IF COL_LENGTH('dbo.Cafes', 'PlaceId') IS NULL
+                ALTER TABLE [Cafes] ADD [PlaceId] uniqueidentifier NULL;
+            IF COL_LENGTH('dbo.Activities', 'PlaceId') IS NULL
+                ALTER TABLE [Activities] ADD [PlaceId] uniqueidentifier NULL;
+            IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Cafes_PlaceId' AND object_id = OBJECT_ID('dbo.Cafes'))
+                CREATE INDEX [IX_Cafes_PlaceId] ON [Cafes] ([PlaceId]);
+            IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Activities_PlaceId' AND object_id = OBJECT_ID('dbo.Activities'))
+                CREATE INDEX [IX_Activities_PlaceId] ON [Activities] ([PlaceId]);
+            ");
+            return;
+        }
+
+        if (!context.Database.IsSqlite())
+            return;
+
+        await context.Database.ExecuteSqlRawAsync(@"
+            CREATE TABLE IF NOT EXISTS Places (
+                Id TEXT NOT NULL PRIMARY KEY,
+                OrganizationId TEXT NOT NULL,
+                Name TEXT NOT NULL,
+                Slug TEXT NOT NULL,
+                Category TEXT NOT NULL,
+                ShortDescription TEXT NULL,
+                Description TEXT NULL,
+                Address TEXT NULL,
+                District TEXT NULL,
+                Neighborhood TEXT NULL,
+                Latitude TEXT NULL,
+                Longitude TEXT NULL,
+                Phone TEXT NULL,
+                Email TEXT NULL,
+                WebsiteUrl TEXT NULL,
+                CoverImageUrl TEXT NULL,
+                IsActive INTEGER NOT NULL,
+                IsPublished INTEGER NOT NULL,
+                SortOrder INTEGER NOT NULL,
+                WheelchairAccessible INTEGER NULL,
+                AccessibleToilet INTEGER NULL,
+                SearchNormalized TEXT NOT NULL,
+                CreatedDate TEXT NOT NULL,
+                CreatedBy TEXT NULL,
+                UpdatedDate TEXT NULL,
+                UpdatedBy TEXT NULL,
+                DeletedDate TEXT NULL,
+                DeletedBy TEXT NULL,
+                IsDeleted INTEGER NOT NULL
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS IX_Places_OrganizationId_Slug ON Places (OrganizationId, Slug);
+            CREATE INDEX IF NOT EXISTS IX_Places_OrganizationId_IsPublished_IsActive ON Places (OrganizationId, IsPublished, IsActive);
+            CREATE INDEX IF NOT EXISTS IX_Places_OrganizationId_Category ON Places (OrganizationId, Category);
+            CREATE INDEX IF NOT EXISTS IX_Places_OrganizationId_District ON Places (OrganizationId, District);
+            CREATE INDEX IF NOT EXISTS IX_Places_OrganizationId_Neighborhood ON Places (OrganizationId, Neighborhood);
+            CREATE INDEX IF NOT EXISTS IX_Places_Latitude_Longitude ON Places (Latitude, Longitude);
+            CREATE INDEX IF NOT EXISTS IX_Places_SearchNormalized ON Places (SearchNormalized);
+            CREATE TABLE IF NOT EXISTS PlaceImages (
+                Id TEXT NOT NULL PRIMARY KEY,
+                PlaceId TEXT NOT NULL,
+                ImageUrl TEXT NOT NULL,
+                AltText TEXT NULL,
+                SortOrder INTEGER NOT NULL,
+                IsCover INTEGER NOT NULL,
+                CreatedDate TEXT NOT NULL,
+                CreatedBy TEXT NULL,
+                UpdatedDate TEXT NULL,
+                UpdatedBy TEXT NULL,
+                DeletedDate TEXT NULL,
+                DeletedBy TEXT NULL,
+                IsDeleted INTEGER NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS IX_PlaceImages_PlaceId_SortOrder ON PlaceImages (PlaceId, SortOrder);
+            CREATE TABLE IF NOT EXISTS PlaceOpeningHours (
+                Id TEXT NOT NULL PRIMARY KEY,
+                PlaceId TEXT NOT NULL,
+                DayOfWeek INTEGER NOT NULL,
+                OpenTime TEXT NULL,
+                CloseTime TEXT NULL,
+                IsClosed INTEGER NOT NULL,
+                CreatedDate TEXT NOT NULL,
+                CreatedBy TEXT NULL,
+                UpdatedDate TEXT NULL,
+                UpdatedBy TEXT NULL,
+                DeletedDate TEXT NULL,
+                DeletedBy TEXT NULL,
+                IsDeleted INTEGER NOT NULL
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS IX_PlaceOpeningHours_PlaceId_DayOfWeek ON PlaceOpeningHours (PlaceId, DayOfWeek) WHERE IsDeleted = 0;
+            CREATE TABLE IF NOT EXISTS PlaceAmenities (
+                PlaceId TEXT NOT NULL,
+                AmenityId TEXT NOT NULL,
+                PRIMARY KEY (PlaceId, AmenityId)
+            );
+        ");
+        await AddSqliteColumnIfMissingAsync(context, "Cafes", "PlaceId", "TEXT NULL");
+        await AddSqliteColumnIfMissingAsync(context, "Activities", "PlaceId", "TEXT NULL");
+        await context.Database.ExecuteSqlRawAsync(@"
+            CREATE INDEX IF NOT EXISTS IX_Cafes_PlaceId ON Cafes (PlaceId);
+            CREATE INDEX IF NOT EXISTS IX_Activities_PlaceId ON Activities (PlaceId);
+        ");
+    }
+
+    private static async System.Threading.Tasks.Task LinkExistingCafesToPlacesAsync(AppDbContext context)
+    {
+        var cafes = await context.Cafes.ToListAsync();
+        foreach (var cafe in cafes)
+            await PlaceCafeSync.EnsureLinkedPlaceAsync(context, cafe);
+        if (cafes.Count > 0)
+            await context.SaveChangesAsync();
     }
 
     private static async System.Threading.Tasks.Task SeedDevelopmentCityContentAsync(AppDbContext context)

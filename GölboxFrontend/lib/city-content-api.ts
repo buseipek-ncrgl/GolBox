@@ -20,6 +20,11 @@ export interface PublicActivity {
   joinedCount: number
   rewardPoints: number
   isJoined: boolean
+  placeId?: string | null
+  placeName?: string | null
+  placeAddress?: string | null
+  placeLatitude?: number | null
+  placeLongitude?: number | null
 }
 
 export interface CitizenNotification {

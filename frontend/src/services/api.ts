@@ -156,6 +156,26 @@ export const api = {
       method: 'DELETE',
     }),
 
+  getAdminPlaces: (params?: { category?: string; search?: string; published?: boolean }) => {
+    const query = new URLSearchParams();
+    if (params?.category) query.set('category', params.category);
+    if (params?.search) query.set('search', params.search);
+    if (params?.published != null) query.set('published', String(params.published));
+    const suffix = query.toString() ? `?${query.toString()}` : '';
+    return request<any>(`/admin/places${suffix}`);
+  },
+  getAdminPlace: (id: string) => request<any>(`/admin/places/${id}`),
+  createAdminPlace: (data: any) =>
+    request<any>('/admin/places', { method: 'POST', body: JSON.stringify(data) }),
+  updateAdminPlace: (id: string, data: any) =>
+    request<any>(`/admin/places/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteAdminPlace: (id: string) =>
+    request<any>(`/admin/places/${id}`, { method: 'DELETE' }),
+  addAdminPlaceImage: (id: string, data: any) =>
+    request<any>(`/admin/places/${id}/images`, { method: 'POST', body: JSON.stringify(data) }),
+  deleteAdminPlaceImage: (id: string, imageId: string) =>
+    request<any>(`/admin/places/${id}/images/${imageId}`, { method: 'DELETE' }),
+
   // Cafes
   getCafes: () => request<any>('/cafes'),
   createCafe: (data: any) =>

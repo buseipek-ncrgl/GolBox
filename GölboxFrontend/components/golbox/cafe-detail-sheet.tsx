@@ -20,8 +20,8 @@ export function CafeDetailSheet({ cafeId, onClose }: { cafeId: string; onClose: 
       <div className="absolute inset-0 z-50">
         <button type="button" aria-label="Kapat" onClick={onClose} className="gol-fade absolute inset-0 bg-foreground/40 backdrop-blur-[2px]" />
         <div className="gol-sheet-up absolute inset-x-0 bottom-0 top-24 flex flex-col items-center justify-center gap-3 rounded-t-[2rem] bg-background px-6 text-center">
-          <p className="font-semibold text-foreground">Kafe bulunamadı</p>
-          <p className="text-sm text-muted-foreground">Bu tesis canlı listede yok.</p>
+          <p className="font-semibold text-foreground">Göl Kafe bulunamadı</p>
+          <p className="text-sm text-muted-foreground">Bu kafe canlı listede yok.</p>
           <button type="button" onClick={onClose} className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">
             Kapat
           </button>

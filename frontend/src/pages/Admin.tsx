@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { useAuth } from '../store/AuthContext';
 import { HomeContentPanel } from './HomeContentPanel';
+import { PlacesPanel } from './PlacesPanel';
 import { 
   LayoutDashboard, Users, Building2, Coffee, ShoppingBag, 
   History, Award, Sparkles, CheckSquare, Calendar, Bell, 
@@ -9,7 +10,7 @@ import {
   LogOut, Plus, Search, Filter, AlertTriangle, ChevronRight,
   Upload, Image as ImageIcon, ShieldCheck, CheckCircle2, XCircle, 
   Download, MoreVertical, X, ChevronLeft, ChevronDown, Check, ArrowRight, RefreshCw,
-  Clock, TrendingUp, HelpCircle, MapPin, Receipt, Gift, CreditCard, Megaphone, BarChart3, FileCheck, Trash2, Eye, Phone, Edit3, Save, Send, Shield, DollarSign, Layers, Heart, Tag
+  Clock, TrendingUp, HelpCircle, MapPin, Receipt, Gift, CreditCard, Megaphone, BarChart3, FileCheck, Trash2, Eye, Phone, Edit3, Save, Send, Shield, DollarSign, Layers, Heart, Tag, Landmark
 } from 'lucide-react';
 
 // Safe array extraction helper
@@ -73,7 +74,7 @@ export const Admin: React.FC = () => {
   // 14 Core Specification Sidebar Modules
   const [activeMenu, setActiveMenu] = useState<
     'overview' | 'users' | 'cafes' | 'products' | 'points' | 
-    'qr' | 'rewards' | 'fieldDrops' | 'ismarliyor' | 'homeContent' | 'campaigns' | 'events' | 
+    'qr' | 'rewards' | 'fieldDrops' | 'ismarliyor' | 'homeContent' | 'places' | 'campaigns' | 'events' | 
     'notifications' | 'reports' | 'roles' | 'audit'
   >('overview');
 
@@ -174,6 +175,8 @@ export const Admin: React.FC = () => {
   const [newEventTitle, setNewEventTitle] = useState('');
   const [newEventDesc, setNewEventDesc] = useState('');
   const [newEventLocation, setNewEventLocation] = useState('Şehitkamil Gençlik Merkezi');
+  const [newEventPlaceId, setNewEventPlaceId] = useState('');
+  const [eventPlacesList, setEventPlacesList] = useState<any[]>([]);
   const [newEventPoints, setNewEventPoints] = useState<number>(100);
   const [newEventQuota, setNewEventQuota] = useState<number>(50);
 
@@ -318,8 +321,10 @@ export const Admin: React.FC = () => {
       } else if (activeMenu === 'events') {
         const a = await api.getAdminActivities().catch(() => api.getActivities());
         setEventsList(extractArray(a));
-      } else if (activeMenu === 'homeContent') {
-        // HomeContentPanel loads its own data.
+        const places = await api.getAdminPlaces().catch(() => ({ items: [] }));
+        setEventPlacesList(places?.items || extractArray(places));
+      } else if (activeMenu === 'homeContent' || activeMenu === 'places') {
+        // Panels load their own data.
       } else if (activeMenu === 'notifications') {
         const n = await api.getNotifications();
         setNotificationsList(extractArray(n));
@@ -433,11 +438,11 @@ export const Admin: React.FC = () => {
         imageUrl: editCafeImageUrl || undefined,
         categoryId: selectedCafeDetail.categoryId || '22222222-2222-2222-2222-222222222222'
       });
-      setSuccess(`Tesis '${editCafeName}' kaydedildi.`);
+      setSuccess(`Göl Kafe '${editCafeName}' kaydedildi.`);
       setSelectedCafeDetail(null);
       fetchData();
     } catch (err: any) {
-      setError(err.message || 'Tesis güncellenemedi.');
+      setError(err.message || 'Göl Kafe güncellenemedi.');
     } finally {
       setSavingCafeEdit(false);
     }
@@ -456,10 +461,10 @@ export const Admin: React.FC = () => {
 
       const cafeId = createdId(res);
       if (!cafeId) {
-        throw new Error('Tesis oluşturuldu ancak kimlik dönmedi.');
+        throw new Error('Göl Kafe oluşturuldu ancak kimlik dönmedi.');
       }
 
-      setSuccess(`Tesis '${newCafeName}' eklendi.`);
+      setSuccess(`Göl Kafe '${newCafeName}' eklendi.`);
       setShowAddCafeModal(false);
       setNewCafeName('');
       setNewCafeAddress('');
@@ -468,7 +473,7 @@ export const Admin: React.FC = () => {
       setSelectedProductIdsForCafe([]);
       fetchData();
     } catch (err: any) {
-      setError(err.message || 'Tesis eklenemedi.');
+      setError(err.message || 'Göl Kafe eklenemedi.');
     }
   };
 
@@ -480,7 +485,7 @@ export const Admin: React.FC = () => {
 
     const cafeId = targetCafeId === 'ALL' ? cafesList[0]?.id : targetCafeId;
     if (!cafeId) {
-      setError('Ürün eklemek için önce bir tesis ekleyin.');
+      setError('Menü ürünü eklemek için önce bir Göl Kafe ekleyin.');
       return;
     }
 
@@ -596,6 +601,7 @@ export const Admin: React.FC = () => {
         title: newEventTitle,
         description: newEventDesc,
         location: newEventLocation || 'Şehitkamil Gençlik Merkezi',
+        placeId: newEventPlaceId || undefined,
         pointsReward: Number(newEventPoints),
         capacity: Number(newEventQuota) || undefined,
         imageUrl: uploadedImageUrl || undefined,
@@ -612,6 +618,7 @@ export const Admin: React.FC = () => {
       setNewEventTitle('');
       setNewEventDesc('');
       setNewEventLocation('');
+      setNewEventPlaceId('');
       setNewEventPoints(100);
       fetchData();
     } catch (err: any) {
@@ -894,19 +901,20 @@ export const Admin: React.FC = () => {
 
   const getMenuLabel = (key: string) => {
     const labels: Record<string, string> = {
-      overview: 'Genel bakış',
+      overview: 'Genel Bakış',
       users: 'Vatandaşlar',
       cafes: 'Göl Kafeler',
-      products: 'Menü ve ürünler',
-      points: 'GölPuan defteri',
-      qr: 'QR işlemleri',
+      places: 'Tesisler',
+      products: 'Menü ve Ürünler',
+      points: 'GölPuan Defteri',
+      qr: 'QR İşlemleri',
       rewards: 'Ödüller',
-      fieldDrops: 'Saha hediyeleri',
+      fieldDrops: 'Saha Hediyeleri',
       ismarliyor: 'Ismarlıyor',
       homeContent: 'Ana Sayfa İçerikleri',
       campaigns: 'Kampanyalar',
       events: 'Etkinlikler',
-      notifications: 'Duyurular',
+      notifications: 'Duyurular / Bildirimler',
       reports: 'Raporlar',
       roles: 'Yetkilendirme',
       audit: 'Denetim'
@@ -952,7 +960,7 @@ export const Admin: React.FC = () => {
                 ŞB
               </div>
               <div>
-                <div style={{ fontWeight: 700, fontSize: '1.05rem', color: '#ffffff', lineHeight: 1.2, fontFamily: 'Fraunces, Georgia, serif' }}>GölBox</div>
+                <div style={{ fontWeight: 700, fontSize: '1.05rem', color: '#ffffff', lineHeight: 1.2, fontFamily: 'Fraunces, Georgia, serif' }}>Şehitkamil+</div>
                 <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.72)', fontWeight: 600 }}>Şehitkamil Belediyesi</div>
               </div>
             </div>
@@ -970,19 +978,20 @@ export const Admin: React.FC = () => {
             {
               section: 'İşlem',
               items: [
-                { id: 'overview', label: 'Genel bakış', icon: LayoutDashboard },
+                { id: 'overview', label: 'Genel Bakış', icon: LayoutDashboard },
                 { id: 'users', label: 'Vatandaşlar', icon: Users },
+                { id: 'places', label: 'Tesisler', icon: Landmark },
                 { id: 'cafes', label: 'Göl Kafeler', icon: Building2 },
-                { id: 'products', label: 'Menü ve ürünler', icon: Coffee }
+                { id: 'products', label: 'Menü ve Ürünler', icon: Coffee }
               ]
             },
             {
               section: 'Sadakat',
               items: [
-                { id: 'points', label: 'GölPuan defteri', icon: History },
-                { id: 'qr', label: 'QR işlemleri', icon: CreditCard },
+                { id: 'points', label: 'GölPuan Defteri', icon: History },
+                { id: 'qr', label: 'QR İşlemleri', icon: CreditCard },
                 { id: 'rewards', label: 'Ödüller', icon: Award },
-                { id: 'fieldDrops', label: 'Saha hediyeleri', icon: MapPin },
+                { id: 'fieldDrops', label: 'Saha Hediyeleri', icon: MapPin },
                 { id: 'ismarliyor', label: 'Ismarlıyor', icon: Gift }
               ]
             },
@@ -992,7 +1001,7 @@ export const Admin: React.FC = () => {
                 { id: 'homeContent', label: 'Ana Sayfa İçerikleri', icon: FileText },
                 { id: 'campaigns', label: 'Kampanyalar', icon: Megaphone },
                 { id: 'events', label: 'Etkinlikler', icon: Calendar },
-                { id: 'notifications', label: 'Duyurular', icon: Bell }
+                { id: 'notifications', label: 'Duyurular / Bildirimler', icon: Bell }
               ]
             },
             {
@@ -1103,7 +1112,7 @@ export const Admin: React.FC = () => {
             </div>
             <button
               onClick={() => setActiveMenu('notifications')}
-              title="Duyurular"
+              title="Duyurular / Bildirimler"
               style={{ background: '#fff', border: '1px solid #d7e3e0', cursor: 'pointer', padding: '8px', borderRadius: '14px', display: 'flex' }}
             >
               <Bell size={18} color="#1d5f60" />
@@ -1702,6 +1711,10 @@ export const Admin: React.FC = () => {
             </div>
           )}
 
+          {activeMenu === 'places' && isAdminUser && (
+            <PlacesPanel onError={setError} onSuccess={setSuccess} />
+          )}
+
           {activeMenu === 'homeContent' && isAdminUser && (
             <HomeContentPanel onError={setError} onSuccess={setSuccess} />
           )}
@@ -1803,7 +1816,7 @@ export const Admin: React.FC = () => {
                       <span style={{ background: '#fef3c7', color: '#b45309', padding: '3px 10px', borderRadius: '100px', fontSize: '0.75rem', fontWeight: 800 }}>+{e.pointsReward} GP</span>
                     </div>
                     <p style={{ margin: 0, fontSize: '0.825rem', color: '#64748b' }}>{e.description}</p>
-                    <div style={{ fontSize: '0.75rem', color: '#0369a1', fontWeight: 600 }}>Konum: {e.location || '—'}</div>
+                    <div style={{ fontSize: '0.75rem', color: '#0369a1', fontWeight: 600 }}>Konum: {e.placeName || e.location || '—'}</div>
                   </div>
                 ))}
               </div>
@@ -1817,7 +1830,7 @@ export const Admin: React.FC = () => {
           {activeMenu === 'notifications' && (
             <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
               <div>
-                <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Duyurular & Anlık Bildirim Gönderimi</h1>
+                <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Duyurular / Bildirimler</h1>
                 <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '4px' }}>Şehitkamil Belediyesi mobil vatandaşlarına özel anlık Push Notification gönderimi.</p>
               </div>
 
@@ -2573,6 +2586,15 @@ export const Admin: React.FC = () => {
               <textarea rows={2} placeholder="Etkinlik detayları ve şartları..." value={newEventDesc} onChange={(e) => setNewEventDesc(e.target.value)} required style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', color: '#0f172a', outline: 'none', resize: 'vertical' }} />
             </div>
 
+            <div>
+              <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Belediye tesisi (opsiyonel)</label>
+              <select value={newEventPlaceId} onChange={(e) => setNewEventPlaceId(e.target.value)} style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', color: '#0f172a', outline: 'none' }}>
+                <option value="">Serbest konum / tesis yok</option>
+                {eventPlacesList.map((place) => (
+                  <option key={place.id} value={place.id}>{place.name}</option>
+                ))}
+              </select>
+            </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
               <div>
                 <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Etkinlik Konumu</label>

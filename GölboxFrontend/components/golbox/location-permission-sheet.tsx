@@ -12,7 +12,7 @@ export function LocationPermissionSheet({
   return (
     <OverlaySheet title="Konum" onClose={onClose}>
       <p className="text-sm leading-relaxed text-muted-foreground">
-        Yakındaki Göl Kafeler ve GölBox saha hediyeleri için tarayıcı konumunu kullanıyoruz. İzin yoksa Şehitkamil
+        Yakındaki tesisler ve GölBox saha hediyeleri için tarayıcı konumunu kullanıyoruz. İzin yoksa Şehitkamil
         merkezi esas alınır.
       </p>
       <div className="mt-6 space-y-2">

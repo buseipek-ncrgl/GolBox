@@ -110,6 +110,8 @@ public class CityContentRulesTests
         Assert.True(ContentCtaValidator.Validate(ContentCtaTypes.ExternalUrl, "https://www.sehitkamil.bel.tr/duyuru").Success);
         Assert.False(ContentCtaValidator.Validate(ContentCtaTypes.InternalRoute, "/admin/secret").Success);
         Assert.True(ContentCtaValidator.Validate(ContentCtaTypes.InternalRoute, "map").Success);
+        Assert.True(ContentCtaValidator.Validate(ContentCtaTypes.InternalRoute, "coupons").Success);
+        Assert.True(ContentCtaValidator.Validate(ContentCtaTypes.InternalRoute, "places").Success);
     }
 
     [Fact]

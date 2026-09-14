@@ -14,7 +14,10 @@ public class Cafe : BaseEntity
     public bool IsActive { get; set; } = true;
     public string? ImageUrl { get; set; }
 
+    public Guid? PlaceId { get; set; }
+
     // Navigations
     public virtual Organization Organization { get; set; } = null!;
     public virtual CafeCategory Category { get; set; } = null!;
+    public virtual Place? Place { get; set; }
 }

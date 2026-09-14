@@ -1,11 +1,19 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { CityImage } from "@/components/golbox/city-image"
 import { OverlaySheet } from "@/components/golbox/overlay-sheet"
 import { EmptyState } from "@/components/golbox/empty-state"
 import { GPValue } from "@/components/golbox/gp-value"
+import { LoginRequiredSheet } from "@/components/golbox/login-required-sheet"
 import type { CityContentItem } from "@/lib/city-content"
-import type { CitizenNotification, PublicActivity } from "@/lib/city-content-api"
+import {
+  fetchPublicActivity,
+  joinPublicActivity,
+  type CitizenNotification,
+  type PublicActivity,
+} from "@/lib/city-content-api"
+import { useGolbox } from "@/lib/golbox-context"
 
 export function MayorMessageSheet({
   item,
@@ -178,6 +186,7 @@ export function ActivityDetailSheet({
   onClose,
   onJoin,
   onLogin,
+  onOpenPlace,
 }: {
   activity: PublicActivity | null
   isLoggedIn: boolean
@@ -185,6 +194,7 @@ export function ActivityDetailSheet({
   onClose: () => void
   onJoin: () => void
   onLogin: () => void
+  onOpenPlace?: (id: string) => void
 }) {
   if (!activity) {
     return (
@@ -207,7 +217,23 @@ export function ActivityDetailSheet({
       </div>
       <h3 className="mt-4 font-serif text-2xl leading-snug text-foreground">{activity.title}</h3>
       <p className="mt-1 text-sm text-muted-foreground">{when}</p>
-      {activity.location ? <p className="mt-1 text-sm text-muted-foreground">{activity.location}</p> : null}
+      {activity.location && !activity.placeName ? <p className="mt-1 text-sm text-muted-foreground">{activity.location}</p> : null}
+      {activity.placeName ? (
+        <div className="gol-card mt-4 p-3">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Mekan</p>
+          <p className="mt-1 text-sm font-semibold text-foreground">{activity.placeName}</p>
+          {activity.placeAddress ? <p className="mt-0.5 text-[13px] text-muted-foreground">{activity.placeAddress}</p> : null}
+          {activity.placeId && onOpenPlace ? (
+            <button
+              type="button"
+              onClick={() => onOpenPlace(activity.placeId!)}
+              className="mt-2 min-h-11 text-sm font-semibold text-primary"
+            >
+              Tesisi gör
+            </button>
+          ) : null}
+        </div>
+      ) : null}
       <p className="mt-3 text-[15px] leading-relaxed text-foreground">{activity.description}</p>
       <div className="mt-4 flex flex-wrap gap-2 text-[12px] font-semibold text-muted-foreground">
         {remaining != null ? <span>Kalan kontenjan: {remaining}</span> : null}
@@ -266,5 +292,69 @@ export function EarnInfoSheet({
         </li>
       </ul>
     </OverlaySheet>
+  )
+}
+
+export function ActivityOverlay({
+  activityId,
+  onClose,
+  onOpenPlace,
+}: {
+  activityId: string
+  onClose: () => void
+  onOpenPlace?: (id: string) => void
+}) {
+  const { token, refreshData } = useGolbox()
+  const [activity, setActivity] = useState<PublicActivity | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [showLogin, setShowLogin] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    setActivity(null)
+    void fetchPublicActivity(activityId, token)
+      .then((item) => {
+        if (!cancelled) setActivity(item)
+      })
+      .catch(() => {
+        if (!cancelled) setActivity(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [activityId, token])
+
+  const handleJoin = async () => {
+    if (!token || !activity) {
+      setShowLogin(true)
+      return
+    }
+    setBusy(true)
+    try {
+      await joinPublicActivity(activity.id, token)
+      setActivity(await fetchPublicActivity(activity.id, token))
+      await refreshData()
+    } catch {
+      /* keep current sheet usable */
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <>
+      <ActivityDetailSheet
+        activity={activity}
+        isLoggedIn={Boolean(token)}
+        busy={busy}
+        onClose={onClose}
+        onJoin={() => void handleJoin()}
+        onLogin={() => setShowLogin(true)}
+        onOpenPlace={onOpenPlace}
+      />
+      {showLogin && !token ? (
+        <LoginRequiredSheet onClose={() => setShowLogin(false)} closeLabel="Etkinliğe dön" />
+      ) : null}
+    </>
   )
 }

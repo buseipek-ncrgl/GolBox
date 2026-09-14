@@ -83,10 +83,9 @@ export function RewardsScreen({
             {closeLabel}
           </button>
         )}
-        <h1 className="font-serif text-2xl text-foreground">Ödül Kataloğu</h1>
+        <h1 className="font-serif text-2xl text-foreground">GölPuan</h1>
         <p className="text-sm text-muted-foreground">
-          GölPuan ile sepete eklenir. Kazanılan kupon kişiye özeldir ve 1 yıl geçerlidir. Saha kutusu ve
-          Ismarlıyor buradan ayrıdır.
+          Katalog, sepet ve kuponların. Saha kutusu ve Ismarlıyor buradan ayrıdır.
         </p>
       </header>
 
