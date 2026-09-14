@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../../../services/api';
 import { pagedMeta } from '../../../lib/adminQuery';
 import { pointTypeLabel } from '../../../lib/adminLabels';
-import { formatDateTime } from '../../../lib/adminDate';
+import { formatDateTime, formatGp } from '../../../lib/adminDate';
 import { FilterBar, PaginationBar, EmptyState, ListError, TableWrap } from '../../../components/admin/FilterBar';
 import { AdminSkeletonTable } from '../../../components/admin/AdminSkeleton';
 import { btnPrimary, inputStyle } from '../../../components/admin/adminUi';
@@ -75,7 +75,7 @@ export function LedgerPage() {
                   <td style={{ padding: 10 }}>{row.userFullName}</td>
                   <td style={{ padding: 10 }}>{pointTypeLabel(row.type)}</td>
                   <td style={{ padding: 10 }}>{row.source || '—'}</td>
-                  <td style={{ padding: 10, fontWeight: 800, color: row.amount < 0 ? '#b91c1c' : '#047857' }}>{row.amount > 0 ? `+${row.amount}` : row.amount}</td>
+                  <td style={{ padding: 10, fontWeight: 800, color: row.amount < 0 ? '#b91c1c' : '#047857' }}>{formatGp(row.amount)}</td>
                   <td style={{ padding: 10 }}>{row.description}</td>
                   <td style={{ padding: 10 }}>{row.actorName || '—'}</td>
                 </tr>

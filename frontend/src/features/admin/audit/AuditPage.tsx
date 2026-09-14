@@ -3,9 +3,7 @@ import { api } from '../../../services/api';
 import { pagedMeta } from '../../../lib/adminQuery';
 import { auditActionLabel } from '../../../lib/adminLabels';
 import { formatDateTime } from '../../../lib/adminDate';
-import { FilterBar, PaginationBar, EmptyState, ListError, TableWrap } from '../../../components/admin/FilterBar';
-import { AdminSkeletonTable } from '../../../components/admin/AdminSkeleton';
-import { btnPrimary, inputStyle } from '../../../components/admin/adminUi';
+import { Button, FilterBar, Input, Pagination, Select, Skeleton, EmptyState, ErrorState, TableWrap } from '../../../admin/components';
 import { useAdminFeedback } from '../AdminFeedback';
 
 export function AuditPage() {
@@ -21,6 +19,7 @@ export function AuditPage() {
   const [preset, setPreset] = useState('30d');
   const [loading, setLoading] = useState(true);
   const [fail, setFail] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -41,52 +40,75 @@ export function AuditPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <FilterBar search={search} onSearch={setSearch} searchPlaceholder="Açıklama / işlem" activeCount={[search, moduleName, action, staff, preset !== '30d'].filter(Boolean).length} onClear={() => { setSearch(''); setModuleName(''); setAction(''); setStaff(''); setPreset('30d'); setPage(1); void load(); }} filters={
-        <>
-          <input placeholder="Personel e-posta" value={staff} onChange={(e) => setStaff(e.target.value)} style={{ ...inputStyle, width: 180 }} />
-          <input placeholder="İşlem kodu" value={action} onChange={(e) => setAction(e.target.value)} style={{ ...inputStyle, width: 160 }} />
-          <select value={moduleName} onChange={(e) => setModuleName(e.target.value)} style={inputStyle}>
-            <option value="">Modül</option>
-            {['Users', 'Rewards', 'Qr', 'Orders', 'Campaigns', 'Cafes', 'Activities', 'Staff', 'MenuItems'].map((m) => <option key={m} value={m}>{m}</option>)}
-          </select>
-          <select value={preset} onChange={(e) => setPreset(e.target.value)} style={inputStyle}>
-            <option value="today">Bugün</option>
-            <option value="7d">Son 7 gün</option>
-            <option value="30d">Son 30 gün</option>
-          </select>
-          <button type="button" style={btnPrimary} onClick={() => { setPage(1); void load(); }}>Filtrele</button>
-        </>
-      } />
-      {fail && <ListError message={fail} onRetry={load} />}
-      {loading ? <AdminSkeletonTable /> : items.length === 0 ? <EmptyState title="Denetim kaydı yok." /> : (
+      <FilterBar
+        search={search}
+        onSearch={setSearch}
+        searchPlaceholder="Açıklama / işlem"
+        activeCount={[search, moduleName, action, staff, preset !== '30d'].filter(Boolean).length}
+        onClear={() => { setSearch(''); setModuleName(''); setAction(''); setStaff(''); setPreset('30d'); setPage(1); void load(); }}
+        onSubmit={() => { setPage(1); void load(); }}
+        filters={
+          <>
+            <Input label="Personel" value={staff} onChange={(e) => setStaff(e.target.value)} />
+            <Input label="İşlem" value={action} onChange={(e) => setAction(e.target.value)} />
+            <Select label="Modül" value={moduleName} onChange={(e) => setModuleName(e.target.value)}>
+              <option value="">Tümü</option>
+              {['Users', 'Rewards', 'Qr', 'Orders', 'Campaigns', 'Cafes', 'Activities', 'Staff', 'MenuItems'].map((m) => <option key={m} value={m}>{m}</option>)}
+            </Select>
+            <Select label="Dönem" value={preset} onChange={(e) => setPreset(e.target.value)}>
+              <option value="today">Bugün</option>
+              <option value="7d">Son 7 gün</option>
+              <option value="30d">Son 30 gün</option>
+            </Select>
+            <Button type="submit" size="sm">Filtrele</Button>
+          </>
+        }
+      />
+      {fail && <ErrorState description={fail} retry={load} />}
+      {loading ? <Skeleton variant="table" /> : items.length === 0 ? <EmptyState title="Denetim kaydı yok." /> : (
         <TableWrap>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 960, fontSize: 13 }}>
+          <table className="admin-table">
+            <caption className="admin-sr-only">Denetim kayıtları</caption>
             <thead>
-              <tr style={{ background: '#f1f5f9', textAlign: 'left' }}>
-                <th style={{ padding: 10 }}>Tarih-saat</th>
-                <th style={{ padding: 10 }}>Personel</th>
-                <th style={{ padding: 10 }}>İşlem</th>
-                <th style={{ padding: 10 }}>Modül</th>
-                <th style={{ padding: 10 }}>Hedef</th>
-                <th style={{ padding: 10 }}>Açıklama</th>
+              <tr>
+                <th scope="col">Tarih</th>
+                <th scope="col">Personel</th>
+                <th scope="col">İşlem</th>
+                <th scope="col">Hedef</th>
               </tr>
             </thead>
             <tbody>
-              {items.map((row) => (
-                <tr key={row.id} style={{ borderTop: '1px solid #f1f5f9' }}>
-                  <td style={{ padding: 10 }}>{formatDateTime(row.createdDate)}</td>
-                  <td style={{ padding: 10 }}>{row.userEmail}</td>
-                  <td style={{ padding: 10 }}>{auditActionLabel(row.actionType)}</td>
-                  <td style={{ padding: 10 }}>{row.moduleName}</td>
-                  <td style={{ padding: 10 }}>{row.entityName} {row.entityId ? `· ${String(row.entityId).slice(0, 8)}` : ''}</td>
-                  <td style={{ padding: 10 }}>{row.reason || row.newValues || '—'}</td>
-                </tr>
-              ))}
+              {items.map((row) => {
+                const expanded = openId === row.id;
+                return (
+                  <React.Fragment key={row.id}>
+                    <tr>
+                      <td>{formatDateTime(row.createdDate)}</td>
+                      <td>{row.userEmail}</td>
+                      <td>{auditActionLabel(row.actionType)}</td>
+                      <td>
+                        <button type="button" className="admin-btn admin-btn-ghost admin-btn-sm" onClick={() => setOpenId(expanded ? null : row.id)}>
+                          {row.entityName || 'Kayıt'} {expanded ? '▲' : '▼'}
+                        </button>
+                      </td>
+                    </tr>
+                    {expanded && (
+                      <tr>
+                        <td colSpan={4}>
+                          <pre className="admin-muted" style={{ whiteSpace: 'pre-wrap', fontSize: 12, margin: 0 }}>
+                            {JSON.stringify({ module: row.moduleName, reason: row.reason, newValues: row.newValues, oldValues: row.oldValues }, null, 2)}
+                          </pre>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })}
             </tbody>
           </table>
         </TableWrap>
       )}
-      <PaginationBar page={page} pageSize={pageSize} totalCount={total} onPage={setPage} onPageSize={(s) => { setPageSize(s); setPage(1); }} />
+      <Pagination page={page} pageSize={pageSize} totalCount={total} onPage={setPage} onPageSize={(s) => { setPageSize(s); setPage(1); }} />
     </div>
   );
 }

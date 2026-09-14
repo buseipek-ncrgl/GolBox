@@ -2,6 +2,7 @@ import React from 'react';
 import { canonicalizeOrderStatus } from '../../../lib/adminLabels';
 import { useAdminFeedback } from '../AdminFeedback';
 import { api } from '../../../services/api';
+import { Button } from '../../../admin/components';
 
 export function OrderActions({ order, onChanged }: { order: any; onChanged: () => void }) {
   const { confirm, savingKey, setSavingKey, setError, setSuccess } = useAdminFeedback();
@@ -44,20 +45,15 @@ export function OrderActions({ order, onChanged }: { order: any; onChanged: () =
     void run(next);
   };
 
-  const btn = (label: string, next: string, danger = false) => (
-    <button
-      key={next}
-      type="button"
-      disabled={busy}
-      onClick={() => request(next)}
-      style={{ padding: '6px 12px', background: danger ? '#b91c1c' : '#1d5f60', border: 'none', color: '#fff', borderRadius: 8, fontSize: 13, fontWeight: 800, cursor: busy ? 'not-allowed' : 'pointer' }}
-    >
-      {busy ? 'Kaydediliyor…' : label}
-    </button>
+  const next = (label: string, statusNext: string) => (
+    <Button key={statusNext} size="sm" data-testid="order-next-action" loading={busy} onClick={() => request(statusNext)}>{label}</Button>
+  );
+  const cancel = (
+    <Button key="cancel" size="sm" variant="danger" data-testid="order-cancel-action" loading={busy} onClick={() => request('Cancelled')}>İptal Et</Button>
   );
 
-  if (status === 'Pending') return <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>{btn('Hazırlamaya Başla', 'Preparing')}{btn('İptal Et', 'Cancelled', true)}</div>;
-  if (status === 'Preparing') return <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>{btn('Teslime Hazır', 'Ready')}{btn('İptal Et', 'Cancelled', true)}</div>;
-  if (status === 'Ready') return <div style={{ display: 'flex', justifyContent: 'flex-end' }}>{btn('Teslim Edildi', 'Completed')}</div>;
+  if (status === 'Pending') return <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>{next('Hazırlamaya Başla', 'Preparing')}{cancel}</div>;
+  if (status === 'Preparing') return <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>{next('Teslime Hazır', 'Ready')}{cancel}</div>;
+  if (status === 'Ready') return <div style={{ display: 'flex', justifyContent: 'flex-end' }}>{next('Teslim Edildi', 'Completed')}</div>;
   return null;
 }

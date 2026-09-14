@@ -24,6 +24,23 @@ export function formatDate(value?: string | Date | null): string {
   return full === '—' ? '—' : full.slice(0, 10);
 }
 
+export function formatTime(value?: string | Date | null): string {
+  const full = formatDateTime(value);
+  return full === '—' ? '—' : full.slice(11);
+}
+
+export function formatGp(value?: number | string | null): string {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return '0 GP';
+  return `${n.toLocaleString('tr-TR')} GP`;
+}
+
+export function formatCurrency(value?: number | string | null): string {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return '₺0,00';
+  return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(n);
+}
+
 export function toLocalInput(value?: string) {
   if (!value) return '';
   const d = new Date(value);

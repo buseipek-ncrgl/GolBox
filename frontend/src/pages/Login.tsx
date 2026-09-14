@@ -173,21 +173,23 @@ export const Login: React.FC = () => {
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <div>
-            <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#5b6f6e', display: 'block', marginBottom: 6 }}>
+            <label htmlFor="login-email" style={{ fontSize: '0.75rem', fontWeight: 700, color: '#5b6f6e', display: 'block', marginBottom: 6 }}>
               E-posta
             </label>
             <div style={{ position: 'relative' }}>
               <Mail size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#5b6f6e' }} />
-              <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="personel@sehitkamil.bel.tr" style={inputStyle} />
+              <input id="login-email" data-testid="login-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="personel@sehitkamil.bel.tr" style={inputStyle} />
             </div>
           </div>
           <div>
-            <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#5b6f6e', display: 'block', marginBottom: 6 }}>
+            <label htmlFor="login-password" style={{ fontSize: '0.75rem', fontWeight: 700, color: '#5b6f6e', display: 'block', marginBottom: 6 }}>
               Şifre
             </label>
             <div style={{ position: 'relative' }}>
               <Lock size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#5b6f6e' }} />
               <input
+                id="login-password"
+                data-testid="login-password"
                 type={showPassword ? 'text' : 'password'}
                 required
                 value={password}
@@ -197,6 +199,7 @@ export const Login: React.FC = () => {
               />
               <button
                 type="button"
+                aria-label={showPassword ? 'Şifreyi gizle' : 'Şifreyi göster'}
                 onClick={() => setShowPassword(!showPassword)}
                 style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#5b6f6e', cursor: 'pointer' }}
               >
@@ -206,6 +209,7 @@ export const Login: React.FC = () => {
           </div>
           <button
             type="submit"
+            data-testid="login-submit"
             disabled={loading}
             style={{
               marginTop: '0.25rem',

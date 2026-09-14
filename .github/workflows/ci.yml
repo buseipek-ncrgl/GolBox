@@ -109,3 +109,56 @@ jobs:
             exit 1
           fi
           echo "Admin artefact: no localhost API target, no OSM default."
+
+  admin-e2e:
+    name: admin playwright
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      VITE_API_BASE_URL: http://127.0.0.1:5155/api/v1
+      PLAYWRIGHT_BASE_URL: http://127.0.0.1:5173
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Start API
+        working-directory: backend/GolBox.Api
+        run: |
+          ASPNETCORE_ENVIRONMENT=Development \
+          ConnectionStrings__Default="Data Source=/tmp/golbox-e2e.db" \
+          dotnet run --urls http://127.0.0.1:5155 > /tmp/golbox-api-e2e.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -sf http://127.0.0.1:5155/swagger/v1/swagger.json >/dev/null; then
+              echo "API ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "API failed to start"
+          cat /tmp/golbox-api-e2e.log
+          exit 1
+      - name: Start admin
+        run: |
+          npx vite --host 127.0.0.1 --port 5173 > /tmp/golbox-admin-e2e.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:5173 >/dev/null; then
+              echo "Admin ready"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Admin failed to start"
+          cat /tmp/golbox-admin-e2e.log
+          exit 1
+      - run: npx playwright test

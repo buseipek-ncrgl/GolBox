@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../../../services/api';
-import { formatDate } from '../../../lib/adminDate';
+import { formatDate, formatGp } from '../../../lib/adminDate';
 import { ListError } from '../../../components/admin/FilterBar';
 import { AdminSkeletonCard } from '../../../components/admin/AdminSkeleton';
 import { btnPrimary, inputStyle } from '../../../components/admin/adminUi';
@@ -33,13 +33,13 @@ export function ReportsPage() {
 
   const cards = data ? [
     ['Yeni vatandaş', data.newCitizens],
-    ['Kazanılan GP', data.earnedPoints],
-    ['Harcanan GP', data.spentPoints],
+    ['Kazanılan GP', formatGp(data.earnedPoints)],
+    ['Harcanan GP', formatGp(data.spentPoints)],
     ['Sipariş sayısı', data.orderCount],
     ['Tamamlanan sipariş', data.completedOrders],
     ['İptal edilen sipariş', data.cancelledOrders],
     ['Kullanılan kupon', data.usedCoupons],
-    ['GölBox capture', data.fieldCaptures],
+    ['GölBox toplama', data.fieldCaptures],
     ['Etkinlik katılımı', data.activityJoins],
     ['Aktif ödül', data.activeRewards]
   ] : [];

@@ -90,7 +90,7 @@ export function MenuPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))', gap: 12 }}>
           {items.map((item) => (
             <div key={item.id} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 16, overflow: 'hidden' }}>
-              {item.imageUrl && <SafeImg src={item.imageUrl} alt={item.name} style={{ width: '100%', height: 120, objectFit: 'cover' }} />}
+              <SafeImg src={item.imageUrl} alt={item.name} style={{ width: '100%', aspectRatio: '16 / 9', objectFit: 'cover' }} />
               <div style={{ padding: 14, display: 'grid', gap: 6 }}>
                 <strong>{item.name}</strong>
                 <div>{item.price} TL · {item.cafeName}</div>

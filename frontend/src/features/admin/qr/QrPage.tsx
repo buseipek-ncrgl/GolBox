@@ -2,10 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../../../services/api';
 import { extractArray, pagedMeta } from '../../../lib/adminQuery';
 import { qrOperationLabel, qrResultLabel } from '../../../lib/adminLabels';
-import { formatDateTime } from '../../../lib/adminDate';
-import { EmptyState, ListError, PaginationBar, TableWrap } from '../../../components/admin/FilterBar';
-import { AdminSkeletonTable } from '../../../components/admin/AdminSkeleton';
-import { btnPrimary, inputStyle } from '../../../components/admin/adminUi';
+import { formatDateTime, formatGp } from '../../../lib/adminDate';
+import { Button, DataTable, ErrorState, Input, NumberInput, Pagination, RadioGroup, Select } from '../../../admin/components';
 import { useAdminFeedback } from '../AdminFeedback';
 
 export function QrPage() {
@@ -13,7 +11,7 @@ export function QrPage() {
   const [cafes, setCafes] = useState<any[]>([]);
   const [token, setToken] = useState('');
   const [cafeId, setCafeId] = useState('');
-  const [op, setOp] = useState<'visit' | 'coupon' | 'points' | 'cash'>('visit');
+  const [op, setOp] = useState('visit');
   const [amount, setAmount] = useState(45);
   const [redeem, setRedeem] = useState('');
   const [result, setResult] = useState<any>(null);
@@ -69,74 +67,60 @@ export function QrPage() {
   };
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: 20 }} className="admin-qr-grid">
-      <form onSubmit={submit} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 16, padding: 20, display: 'grid', gap: 10, height: 'fit-content' }}>
-        <h3 style={{ margin: 0 }}>Kasa işlemi</h3>
-        <label>1. Vatandaş karekodunu okut / yapıştır
-          <input value={token} onChange={(e) => setToken(e.target.value)} required style={inputStyle} />
-        </label>
-        <label>2. Tesis seç
-          <select value={cafeId} onChange={(e) => setCafeId(e.target.value)} required style={inputStyle}>
-            {cafes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-        </label>
-        <div>3. İşlem türü
-          {([
-            ['visit', 'Ziyaret kaydı'],
-            ['coupon', 'Kupon kullan'],
-            ['points', 'GölPuan ile ödeme'],
-            ['cash', 'Nakit harcamadan GölPuan kazan']
-          ] as const).map(([id, label]) => (
-            <label key={id} style={{ display: 'flex', gap: 8, marginTop: 6 }}>
-              <input type="radio" checked={op === id} onChange={() => setOp(id)} /> {label}
-            </label>
-          ))}
-        </div>
+    <div className="admin-qr-grid">
+      <form onSubmit={submit} className="admin-card" style={{ display: 'grid', gap: 12, height: 'fit-content' }}>
+        <h2 style={{ margin: 0, fontSize: 18 }}>Kasa işlemi</h2>
+        <Input
+          label="Vatandaş karekodu"
+          helper="Kasada okutulan veya yapıştırılan kod."
+          required
+          value={token}
+          onChange={(e) => setToken(e.target.value)}
+          autoComplete="off"
+        />
+        <Select label="Tesis" required value={cafeId} onChange={(e) => setCafeId(e.target.value)}>
+          {cafes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </Select>
+        <RadioGroup
+          legend="İşlem türü"
+          name="qr-op"
+          required
+          value={op}
+          onChange={setOp}
+          options={[
+            { value: 'visit', label: 'Ziyaret kaydı' },
+            { value: 'coupon', label: 'Kupon kullan' },
+            { value: 'points', label: 'GölPuan ile ödeme' },
+            { value: 'cash', label: 'Nakit harcamadan GölPuan kazan' }
+          ]}
+        />
         {(op === 'points' || op === 'cash') && (
-          <label>Tutar (TL)
-            <input type="number" min={1} value={amount} onChange={(e) => setAmount(Number(e.target.value))} style={inputStyle} />
-          </label>
+          <NumberInput label="Tutar (TL)" min={1} value={amount} onChange={(e) => setAmount(Number(e.target.value))} />
         )}
         {op === 'coupon' && (
-          <label>Kupon kodu
-            <input value={redeem} onChange={(e) => setRedeem(e.target.value)} required style={inputStyle} />
-          </label>
+          <Input label="Kupon kodu" required value={redeem} onChange={(e) => setRedeem(e.target.value)} />
         )}
-        <button type="submit" disabled={!!savingKey} style={btnPrimary}>{savingKey ? 'Kaydediliyor…' : 'İşlemi Tamamla'}</button>
-        {result && <div style={{ background: '#f0fdf4', padding: 12, borderRadius: 10 }}>{qrResultLabel(result)}</div>}
+        <Button type="submit" loading={!!savingKey}>İşlemi Tamamla</Button>
+        {result && <div className="admin-card" style={{ background: 'var(--success-bg)', color: 'var(--success-text)' }}>{qrResultLabel(result)}</div>}
       </form>
       <div>
-        <h3>Son QR işlemleri</h3>
-        {fail && <ListError message={fail} onRetry={loadRecent} />}
-        {recent.length === 0 ? <EmptyState title="Henüz QR işlemi yok." /> : (
-          <TableWrap>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 640 }}>
-              <thead>
-                <tr style={{ background: '#f1f5f9', textAlign: 'left' }}>
-                  <th style={{ padding: 10 }}>Tarih</th>
-                  <th style={{ padding: 10 }}>Vatandaş</th>
-                  <th style={{ padding: 10 }}>Tesis</th>
-                  <th style={{ padding: 10 }}>İşlem</th>
-                  <th style={{ padding: 10 }}>GP</th>
-                  <th style={{ padding: 10 }}>Sonuç</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recent.map((row) => (
-                  <tr key={row.id} style={{ borderTop: '1px solid #f1f5f9' }}>
-                    <td style={{ padding: 10 }}>{formatDateTime(row.createdDate)}</td>
-                    <td style={{ padding: 10 }}>{row.citizenName}</td>
-                    <td style={{ padding: 10 }}>{row.cafeName}</td>
-                    <td style={{ padding: 10 }}>{qrOperationLabel(row.operation)}</td>
-                    <td style={{ padding: 10 }}>{row.gp || 0}</td>
-                    <td style={{ padding: 10 }}>{row.status === 'Completed' ? 'Başarılı' : row.status}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </TableWrap>
-        )}
-        <PaginationBar page={page} pageSize={25} totalCount={total} onPage={setPage} onPageSize={() => undefined} />
+        <h2 style={{ margin: '0 0 12px', fontSize: 18 }}>Son işlemler</h2>
+        {fail && <ErrorState description={fail} retry={loadRecent} />}
+        <DataTable
+          caption="Son kasa işlemleri"
+          rows={recent}
+          getRowId={(row) => row.id}
+          emptyTitle="Henüz QR işlemi yok."
+          columns={[
+            { key: 'date', header: 'Tarih', render: (row) => formatDateTime(row.createdDate) },
+            { key: 'citizen', header: 'Vatandaş', render: (row) => row.citizenName },
+            { key: 'cafe', header: 'Tesis', render: (row) => row.cafeName },
+            { key: 'op', header: 'İşlem', render: (row) => qrOperationLabel(row.operation) },
+            { key: 'gp', header: 'GP', render: (row) => formatGp(row.gp || 0) },
+            { key: 'status', header: 'Sonuç', render: (row) => row.status === 'Completed' ? 'Başarılı' : row.status }
+          ]}
+        />
+        <Pagination page={page} pageSize={25} totalCount={total} onPage={setPage} onPageSize={() => undefined} />
       </div>
     </div>
   );

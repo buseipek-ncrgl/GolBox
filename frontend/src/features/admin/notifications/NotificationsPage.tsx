@@ -3,8 +3,7 @@ import { api } from '../../../services/api';
 import { pagedMeta } from '../../../lib/adminQuery';
 import { NAV_TARGETS, notificationGroupLabel } from '../../../lib/adminLabels';
 import { formatDateTime } from '../../../lib/adminDate';
-import { EmptyState, FilterBar, ListError, PaginationBar, TableWrap } from '../../../components/admin/FilterBar';
-import { btnNeutral, btnPrimary, inputStyle } from '../../../components/admin/adminUi';
+import { Button, DataTable, FilterBar, Input, Modal, Pagination, Select, Textarea } from '../../../admin/components';
 import { useAdminFeedback } from '../AdminFeedback';
 
 export function NotificationsPage() {
@@ -49,96 +48,118 @@ export function NotificationsPage() {
   });
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: isAdmin ? '1fr 1fr' : '1fr', gap: 20 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: isAdmin ? 'minmax(280px, 1fr) minmax(0, 1.1fr)' : '1fr', gap: 20 }} className="admin-split">
       {isAdmin && (
-        <form style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 16, padding: 20, display: 'grid', gap: 8 }} onSubmit={async (e) => {
-          e.preventDefault();
-          if (!form.targetGroup) { setError('Lütfen hedef kitle seçin'); return; }
-          try {
-            const p = await api.previewNotification(sendBody());
-            setPreview(p);
-          } catch (err: any) {
-            setError(err.message);
-          }
-        }}>
-          <h3>Yeni bildirim</h3>
-          <input required placeholder="Başlık" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} style={inputStyle} />
-          <textarea required placeholder="Mesaj" value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} style={inputStyle} />
-          <select value={form.targetGroup} onChange={(e) => setForm({ ...form, targetGroup: e.target.value })} style={inputStyle}>
-            <option value="">Lütfen hedef kitle seçin</option>
-            <option value="All">Herkese</option>
-            <option value="AgeRange">Belirli yaş grubu</option>
-            <option value="EducationLevel">Öğrenim durumuna göre</option>
-            <option value="SingleUser">Belirli vatandaş</option>
-          </select>
-          {form.targetGroup === 'AgeRange' && <div style={{ display: 'flex', gap: 8 }}><input placeholder="Min yaş" value={form.minAge} onChange={(e) => setForm({ ...form, minAge: e.target.value })} style={inputStyle} /><input placeholder="Max yaş" value={form.maxAge} onChange={(e) => setForm({ ...form, maxAge: e.target.value })} style={inputStyle} /></div>}
-          {form.targetGroup === 'EducationLevel' && <select value={form.education} onChange={(e) => setForm({ ...form, education: e.target.value })} style={inputStyle}><option value="Lise">Lise</option><option value="Üniversite">Üniversite</option></select>}
-          {form.targetGroup === 'SingleUser' && <select value={form.userId} onChange={(e) => setForm({ ...form, userId: e.target.value })} style={inputStyle}><option value="">Vatandaş seç</option>{users.map((u) => <option key={u.id} value={u.id}>{u.firstName} {u.lastName}</option>)}</select>}
-          <select value={form.nav} onChange={(e) => setForm({ ...form, nav: e.target.value })} style={inputStyle}>
-            {NAV_TARGETS.map((n) => <option key={n.id} value={n.id}>{n.label}</option>)}
-          </select>
-          <button type="submit" disabled={!form.targetGroup} style={btnPrimary}>Önizle</button>
+        <form
+          className="admin-card"
+          style={{ display: 'grid', gap: 16 }}
+          onSubmit={async (e) => {
+            e.preventDefault();
+            if (!form.targetGroup) { setError('Lütfen hedef kitle seçin'); return; }
+            try {
+              const p = await api.previewNotification(sendBody());
+              setPreview(p);
+            } catch (err: any) {
+              setError(err.message);
+            }
+          }}
+        >
+          <fieldset className="admin-fieldset">
+            <legend className="admin-label">Mesaj</legend>
+            <Input required label="Başlık" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+            <Textarea required label="Metin" value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} />
+          </fieldset>
+          <fieldset className="admin-fieldset">
+            <legend className="admin-label">Hedef</legend>
+            <Select label="Kitle" required value={form.targetGroup} onChange={(e) => setForm({ ...form, targetGroup: e.target.value })}>
+              <option value="">Lütfen hedef kitle seçin</option>
+              <option value="All">Herkese</option>
+              <option value="AgeRange">Belirli yaş grubu</option>
+              <option value="EducationLevel">Öğrenim durumuna göre</option>
+              <option value="SingleUser">Belirli vatandaş</option>
+            </Select>
+            {form.targetGroup === 'AgeRange' && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <Input label="Min yaş" value={form.minAge} onChange={(e) => setForm({ ...form, minAge: e.target.value })} />
+                <Input label="Max yaş" value={form.maxAge} onChange={(e) => setForm({ ...form, maxAge: e.target.value })} />
+              </div>
+            )}
+            {form.targetGroup === 'EducationLevel' && (
+              <Select label="Öğrenim" value={form.education} onChange={(e) => setForm({ ...form, education: e.target.value })}>
+                <option value="Lise">Lise</option>
+                <option value="Üniversite">Üniversite</option>
+              </Select>
+            )}
+            {form.targetGroup === 'SingleUser' && (
+              <Select label="Vatandaş" value={form.userId} onChange={(e) => setForm({ ...form, userId: e.target.value })}>
+                <option value="">Vatandaş seç</option>
+                {users.map((u) => <option key={u.id} value={u.id}>{u.firstName} {u.lastName}</option>)}
+              </Select>
+            )}
+          </fieldset>
+          <fieldset className="admin-fieldset">
+            <legend className="admin-label">Yönlendirme</legend>
+            <Select label="Uygulama hedefi" value={form.nav} onChange={(e) => setForm({ ...form, nav: e.target.value })}>
+              {NAV_TARGETS.map((n) => <option key={n.id} value={n.id}>{n.label}</option>)}
+            </Select>
+          </fieldset>
+          <Button type="submit" data-testid="notification-preview" disabled={!form.targetGroup}>Önizle</Button>
         </form>
       )}
       <div>
-        <FilterBar search={search} onSearch={setSearch} searchPlaceholder="Başlık ara" activeCount={[search, targetGroup, preset !== '30d'].filter(Boolean).length} onClear={() => { setSearch(''); setTargetGroup(''); setPreset('30d'); }} filters={
-          <>
-            <select value={targetGroup} onChange={(e) => setTargetGroup(e.target.value)} style={inputStyle}>
-              <option value="">Hedef tipi</option>
-              <option value="All">Herkese</option>
-              <option value="AgeRange">Yaş grubu</option>
-              <option value="EducationLevel">Öğrenim</option>
-              <option value="SingleUser">Belirli vatandaş</option>
-            </select>
-            <select value={preset} onChange={(e) => setPreset(e.target.value)} style={inputStyle}>
-              <option value="today">Bugün</option>
-              <option value="7d">Son 7 gün</option>
-              <option value="30d">Son 30 gün</option>
-            </select>
-            <button type="button" style={btnPrimary} onClick={() => { setPage(1); void load(); }}>Filtrele</button>
-          </>
-        } />
-        {fail && <ListError message={fail} onRetry={load} />}
-        {items.length === 0 ? <EmptyState title="Henüz bildirim yok." /> : (
-          <TableWrap>
-            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 720, fontSize: 13 }}>
-              <thead>
-                <tr style={{ background: '#f1f5f9', textAlign: 'left' }}>
-                  <th style={{ padding: 10 }}>Tarih</th>
-                  <th style={{ padding: 10 }}>Başlık</th>
-                  <th style={{ padding: 10 }}>Hedef</th>
-                  <th style={{ padding: 10 }}>Alıcı</th>
-                  <th style={{ padding: 10 }}>Yönlendirme</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((n) => (
-                  <tr key={n.id} style={{ borderTop: '1px solid #f1f5f9' }}>
-                    <td style={{ padding: 10 }}>{formatDateTime(n.sentDate || n.createdDate)}</td>
-                    <td style={{ padding: 10 }}>{n.title}</td>
-                    <td style={{ padding: 10 }}>{notificationGroupLabel(n.targetUserGroup)}</td>
-                    <td style={{ padding: 10 }}>{n.sentCount ?? 0}</td>
-                    <td style={{ padding: 10 }}>{NAV_TARGETS.find((t) => t.targetId === n.targetId)?.label || 'Yönlendirme yok'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </TableWrap>
-        )}
-        <PaginationBar page={page} pageSize={25} totalCount={total} onPage={setPage} onPageSize={() => undefined} />
+        <FilterBar
+          search={search}
+          onSearch={setSearch}
+          searchPlaceholder="Başlık ara"
+          activeCount={[search, targetGroup, preset !== '30d'].filter(Boolean).length}
+          onClear={() => { setSearch(''); setTargetGroup(''); setPreset('30d'); }}
+          onSubmit={() => { setPage(1); void load(); }}
+          filters={
+            <>
+              <Select label="Hedef" value={targetGroup} onChange={(e) => setTargetGroup(e.target.value)}>
+                <option value="">Tümü</option>
+                <option value="All">Herkese</option>
+                <option value="AgeRange">Yaş grubu</option>
+                <option value="EducationLevel">Öğrenim</option>
+                <option value="SingleUser">Belirli vatandaş</option>
+              </Select>
+              <Select label="Dönem" value={preset} onChange={(e) => setPreset(e.target.value)}>
+                <option value="today">Bugün</option>
+                <option value="7d">Son 7 gün</option>
+                <option value="30d">Son 30 gün</option>
+              </Select>
+              <Button type="submit" size="sm">Filtrele</Button>
+            </>
+          }
+        />
+        <DataTable
+          caption="Bildirim geçmişi"
+          error={fail}
+          onRetry={load}
+          rows={items}
+          getRowId={(n) => n.id}
+          emptyTitle="Henüz bildirim yok."
+          columns={[
+            { key: 'date', header: 'Tarih', render: (n) => formatDateTime(n.sentDate || n.createdDate) },
+            { key: 'title', header: 'Başlık' },
+            { key: 'group', header: 'Hedef', render: (n) => notificationGroupLabel(n.targetUserGroup) },
+            { key: 'count', header: 'Alıcı', render: (n) => n.sentCount ?? 0 },
+            { key: 'nav', header: 'Yönlendirme', render: (n) => NAV_TARGETS.find((t) => t.targetId === n.targetId)?.label || 'Yönlendirme yok' }
+          ]}
+        />
+        <Pagination page={page} pageSize={25} totalCount={total} onPage={setPage} onPageSize={() => undefined} />
       </div>
-      {preview && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.35)', display: 'grid', placeItems: 'center', zIndex: 90 }} onClick={() => setPreview(null)}>
-          <div style={{ background: '#fff', padding: 24, width: 420, borderRadius: 16 }} onClick={(e) => e.stopPropagation()}>
-            <h3>Bildirim önizleme</h3>
-            <p><strong>{form.title}</strong></p>
-            <p>{form.message}</p>
-            <p>Hedef: {notificationGroupLabel(form.targetGroup)}</p>
-            {preview.estimatedRecipients != null && <p>Tahmini alıcı: {preview.estimatedRecipients}</p>}
-            {form.targetGroup === 'All' && <p style={{ color: '#b45309' }}>Bu bildirim tüm uygun kullanıcılara gönderilecek.</p>}
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button type="button" style={btnNeutral} onClick={() => setPreview(null)}>Vazgeç</button>
-              <button type="button" disabled={!!savingKey} style={btnPrimary} onClick={() => confirm({
+      <Modal
+        open={!!preview}
+        title="Bildirim önizleme"
+        onClose={() => setPreview(null)}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setPreview(null)}>Vazgeç</Button>
+            <Button
+              data-testid="notification-send"
+              loading={!!savingKey}
+              onClick={() => confirm({
                 title: 'Bildirimi gönder',
                 message: form.targetGroup === 'All' ? 'Bu bildirim tüm uygun kullanıcılara gönderilecek.' : 'Bildirim gönderilsin mi?',
                 confirmLabel: 'Bildirimi Gönder',
@@ -155,11 +176,19 @@ export function NotificationsPage() {
                     setSavingKey(null);
                   }
                 }
-              })}>{savingKey ? 'Kaydediliyor…' : 'Bildirimi Gönder'}</button>
-            </div>
-          </div>
-        </div>
-      )}
+              })}
+            >
+              Bildirimi Gönder
+            </Button>
+          </>
+        }
+      >
+        <p><strong>{form.title}</strong></p>
+        <p>{form.message}</p>
+        <p>Hedef: {notificationGroupLabel(form.targetGroup)}</p>
+        {preview?.estimatedRecipients != null && <p>Tahmini alıcı: {preview.estimatedRecipients}</p>}
+        {form.targetGroup === 'All' && <p style={{ color: 'var(--accent-gold)' }}>Bu bildirim tüm uygun kullanıcılara gönderilecek.</p>}
+      </Modal>
     </div>
   );
 }
