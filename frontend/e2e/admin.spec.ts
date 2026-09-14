@@ -72,9 +72,15 @@ test('6. bildirim önizleme', async ({ page }) => {
 
 test('7. sipariş durum geçişi', async ({ page }) => {
   await page.goto('/admin/ismarliyor');
-  const next = page.getByTestId('order-next-action').first();
-  await expect(next).toBeVisible();
-  await next.click();
+  if (await page.getByTestId('order-next-action').count() === 0) {
+    await page.getByRole('button', { name: /Yeni Ismarlıyor/ }).click();
+    await page.getByLabel('Vatandaş').selectOption({ index: 1 });
+    await page.getByLabel('Kafe').selectOption({ index: 1 });
+    await page.getByLabel('Ürün').selectOption({ index: 1 });
+    await page.getByRole('dialog').getByRole('button', { name: 'Oluştur' }).click();
+    await expect(page.getByTestId('order-next-action').first()).toBeVisible();
+  }
+  await page.getByTestId('order-next-action').first().click();
   const dialog = page.getByRole('alertdialog');
   if (await dialog.isVisible()) {
     await dialog.getByRole('button', { name: /Teslim|İptal Et|Devam/ }).click();
