@@ -1,6 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
 
-async function login(page: Page, email = 'admin@golbox.gov.tr', password = 'Admin123!') {
+async function loginAs(page: Page, email: string, password: string) {
+  await page.goto('/admin');
+  await page.evaluate(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+  });
   await page.goto('/admin');
   await page.getByTestId('login-email').fill(email);
   await page.getByTestId('login-password').fill(password);
@@ -10,21 +15,15 @@ async function login(page: Page, email = 'admin@golbox.gov.tr', password = 'Admi
 
 test.describe.configure({ mode: 'serial' });
 
-test.beforeEach(async ({ page }) => {
-  await page.addInitScript(() => {
-    localStorage.clear();
-  });
-});
-
 test('1. yönetici girişi', async ({ page }) => {
-  await login(page);
+  await page.goto('/admin');
+  await expect(page.getByTestId('admin-layout')).toBeVisible();
   await expect(page.getByTestId('admin-page-title')).toHaveText('Genel Bakış');
 });
 
 test('2. rota yenileme oturumu korur', async ({ page }) => {
-  await login(page);
-  await page.getByRole('link', { name: 'Vatandaşlar' }).click();
-  await expect(page).toHaveURL(/\/admin\/vatandaslar/);
+  await page.goto('/admin/vatandaslar');
+  await expect(page.getByTestId('admin-layout')).toBeVisible();
   await page.reload();
   await expect(page.getByTestId('admin-layout')).toBeVisible();
   await expect(page.getByTestId('admin-page-title')).toHaveText('Vatandaşlar');
@@ -32,7 +31,7 @@ test('2. rota yenileme oturumu korur', async ({ page }) => {
 });
 
 test('3. kenar menü gezintisi', async ({ page }) => {
-  await login(page);
+  await page.goto('/admin');
   await page.getByRole('link', { name: 'QR İşlemleri' }).click();
   await expect(page.getByTestId('admin-page-title')).toHaveText('QR İşlemleri');
   await page.getByRole('link', { name: 'Ismarlıyor' }).click();
@@ -42,8 +41,7 @@ test('3. kenar menü gezintisi', async ({ page }) => {
 });
 
 test('4. vatandaş arama ve detay', async ({ page }) => {
-  await login(page);
-  await page.getByRole('link', { name: 'Vatandaşlar' }).click();
+  await page.goto('/admin/vatandaslar');
   await page.getByTestId('citizen-search').fill('Ahmet');
   await page.getByRole('button', { name: 'Filtrele' }).click();
   await page.getByRole('button', { name: 'Detay' }).first().click();
@@ -52,7 +50,6 @@ test('4. vatandaş arama ve detay', async ({ page }) => {
 });
 
 test('5. manuel GölPuan onay penceresi', async ({ page }) => {
-  await login(page);
   await page.goto('/admin/vatandaslar');
   await page.getByRole('button', { name: 'Detay' }).first().click();
   await page.getByTestId('manual-gp-action').click();
@@ -64,7 +61,6 @@ test('5. manuel GölPuan onay penceresi', async ({ page }) => {
 });
 
 test('6. bildirim önizleme', async ({ page }) => {
-  await login(page);
   await page.goto('/admin/bildirimler');
   await page.getByLabel('Başlık').fill('Pilot duyuru');
   await page.getByLabel('Metin').fill('Bu bir önizleme metnidir.');
@@ -75,20 +71,18 @@ test('6. bildirim önizleme', async ({ page }) => {
 });
 
 test('7. sipariş durum geçişi', async ({ page }) => {
-  await login(page);
   await page.goto('/admin/ismarliyor');
   const next = page.getByTestId('order-next-action').first();
   await expect(next).toBeVisible();
   await next.click();
   const dialog = page.getByRole('alertdialog');
   if (await dialog.isVisible()) {
-    await page.getByRole('button', { name: /Teslim|İptal Et|Devam/ }).first().click();
+    await dialog.getByRole('button', { name: /Teslim|İptal Et|Devam/ }).click();
   }
   await expect(page.getByTestId('admin-layout')).toBeVisible();
 });
 
 test('8. etkinlik formu', async ({ page }) => {
-  await login(page);
   await page.goto('/admin/etkinlikler');
   await page.getByTestId('activity-create').click();
   await expect(page.getByTestId('activity-title')).toBeVisible();
@@ -96,7 +90,7 @@ test('8. etkinlik formu', async ({ page }) => {
 });
 
 test('9. personel yasaklı rota', async ({ page }) => {
-  await login(page, 'staff@golbox.gov.tr', 'Staff123!');
+  await loginAs(page, 'staff@golbox.gov.tr', 'Staff123!');
   await page.goto('/admin/yetkilendirme');
   await expect(page).toHaveURL(/\/admin\/?$/);
   await expect(page.getByTestId('admin-page-title')).toHaveText('Genel Bakış');
@@ -105,7 +99,7 @@ test('9. personel yasaklı rota', async ({ page }) => {
 
 test('10. 1024 duman testi', async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 768 });
-  await login(page);
+  await page.goto('/admin');
   await expect(page.getByTestId('admin-sidebar')).toBeVisible();
   await expect(page.getByTestId('admin-page-title')).toBeVisible();
   await page.getByRole('link', { name: 'Vatandaşlar' }).click();
