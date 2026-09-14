@@ -27,15 +27,41 @@ public class FieldDropsController : BaseApiController
 
     [HttpGet]
     [Authorize(Policy = AuthorizationPolicies.StaffOrAdmin)]
-    public async Task<IActionResult> GetFieldDrops()
+    public async Task<IActionResult> GetFieldDrops(
+        [FromQuery] string? filter = null,
+        [FromQuery] string? search = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = AdminPaging.DefaultPageSize)
     {
-        var drops = await _context.FieldDrops
-            .Include(d => d.Cafe)
-            .OrderByDescending(d => d.CreatedDate)
-            .ToListAsync();
+        (page, pageSize) = AdminPaging.Normalize(page, pageSize);
+        var now = DateTime.UtcNow;
+        var query = _context.FieldDrops.Include(d => d.Cafe).AsQueryable();
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            query = query.Where(d => d.Title.Contains(term) || d.Description.Contains(term));
+        }
+        switch ((filter ?? "").Trim().ToLowerInvariant())
+        {
+            case "active":
+                query = query.Where(d => d.IsActive && d.StartsAt <= now && d.EndsAt >= now);
+                break;
+            case "stopped":
+                query = query.Where(d => !d.IsActive);
+                break;
+            case "expired":
+                query = query.Where(d => d.EndsAt < now);
+                break;
+        }
 
+        var totalCount = await query.CountAsync();
+        var drops = await query
+            .OrderByDescending(d => d.CreatedDate)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
         var list = drops.Select(ToAdminDto).ToList();
-        return Ok(Result<object>.Ok(list));
+        return Ok(Result<object>.Ok(new { items = list, page, pageSize, totalCount }));
     }
 
     [HttpGet("nearby")]

@@ -391,7 +391,9 @@ public class AdminSafetyPhase1Tests
         await db.SaveChangesAsync();
         var result = await UsersController(db).GetAllUsers("citizen");
         var body = ActionResultAssert.Body(result);
-        var list = Assert.IsAssignableFrom<System.Collections.IEnumerable>(body.Data);
+        var data = body.Data!;
+        var itemsProp = data.GetType().GetProperty("items") ?? data.GetType().GetProperty("Items");
+        var list = Assert.IsAssignableFrom<System.Collections.IEnumerable>(itemsProp!.GetValue(data));
         var count = list.Cast<object>().Count();
         Assert.Equal(1, count);
     }

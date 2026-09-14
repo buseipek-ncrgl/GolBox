@@ -30,8 +30,18 @@ public class UsersController : BaseApiController
 
     [HttpGet]
     [Authorize(Policy = AuthorizationPolicies.StaffOrAdmin)]
-    public async Task<IActionResult> GetAllUsers([FromQuery] string? role = null)
+    public async Task<IActionResult> GetAllUsers(
+        [FromQuery] string? role = null,
+        [FromQuery] string? search = null,
+        [FromQuery] int? minAge = null,
+        [FromQuery] int? maxAge = null,
+        [FromQuery] string? education = null,
+        [FromQuery] int? minPoints = null,
+        [FromQuery] int? maxPoints = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = AdminPaging.DefaultPageSize)
     {
+        (page, pageSize) = AdminPaging.Normalize(page, pageSize);
         var query = _context.Users.AsQueryable();
         if (!string.IsNullOrWhiteSpace(role))
         {
@@ -54,7 +64,40 @@ public class UsersController : BaseApiController
             }
         }
 
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            query = query.Where(u =>
+                u.FirstName.Contains(term) ||
+                u.LastName.Contains(term) ||
+                u.Email.Contains(term) ||
+                (u.PhoneNumber != null && u.PhoneNumber.Contains(term)));
+        }
+
+        if (minAge.HasValue)
+            query = query.Where(u => u.Age != null && u.Age >= minAge.Value);
+        if (maxAge.HasValue)
+            query = query.Where(u => u.Age != null && u.Age <= maxAge.Value);
+        if (!string.IsNullOrWhiteSpace(education))
+        {
+            var edu = education.Trim();
+            if (edu is "Lise" or "HighSchool")
+                query = query.Where(u => u.EducationLevel == "Lise" || u.EducationLevel == "HighSchool");
+            else if (edu is "Üniversite" or "Universite" or "University")
+                query = query.Where(u => u.EducationLevel == "Üniversite" || u.EducationLevel == "Universite" || u.EducationLevel == "University");
+            else
+                query = query.Where(u => u.EducationLevel == edu);
+        }
+        if (minPoints.HasValue)
+            query = query.Where(u => u.PointsBalance >= minPoints.Value);
+        if (maxPoints.HasValue)
+            query = query.Where(u => u.PointsBalance <= maxPoints.Value);
+
+        var totalCount = await query.CountAsync();
         var users = await query
+            .OrderByDescending(u => u.CreatedDate)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .Select(u => new
             {
                 u.Id,
@@ -69,7 +112,7 @@ public class UsersController : BaseApiController
                 u.Role
             })
             .ToListAsync();
-        return Ok(Result<object>.Ok(users));
+        return Ok(Result<object>.Ok(new { items = users, page, pageSize, totalCount }));
     }
 
     [HttpGet("{id}/detail")]
@@ -83,14 +126,52 @@ public class UsersController : BaseApiController
         var pointHistory = await _context.PointTransactions
             .Where(pt => pt.UserId == id)
             .OrderByDescending(pt => pt.CreatedDate)
-            .Select(pt => new { pt.Id, pt.Amount, pt.Type, pt.Description, pt.CreatedDate })
+            .Take(25)
+            .Select(pt => new { pt.Id, pt.Amount, pt.Type, pt.Description, pt.ReferenceType, pt.CreatedDate })
             .ToListAsync();
 
         var ordersHistory = await _context.Orders
             .Include(o => o.Cafe)
             .Where(o => o.UserId == id)
             .OrderByDescending(o => o.CreatedDate)
+            .Take(25)
             .Select(o => new { o.Id, o.CollectionCode, CafeName = o.Cafe.Name, o.TotalAmount, o.PaidWithPoints, o.Status, o.CreatedDate })
+            .ToListAsync();
+
+        var coupons = await _context.UserRewards
+            .Include(ur => ur.Reward)
+            .Where(ur => ur.UserId == id)
+            .OrderByDescending(ur => ur.ClaimedAt)
+            .Select(ur => new
+            {
+                ur.Id,
+                ur.RewardId,
+                Title = ur.Reward.Title,
+                ur.Status,
+                ur.RedeemCode,
+                ur.ClaimedAt,
+                ur.RedeemedAt,
+                ur.ExpiresAt
+            })
+            .ToListAsync();
+
+        var activeCoupons = coupons.Where(c => c.Status == UserRewardStatuses.Claimed).ToList();
+        var pastCoupons = coupons.Where(c => c.Status != UserRewardStatuses.Claimed).ToList();
+
+        var fieldCaptures = await _context.UserFieldCaptures
+            .Include(c => c.FieldDrop)
+            .Where(c => c.UserId == id)
+            .OrderByDescending(c => c.CreatedDate)
+            .Take(25)
+            .Select(c => new
+            {
+                c.Id,
+                c.FieldDropId,
+                Title = c.FieldDrop.Title,
+                c.PointsGranted,
+                c.DistanceMeters,
+                c.CreatedDate
+            })
             .ToListAsync();
 
         var userTasks = await _context.UserTasks
@@ -134,6 +215,10 @@ public class UsersController : BaseApiController
             profile,
             pointHistory,
             ordersHistory,
+            activeCoupons,
+            pastCoupons,
+            coupons,
+            fieldCaptures,
             userTasks,
             userActivities
         }));
@@ -178,6 +263,8 @@ public class UsersController : BaseApiController
             Amount = deltaAmount,
             Type = actionType == "Add" ? "ManualAddition" : actionType == "Deduct" ? "ManualDeduction" : "Reversal",
             Description = $"[Manuel İşlem: {actionType}] Nedeni: {request.Reason}. Açıklama: {request.Description}",
+            ReferenceType = "Admin",
+            CreatedBy = _currentUserService.UserId,
             CreatedDate = DateTime.UtcNow
         };
 

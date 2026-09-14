@@ -36,10 +36,27 @@ public class RewardsController : BaseApiController
 
     [HttpGet("admin")]
     [Authorize(Policy = AuthorizationPolicies.StaffOrAdmin)]
-    public async Task<IActionResult> GetAdminRewards()
+    public async Task<IActionResult> GetAdminRewards(
+        [FromQuery] string? search = null,
+        [FromQuery] string? status = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = AdminPaging.DefaultPageSize)
     {
-        var rewards = await _context.Rewards
+        (page, pageSize) = AdminPaging.Normalize(page, pageSize);
+        var query = _context.Rewards.AsQueryable();
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            query = query.Where(r => r.Title.Contains(term) || r.Description.Contains(term));
+        }
+        if (!string.IsNullOrWhiteSpace(status) && status != "All")
+            query = query.Where(r => r.Status == status);
+
+        var totalCount = await query.CountAsync();
+        var rewards = await query
             .OrderBy(r => r.RequiredPoints)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .Select(r => new
             {
                 r.Id,
@@ -52,7 +69,7 @@ public class RewardsController : BaseApiController
                 r.UpdatedDate
             })
             .ToListAsync();
-        return Ok(Result<object>.Ok(rewards));
+        return Ok(Result<object>.Ok(new { items = rewards, page, pageSize, totalCount }));
     }
 
     [HttpGet("my-claimed")]

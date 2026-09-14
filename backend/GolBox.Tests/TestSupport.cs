@@ -181,3 +181,22 @@ internal sealed class FakeHubContext<THub> : Microsoft.AspNetCore.SignalR.IHubCo
     public Microsoft.AspNetCore.SignalR.IHubClients Clients { get; } = new FakeHubClients();
     public Microsoft.AspNetCore.SignalR.IGroupManager Groups { get; } = new FakeGroupManager();
 }
+
+internal static class PagedData
+{
+    public static List<object> Items(object? data)
+    {
+        var prop = data!.GetType().GetProperty("items") ?? data!.GetType().GetProperty("Items");
+        var enumerable = Assert.IsAssignableFrom<System.Collections.IEnumerable>(prop!.GetValue(data));
+        return enumerable.Cast<object>().ToList();
+    }
+
+    public static int TotalCount(object? data)
+    {
+        var prop = data!.GetType().GetProperty("totalCount") ?? data!.GetType().GetProperty("TotalCount");
+        return Convert.ToInt32(prop!.GetValue(data));
+    }
+
+    public static object? Prop(object row, string name) =>
+        row.GetType().GetProperty(name, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.IgnoreCase)?.GetValue(row);
+}

@@ -36,10 +36,35 @@ public class NotificationsController : BaseApiController
 
     [HttpGet]
     [Authorize(Policy = AuthorizationPolicies.StaffOrAdmin)]
-    public async Task<IActionResult> GetNotifications()
+    public async Task<IActionResult> GetNotifications(
+        [FromQuery] string? search = null,
+        [FromQuery] string? targetGroup = null,
+        [FromQuery] string? preset = null,
+        [FromQuery] DateTime? from = null,
+        [FromQuery] DateTime? to = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = AdminPaging.DefaultPageSize)
     {
-        var list = await _context.Notifications
+        (page, pageSize) = AdminPaging.Normalize(page, pageSize);
+        var query = _context.Notifications.AsQueryable();
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            query = query.Where(n => n.Title.Contains(term) || n.Message.Contains(term));
+        }
+        if (!string.IsNullOrWhiteSpace(targetGroup) && targetGroup != "AllTypes")
+            query = query.Where(n => n.TargetUserGroup == targetGroup);
+        if (!string.IsNullOrWhiteSpace(preset) || from.HasValue || to.HasValue)
+        {
+            var range = AdminDateRange.Resolve(preset, from, to);
+            query = query.Where(n => n.CreatedDate >= range.FromUtc && n.CreatedDate < range.ToUtc);
+        }
+
+        var totalCount = await query.CountAsync();
+        var list = await query
             .OrderByDescending(n => n.CreatedDate)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .Select(n => new
             {
                 n.Id,
@@ -56,7 +81,7 @@ public class NotificationsController : BaseApiController
                 n.TargetId
             })
             .ToListAsync();
-        return Ok(Result<object>.Ok(list));
+        return Ok(Result<object>.Ok(new { items = list, page, pageSize, totalCount }));
     }
 
     [HttpGet("my")]

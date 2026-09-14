@@ -28,7 +28,12 @@ public class OrdersController : BaseApiController
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetOrders()
+    public async Task<IActionResult> GetOrders(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = AdminPaging.DefaultPageSize,
+        [FromQuery] string? status = null,
+        [FromQuery] Guid? cafeId = null,
+        [FromQuery] string? search = null)
     {
         var currentUserId = _currentUserService.UserId;
         if (currentUserId == null || currentUserId == Guid.Empty)
@@ -38,15 +43,43 @@ public class OrdersController : BaseApiController
         if (!_currentUserService.IsStaffOrAdmin)
             query = query.Where(o => o.UserId == currentUserId.Value);
 
-        var orders = await query
+        if (!string.IsNullOrWhiteSpace(status) && status != "All")
+        {
+            var canonical = OrderStatuses.Canonicalize(status);
+            query = query.Where(o => o.Status == canonical || o.Status == status);
+        }
+        if (cafeId.HasValue)
+            query = query.Where(o => o.CafeId == cafeId.Value);
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            query = query.Where(o =>
+                o.CollectionCode.Contains(term) ||
+                o.User.FirstName.Contains(term) ||
+                o.User.LastName.Contains(term));
+        }
+
+        query = query
             .Include(o => o.User)
             .Include(o => o.Cafe)
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.MenuItem)
-            .OrderByDescending(o => o.CreatedDate)
-            .ToListAsync();
+            .OrderByDescending(o => o.CreatedDate);
 
-        var dtoList = orders.Select(o => new
+        if (!_currentUserService.IsStaffOrAdmin)
+        {
+            var citizenOrders = await query.ToListAsync();
+            return Ok(Result<object>.Ok(MapOrders(citizenOrders)));
+        }
+
+        (page, pageSize) = AdminPaging.Normalize(page, pageSize);
+        var totalCount = await query.CountAsync();
+        var orders = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+        return Ok(Result<object>.Ok(new { items = MapOrders(orders), page, pageSize, totalCount }));
+    }
+
+    private static object MapOrders(System.Collections.Generic.List<Order> orders) =>
+        orders.Select(o => new
         {
             o.Id,
             o.UserId,
@@ -71,9 +104,6 @@ public class OrdersController : BaseApiController
                 oi.UnitPrice
             }).ToList()
         }).ToList();
-
-        return Ok(Result<object>.Ok(dtoList));
-    }
 
     [HttpPut("{id}/status")]
     [Authorize(Policy = AuthorizationPolicies.StaffOrAdmin)]

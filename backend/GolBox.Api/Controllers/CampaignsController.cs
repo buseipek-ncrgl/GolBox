@@ -23,12 +23,28 @@ public class CampaignsController : BaseApiController
 
     [HttpGet]
     [Authorize(Policy = AuthorizationPolicies.StaffOrAdmin)]
-    public async Task<IActionResult> GetCampaigns()
+    public async Task<IActionResult> GetCampaigns(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = AdminPaging.DefaultPageSize,
+        [FromQuery] string? search = null,
+        [FromQuery] bool? active = null)
     {
-        var list = await _context.Campaigns
+        (page, pageSize) = AdminPaging.Normalize(page, pageSize);
+        var query = _context.Campaigns.AsQueryable();
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            query = query.Where(c => c.Title.Contains(term) || c.Description.Contains(term));
+        }
+        if (active.HasValue)
+            query = query.Where(c => c.IsActive == active.Value);
+        var totalCount = await query.CountAsync();
+        var list = await query
             .OrderByDescending(c => c.CreatedDate)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync();
-        return Ok(Result<object>.Ok(list));
+        return Ok(Result<object>.Ok(new { items = list, page, pageSize, totalCount }));
     }
 
     [HttpPost]
@@ -65,6 +81,60 @@ public class CampaignsController : BaseApiController
         await AuditLogsController.LogAsync(_context, "admin", "Admin", "Campaign_Create", "Campaigns", "Campaign", campaign.Id.ToString(), null, campaign.Title, null);
 
         return Ok(Result<object>.Ok(new { id = campaign.Id }, "Kampanya başarıyla oluşturuldu."));
+    }
+
+    [HttpPut("{id:guid}")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    public async Task<IActionResult> UpdateCampaign(Guid id, [FromBody] CreateCampaignRequest request)
+    {
+        var campaign = await _context.Campaigns.FindAsync(id);
+        if (campaign == null)
+            return NotFound(Result<object>.Fail("Kampanya bulunamadı."));
+        if (string.IsNullOrWhiteSpace(request.Title))
+            return BadRequest(Result<object>.Fail("Kampanya başlığı zorunludur."));
+        if (request.EndDate <= request.StartDate)
+            return BadRequest(Result<object>.Fail("Bitiş tarihi başlangıç tarihinden sonra olmalıdır."));
+
+        var previous = campaign.Title;
+        campaign.Title = request.Title.Trim();
+        campaign.Description = request.Description?.Trim() ?? string.Empty;
+        campaign.ImageUrl = request.ImageUrl;
+        campaign.CampaignType = "Announcement";
+        campaign.StartDate = request.StartDate;
+        campaign.EndDate = request.EndDate;
+        campaign.TargetUserGroup = string.IsNullOrWhiteSpace(request.TargetUserGroup) ? "All" : request.TargetUserGroup;
+        campaign.UpdatedDate = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+        await AuditLogsController.LogAsync(_context, "admin", "Admin", "Campaign_Update", "Campaigns", "Campaign", campaign.Id.ToString(), previous, campaign.Title, null);
+        return Ok(Result<object>.Ok(new { id = campaign.Id }, "Kampanya içeriği güncellendi."));
+    }
+
+    [HttpPost("{id:guid}/publish")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    public async Task<IActionResult> PublishCampaign(Guid id)
+    {
+        var campaign = await _context.Campaigns.FindAsync(id);
+        if (campaign == null)
+            return NotFound(Result<object>.Fail("Kampanya bulunamadı."));
+        campaign.IsActive = true;
+        campaign.UpdatedDate = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+        await AuditLogsController.LogAsync(_context, "admin", "Admin", "Campaign_Publish", "Campaigns", "Campaign", id.ToString(), null, "Active", null);
+        return Ok(Result<object>.Ok(new { id, isActive = true }, "Kampanya yayına alındı."));
+    }
+
+    [HttpPost("{id:guid}/unpublish")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    public async Task<IActionResult> UnpublishCampaign(Guid id)
+    {
+        var campaign = await _context.Campaigns.FindAsync(id);
+        if (campaign == null)
+            return NotFound(Result<object>.Fail("Kampanya bulunamadı."));
+        campaign.IsActive = false;
+        campaign.UpdatedDate = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+        await AuditLogsController.LogAsync(_context, "admin", "Admin", "Campaign_Unpublish", "Campaigns", "Campaign", id.ToString(), "Active", "Inactive", null);
+        return Ok(Result<object>.Ok(new { id, isActive = false }, "Kampanya yayından kaldırıldı."));
     }
 
     public class CreateCampaignRequest

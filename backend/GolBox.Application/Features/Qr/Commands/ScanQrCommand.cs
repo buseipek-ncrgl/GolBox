@@ -190,7 +190,7 @@ public class ScanQrCommandHandler : IRequestHandler<ScanQrCommand, Result<ScanRe
                 pointsEarned = (int)Math.Floor(request.Amount * (earnPercent / 100.0m));
                 pointsEarned += visitBonus;
                 user.PointsBalance += pointsEarned;
-                operation = "cash-earn";
+                operation = request.Amount > 0 ? "cash-earn" : "visit";
 
                 _context.PointTransactions.Add(new PointTransaction
                 {

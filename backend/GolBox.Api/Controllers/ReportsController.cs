@@ -22,54 +22,54 @@ public class ReportsController : BaseApiController
     }
 
     [HttpGet("summary")]
-    public async Task<IActionResult> GetReportsSummary()
+    public async Task<IActionResult> GetReportsSummary(
+        [FromQuery] string? preset = "30d",
+        [FromQuery] DateTime? from = null,
+        [FromQuery] DateTime? to = null)
     {
-        var totalUsers = await _context.Users.CountAsync(u => u.Email != "admin@golbox.gov.tr");
-        var liseUsers = await _context.Users.CountAsync(u => u.EducationLevel == "Lise");
-        var uniUsers = await _context.Users.CountAsync(u => u.EducationLevel == "Üniversite");
-
-        var totalOrders = await _context.Orders.CountAsync();
-        var deliveredOrders = await _context.Orders.CountAsync(o => o.Status == "Delivered" || o.Status == "Teslim edildi");
-        var cancelledOrders = await _context.Orders.CountAsync(o => o.Status == "Cancelled" || o.Status == "İptal edildi");
-
-        var totalEarnedPoints = await _context.PointTransactions.Where(pt => pt.Amount > 0).SumAsync(pt => (int?)pt.Amount) ?? 0;
-        var totalSpentPoints = await _context.PointTransactions.Where(pt => pt.Amount < 0).SumAsync(pt => (int?)Math.Abs(pt.Amount)) ?? 0;
-
-        return Ok(Result<object>.Ok(new
-        {
-            citizens = new { totalUsers, liseUsers, uniUsers },
-            orders = new { totalOrders, deliveredOrders, cancelledOrders },
-            points = new { totalEarnedPoints, totalSpentPoints }
-        }));
+        var (fromUtc, toUtc) = AdminDateRange.Resolve(preset, from, to);
+        var data = await BuildSummaryAsync(fromUtc, toUtc);
+        return Ok(Result<object>.Ok(data));
     }
 
     [HttpGet("export/{type}")]
-    public async Task<IActionResult> ExportReport(string type)
+    public async Task<IActionResult> ExportReport(
+        string type,
+        [FromQuery] string? preset = "30d",
+        [FromQuery] DateTime? from = null,
+        [FromQuery] DateTime? to = null)
     {
+        var (fromUtc, toUtc) = AdminDateRange.Resolve(preset, from, to);
         var sb = new StringBuilder();
 
         if (type.Equals("citizens", StringComparison.OrdinalIgnoreCase))
         {
-            sb.AppendLine("Id;Ad;Soyad;Eposta;Telefon;Yas;Egitim;GolPuan");
-            var users = await _context.Users.Where(u => u.Email != "admin@golbox.gov.tr").ToListAsync();
+            sb.AppendLine("Id;Ad;Soyad;Eposta;Telefon;Yas;Egitim;GolPuan;KayitTarihi");
+            var users = await _context.Users
+                .Where(u => (u.Role == "User" || u.Role == "Citizen") && u.CreatedDate >= fromUtc && u.CreatedDate < toUtc)
+                .ToListAsync();
             foreach (var u in users)
             {
-                sb.AppendLine($"{u.Id};{u.FirstName};{u.LastName};{u.Email};{u.PhoneNumber};{u.Age ?? 0};{u.EducationLevel};{u.PointsBalance}");
+                sb.AppendLine($"{u.Id};{u.FirstName};{u.LastName};{u.Email};{u.PhoneNumber};{u.Age ?? 0};{u.EducationLevel};{u.PointsBalance};{u.CreatedDate:yyyy-MM-dd HH:mm}");
             }
         }
         else if (type.Equals("orders", StringComparison.OrdinalIgnoreCase))
         {
             sb.AppendLine("Id;KoleksiyonKodu;Vatandas;Kafe;Tutar;PuanKullanildi;Durum;Tarih");
-            var orders = await _context.Orders.Include(o => o.User).Include(o => o.Cafe).ToListAsync();
+            var orders = await _context.Orders.Include(o => o.User).Include(o => o.Cafe)
+                .Where(o => o.CreatedDate >= fromUtc && o.CreatedDate < toUtc)
+                .ToListAsync();
             foreach (var o in orders)
             {
-                sb.AppendLine($"{o.Id};{o.CollectionCode};{o.User?.FirstName} {o.User?.LastName};{o.Cafe?.Name};{o.TotalAmount};{o.PointsUsed};{o.Status};{o.CreatedDate:yyyy-MM-dd HH:mm}");
+                sb.AppendLine($"{o.Id};{o.CollectionCode};{o.User?.FirstName} {o.User?.LastName};{o.Cafe?.Name};{o.TotalAmount};{o.PointsUsed};{OrderStatuses.Canonicalize(o.Status)};{o.CreatedDate:yyyy-MM-dd HH:mm}");
             }
         }
         else
         {
             sb.AppendLine("Id;Vatandas;Turu;Miktar;Aciklama;Tarih");
-            var pts = await _context.PointTransactions.Include(pt => pt.User).ToListAsync();
+            var pts = await _context.PointTransactions.Include(pt => pt.User)
+                .Where(pt => pt.CreatedDate >= fromUtc && pt.CreatedDate < toUtc)
+                .ToListAsync();
             foreach (var pt in pts)
             {
                 sb.AppendLine($"{pt.Id};{pt.User?.FirstName} {pt.User?.LastName};{pt.Type};{pt.Amount};{pt.Description};{pt.CreatedDate:yyyy-MM-dd HH:mm}");
@@ -77,6 +77,58 @@ public class ReportsController : BaseApiController
         }
 
         var csvBytes = Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes(sb.ToString())).ToArray();
-        return File(csvBytes, "text/csv", $"golbox-rapor-{type}-{DateTime.UtcNow:yyyyMMdd}.csv");
+        return File(csvBytes, "text/csv", $"golbox-rapor-{type}-{fromUtc:yyyyMMdd}-{toUtc:yyyyMMdd}.csv");
+    }
+
+    private async Task<object> BuildSummaryAsync(DateTime fromUtc, DateTime toUtc)
+    {
+        var newCitizens = await _context.Users.CountAsync(u =>
+            (u.Role == "User" || u.Role == "Citizen") && u.CreatedDate >= fromUtc && u.CreatedDate < toUtc);
+        var liseUsers = await _context.Users.CountAsync(u => u.EducationLevel == "Lise" || u.EducationLevel == "HighSchool");
+        var uniUsers = await _context.Users.CountAsync(u => u.EducationLevel == "Üniversite" || u.EducationLevel == "University");
+
+        var ordersInRange = _context.Orders.Where(o => o.CreatedDate >= fromUtc && o.CreatedDate < toUtc);
+        var totalOrders = await ordersInRange.CountAsync();
+        var completedOrders = await ordersInRange.CountAsync(o =>
+            o.Status == OrderStatuses.Completed || o.Status == "Delivered" || o.Status == "Teslim edildi");
+        var cancelledOrders = await ordersInRange.CountAsync(o =>
+            o.Status == OrderStatuses.Cancelled || o.Status == "İptal edildi");
+
+        var pointsInRange = _context.PointTransactions.Where(pt => pt.CreatedDate >= fromUtc && pt.CreatedDate < toUtc);
+        var totalEarnedPoints = await pointsInRange.Where(pt => pt.Amount > 0).SumAsync(pt => (int?)pt.Amount) ?? 0;
+        var totalSpentPoints = await pointsInRange.Where(pt => pt.Amount < 0).SumAsync(pt => (int?)Math.Abs(pt.Amount)) ?? 0;
+
+        var usedCoupons = await _context.UserRewards.CountAsync(ur =>
+            ur.Status == UserRewardStatuses.Redeemed &&
+            ur.RedeemedAt != null &&
+            ur.RedeemedAt >= fromUtc &&
+            ur.RedeemedAt < toUtc);
+
+        var fieldCaptures = await _context.UserFieldCaptures.CountAsync(c =>
+            c.CreatedDate >= fromUtc && c.CreatedDate < toUtc);
+
+        var activityJoins = await _context.UserActivities.CountAsync(ua =>
+            ua.CreatedDate >= fromUtc && ua.CreatedDate < toUtc);
+
+        var activeRewards = await _context.Rewards.CountAsync(r => r.Status == "Active");
+
+        return new
+        {
+            from = fromUtc,
+            to = toUtc,
+            newCitizens,
+            earnedPoints = totalEarnedPoints,
+            spentPoints = totalSpentPoints,
+            orderCount = totalOrders,
+            completedOrders,
+            cancelledOrders,
+            usedCoupons,
+            fieldCaptures,
+            activityJoins,
+            activeRewards,
+            citizens = new { totalUsers = newCitizens, liseUsers, uniUsers },
+            orders = new { totalOrders, deliveredOrders = completedOrders, completedOrders, cancelledOrders },
+            points = new { totalEarnedPoints, totalSpentPoints }
+        };
     }
 }

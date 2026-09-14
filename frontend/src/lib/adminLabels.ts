@@ -35,8 +35,11 @@ export const canonicalizeOrderStatus = (status?: string): string => {
 export const pointTypeLabel = (type?: string): string => {
   const map: Record<string, string> = {
     Earn: 'Kazanç',
+    Spend: 'Harcama',
     ManualAddition: 'Manuel ekleme',
     ManualDeduction: 'Manuel düşüm',
+    Visit: 'Ziyaret',
+    Activity: 'Etkinlik',
     Redemption: 'Harcama',
     Refund: 'İade',
     Reversal: 'Ters kayıt',
@@ -122,6 +125,72 @@ export const NAV_TARGETS: { id: string; label: string; targetType: string; targe
   { id: 'map', label: 'GölBox Harita', targetType: 'Route', targetId: 'map' },
   { id: 'profile', label: 'Profil', targetType: 'Route', targetId: 'profile' }
 ];
+
+export const qrOperationLabel = (op?: string): string => {
+  const key = String(op || '').toLowerCase();
+  if (key.includes('coupon') || key.includes('redeem')) return 'Kupon kullan';
+  if (key.includes('points') || key.includes('payment')) return 'GölPuan ile ödeme';
+  if (key.includes('visit')) return 'Ziyaret kaydı';
+  if (key.includes('cash') || key.includes('earn')) return 'Nakit harcamadan GölPuan kazan';
+  return op || 'Kasa işlemi';
+};
+
+export const auditActionLabel = (action?: string): string => {
+  const map: Record<string, string> = {
+    Point_Add: 'GölPuan eklendi',
+    Point_Deduct: 'GölPuan düşüldü',
+    Points_Grant: 'GölPuan tanımlandı',
+    Reward_Create: 'Ödül oluşturuldu',
+    Reward_Update: 'Ödül güncellendi',
+    Reward_Deactivate: 'Ödül pasife alındı',
+    Reward_Activate: 'Ödül yayına alındı',
+    Reward_Delete: 'Ödül silindi',
+    Qr_CashEarn: 'QR ile GölPuan kazanımı',
+    Qr_PointsPayment: 'QR ile GölPuan ödemesi',
+    Coupon_Redeem: 'Kupon kullanıldı',
+    Order_Status: 'Sipariş durumu güncellendi',
+    Campaign_Create: 'Kampanya içeriği oluşturuldu',
+    Campaign_Update: 'Kampanya içeriği güncellendi',
+    Campaign_Publish: 'Kampanya yayına alındı',
+    Campaign_Unpublish: 'Kampanya yayından kaldırıldı',
+    Cafe_Create: 'Kafe oluşturuldu',
+    Cafe_Update: 'Kafe güncellendi',
+    Activity_Create: 'Etkinlik oluşturuldu',
+    Activity_Update: 'Etkinlik güncellendi',
+    Activity_Publish: 'Etkinlik yayına alındı',
+    Activity_Unpublish: 'Etkinlik taslağa alındı',
+    Activity_Archive: 'Etkinlik arşivlendi',
+    Menu_Create: 'Menü ürünü eklendi',
+    Menu_Update: 'Menü ürünü güncellendi',
+    Staff_Assigned: 'Personel atandı',
+    Staff_RoleChange: 'Personel rolü değişti',
+    Staff_Activate: 'Personel aktif edildi',
+    Staff_Deactivate: 'Personel pasife alındı',
+    Notification_Send: 'Bildirim gönderildi'
+  };
+  return (action && map[action]) || action || '—';
+};
+
+export const activityStatusLabel = (status?: string, start?: string, end?: string): string => {
+  if (status === 'Draft') return 'Taslak';
+  if (status === 'Archived' || status === 'Cancelled') return 'Arşiv';
+  const now = Date.now();
+  const s = start ? new Date(start).getTime() : 0;
+  const e = end ? new Date(end).getTime() : 0;
+  if (e && e < now) return 'Bitti';
+  if (s && s > now) return 'Yaklaşan';
+  if (s && e && s <= now && e >= now) return 'Devam ediyor';
+  if (status === 'Active') return 'Yayında';
+  return status || '—';
+};
+
+export const fieldDropStatusLabel = (drop: any): string => {
+  const now = Date.now();
+  const end = drop?.endsAt ? new Date(drop.endsAt).getTime() : 0;
+  if (end && end < now) return 'Süresi doldu';
+  if (drop?.isActive === false) return 'Durduruldu';
+  return 'Aktif';
+};
 
 export const isCitizenRole = (role?: string) => {
   const value = String(role || '').toLowerCase();

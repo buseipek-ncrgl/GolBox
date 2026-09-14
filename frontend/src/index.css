@@ -287,3 +287,23 @@ h1, h2, h3, h4, h5, h6 {
 .animate-fade {
   animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+
+.admin-table-wrap table {
+  min-width: 720px;
+}
+
+.admin-split {
+  min-width: 0;
+}
+
+@media (max-width: 1100px) {
+  .admin-table-wrap table {
+    min-width: 860px;
+  }
+  .admin-split {
+    grid-template-columns: 1fr !important;
+  }
+  .admin-qr-grid {
+    grid-template-columns: 1fr !important;
+  }
+}

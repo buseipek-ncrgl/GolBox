@@ -1,3 +1,5 @@
+import { toQuery } from '../lib/adminQuery';
+
 export const API_BASE_URL =
   (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '') ||
   (import.meta.env.DEV ? 'http://localhost:5155/api/v1' : '/api/v1');
@@ -50,6 +52,9 @@ async function request<T>(
     if (response.status === 403) {
       throw new Error(result.message || forbiddenMessage);
     }
+    if (response.status === 409) {
+      throw new Error(result.message || 'İşlem çakışması. Lütfen tekrar deneyin.');
+    }
     let errorMsg = result.message || 'Bir hata oluştu.';
     if (result.errors) {
       if (Array.isArray(result.errors)) {
@@ -82,8 +87,22 @@ export const api = {
     }),
 
   // Profile
-  getUsers: (role?: string) =>
-    request<any>(role ? `/users?role=${encodeURIComponent(role)}` : '/users'),
+  getUsers: (params?: {
+    role?: string;
+    search?: string;
+    minAge?: number | string;
+    maxAge?: number | string;
+    education?: string;
+    minPoints?: number | string;
+    maxPoints?: number | string;
+    page?: number;
+    pageSize?: number;
+  } | string) => {
+    if (typeof params === 'string') {
+      return request<any>(`/users${toQuery({ role: params, page: 1, pageSize: 25 })}`);
+    }
+    return request<any>(`/users${toQuery({ page: 1, pageSize: 25, ...params })}`);
+  },
   getProfile: () => request<any>('/users/me'),
   updateProfile: (data: any) =>
     request<any>('/users/me', {
@@ -99,8 +118,8 @@ export const api = {
   // Points
   getPointsHistory: (page = 1, pageSize = 10) =>
     request<any>(`/points?page=${page}&pageSize=${pageSize}`),
-  getPointsLedger: (page = 1, pageSize = 50) =>
-    request<any>(`/points/ledger?page=${page}&pageSize=${pageSize}`),
+  getPointsLedger: (params?: Record<string, string | number | boolean | undefined>) =>
+    request<any>(`/points/ledger${toQuery({ page: 1, pageSize: 25, ...params })}`),
   grantPoints: (command: any) =>
     request<any>('/points/grant', {
       method: 'POST',
@@ -110,7 +129,8 @@ export const api = {
   // Rewards
   getRewards: (page = 1, pageSize = 10, search = '') =>
     request<any>(`/rewards?page=${page}&pageSize=${pageSize}&search=${encodeURIComponent(search)}`),
-  getAdminRewards: () => request<any>('/rewards/admin'),
+  getAdminRewards: (params?: Record<string, string | number | undefined>) =>
+    request<any>(`/rewards/admin${toQuery({ page: 1, pageSize: 25, ...params })}`),
   getMyClaimedRewards: () => request<any>('/rewards/my-claimed'),
   claimReward: (id: string) =>
     request<any>(`/rewards/${id}/claim`, {
@@ -176,14 +196,8 @@ export const api = {
       method: 'DELETE',
     }),
 
-  getAdminPlaces: (params?: { category?: string; search?: string; published?: boolean }) => {
-    const query = new URLSearchParams();
-    if (params?.category) query.set('category', params.category);
-    if (params?.search) query.set('search', params.search);
-    if (params?.published != null) query.set('published', String(params.published));
-    const suffix = query.toString() ? `?${query.toString()}` : '';
-    return request<any>(`/admin/places${suffix}`);
-  },
+  getAdminPlaces: (params?: { category?: string; search?: string; published?: boolean; active?: boolean; page?: number; pageSize?: number }) =>
+    request<any>(`/admin/places${toQuery({ page: 1, pageSize: 25, ...params })}`),
   getAdminPlace: (id: string) => request<any>(`/admin/places/${id}`),
   createAdminPlace: (data: any) =>
     request<any>('/admin/places', { method: 'POST', body: JSON.stringify(data) }),
@@ -198,6 +212,8 @@ export const api = {
 
   // Cafes
   getCafes: () => request<any>('/cafes'),
+  getAdminCafes: (params?: Record<string, string | number | boolean | undefined>) =>
+    request<any>(`/cafes/admin${toQuery({ page: 1, pageSize: 25, ...params })}`),
   createCafe: (data: any) =>
     request<any>('/cafes', {
       method: 'POST',
@@ -216,9 +232,16 @@ export const api = {
   // MenuItems
   getMenuItems: (cafeId: string) => request<any>(`/cafes/${cafeId}/menu`),
   getAllMenuItems: () => request<any>('/menu-items'),
+  getAdminMenuItems: (params?: Record<string, string | number | boolean | undefined>) =>
+    request<any>(`/menu-items/admin${toQuery({ page: 1, pageSize: 25, ...params })}`),
   createMenuItem: (cafeId: string, data: any) =>
     request<any>(`/cafes/${cafeId}/menu`, {
       method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateMenuItem: (cafeId: string, id: string, data: any) =>
+    request<any>(`/cafes/${cafeId}/menu/${id}`, {
+      method: 'PUT',
       body: JSON.stringify(data),
     }),
   deleteMenuItem: (cafeId: string, id: string) =>
@@ -232,6 +255,8 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(command),
     }),
+  getRecentQr: (page = 1, pageSize = 25) =>
+    request<any>(`/qr/recent${toQuery({ page, pageSize })}`),
 
   // Analytics
   getUserAnalytics: () => request<any>('/analytics/user'),
@@ -246,7 +271,8 @@ export const api = {
     }),
 
   // Orders (Ismarlıyor)
-  getOrders: () => request<any>('/orders'),
+  getOrders: (params?: Record<string, string | number | undefined>) =>
+    request<any>(`/orders${toQuery(params || {})}`),
   updateOrderStatus: (id: string, status: string) =>
     request<any>(`/orders/${id}/status`, {
       method: 'PUT',
@@ -266,8 +292,8 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  getAuditLogs: (module = 'All', search = '') =>
-    request<any>(`/auditlogs?module=${module}&search=${encodeURIComponent(search)}`),
+  getAuditLogs: (params?: Record<string, string | number | undefined>) =>
+    request<any>(`/auditlogs${toQuery({ page: 1, pageSize: 25, ...params })}`),
   getApprovals: (status = 'Pending') => request<any>(`/approvals?status=${status}`),
   actionApproval: (id: string, approved: boolean, note?: string) =>
     request<any>(`/approvals/${id}/action`, {
@@ -280,13 +306,31 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  getCampaigns: () => request<any>('/campaigns'),
+  changeStaffRole: (userId: string, role: string) =>
+    request<any>(`/staff/${userId}/role`, {
+      method: 'POST',
+      body: JSON.stringify({ role }),
+    }),
+  setStaffActive: (userId: string, isActive: boolean) =>
+    request<any>(`/staff/${userId}/active`, {
+      method: 'POST',
+      body: JSON.stringify({ isActive }),
+    }),
+  getCampaigns: (params?: Record<string, string | number | boolean | undefined>) =>
+    request<any>(`/campaigns${toQuery({ page: 1, pageSize: 25, ...params })}`),
   createCampaign: (data: any) =>
     request<any>('/campaigns', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  getNotifications: () => request<any>('/notifications'),
+  updateCampaign: (id: string, data: any) =>
+    request<any>(`/campaigns/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  publishCampaign: (id: string) =>
+    request<any>(`/campaigns/${id}/publish`, { method: 'POST' }),
+  unpublishCampaign: (id: string) =>
+    request<any>(`/campaigns/${id}/unpublish`, { method: 'POST' }),
+  getNotifications: (params?: Record<string, string | number | undefined>) =>
+    request<any>(`/notifications${toQuery({ page: 1, pageSize: 25, ...params })}`),
   previewNotification: (data: any) =>
     request<any>('/notifications/preview', {
       method: 'POST',
@@ -317,9 +361,28 @@ export const api = {
     request<any>(`/content/${id}/unpublish`, { method: 'POST' }),
   deleteCityContent: (id: string) =>
     request<any>(`/content/${id}`, { method: 'DELETE' }),
-  getAdminActivities: () => request<any>('/activities/admin'),
-  getReportsSummary: () => request<any>('/reports/summary'),
-  getFieldDrops: () => request<any>('/field-drops'),
+  getAdminActivities: (params?: Record<string, string | number | undefined>) =>
+    request<any>(`/activities/admin${toQuery({ page: 1, pageSize: 25, ...params })}`),
+  updateActivity: (id: string, data: any) =>
+    request<any>(`/activities/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  publishActivity: (id: string) =>
+    request<any>(`/activities/${id}/publish`, { method: 'POST' }),
+  unpublishActivity: (id: string) =>
+    request<any>(`/activities/${id}/unpublish`, { method: 'POST' }),
+  archiveActivity: (id: string) =>
+    request<any>(`/activities/${id}/archive`, { method: 'POST' }),
+  getReportsSummary: (params?: Record<string, string | undefined>) =>
+    request<any>(`/reports/summary${toQuery(params || {})}`),
+  exportReport: async (type: string, params?: Record<string, string | undefined>) => {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`${API_BASE_URL}/reports/export/${type}${toQuery(params || {})}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (!res.ok) throw new Error('Rapor indirilemedi.');
+    return await res.blob();
+  },
+  getFieldDrops: (params?: Record<string, string | number | undefined>) =>
+    request<any>(`/field-drops${toQuery({ page: 1, pageSize: 25, ...params })}`),
   getFieldDropCaptures: (id: string) => request<any>(`/field-drops/${id}/captures`),
   createFieldDrop: (data: any) =>
     request<any>('/field-drops', {

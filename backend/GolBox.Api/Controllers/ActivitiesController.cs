@@ -148,13 +148,42 @@ public class ActivitiesController : BaseApiController
     [Authorize(Policy = AuthorizationPolicies.StaffOrAdmin)]
     public async Task<IActionResult> GetAdminActivities(
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 50,
+        [FromQuery] int pageSize = AdminPaging.DefaultPageSize,
+        [FromQuery] string? filter = null,
+        [FromQuery] string? status = null,
+        [FromQuery] string? search = null,
         CancellationToken cancellationToken = default)
     {
-        page = Math.Max(1, page);
-        pageSize = Math.Clamp(pageSize, 1, 100);
+        (page, pageSize) = AdminPaging.Normalize(page, pageSize);
         var orgId = await ResolveOrganizationIdAsync(cancellationToken);
+        var now = DateTime.UtcNow;
         var query = _context.Activities.AsNoTracking().Where(a => a.OrganizationId == orgId);
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            query = query.Where(a => a.Title.Contains(term) || a.Location.Contains(term));
+        }
+        if (!string.IsNullOrWhiteSpace(status) && status != "All")
+            query = query.Where(a => a.Status == status);
+        switch ((filter ?? "").Trim().ToLowerInvariant())
+        {
+            case "upcoming":
+                query = query.Where(a => a.StartDate > now);
+                break;
+            case "ongoing":
+                query = query.Where(a => a.StartDate <= now && a.EndDate >= now);
+                break;
+            case "ended":
+                query = query.Where(a => a.EndDate < now);
+                break;
+            case "draft":
+                query = query.Where(a => a.Status == "Draft");
+                break;
+            case "published":
+                query = query.Where(a => a.Status == "Active");
+                break;
+        }
+
         var total = await query.CountAsync(cancellationToken);
         var items = await query
             .OrderByDescending(a => a.StartDate)
@@ -238,6 +267,101 @@ public class ActivitiesController : BaseApiController
         await AuditLogsController.LogAsync(_context, "admin", "Admin", "Activity_Create", "Activities", "Activity", activity.Id.ToString(), null, activity.Title, null);
 
         return Ok(Result<object>.Ok(new { id = activity.Id }, "Etkinlik başarıyla oluşturuldu."));
+    }
+
+    [HttpPut("{id:guid}")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    public async Task<IActionResult> UpdateActivity(Guid id, [FromBody] CreateActivityRequest request)
+    {
+        var activity = await _context.Activities.FindAsync(id);
+        if (activity == null)
+            return NotFound(Result<object>.Fail("Etkinlik bulunamadı."));
+        if (string.IsNullOrWhiteSpace(request.Title))
+            return BadRequest(Result<object>.Fail("Etkinlik başlığı zorunludur."));
+
+        var scheduleCheck = AdminSafetyRules.ValidateActivitySchedule(request.StartDate, request.EndDate, allowPastStart: true);
+        if (!scheduleCheck.Success)
+            return BadRequest(Result<object>.Fail(scheduleCheck.Message));
+        var rewardCheck = AdminSafetyRules.ValidateActivityReward(request.PointsReward);
+        if (!rewardCheck.Success)
+            return BadRequest(Result<object>.Fail(rewardCheck.Message));
+        var capacityCheck = AdminSafetyRules.ValidateActivityCapacity(request.Capacity);
+        if (!capacityCheck.Success)
+            return BadRequest(Result<object>.Fail(capacityCheck.Message));
+
+        string location = request.Location?.Trim() ?? string.Empty;
+        Guid? placeId = request.PlaceId;
+        if (placeId is Guid selectedPlaceId)
+        {
+            var org = activity.OrganizationId;
+            var place = await _context.Places.AsNoTracking()
+                .FirstOrDefaultAsync(p => p.Id == selectedPlaceId && p.OrganizationId == org);
+            if (place == null)
+                return BadRequest(Result<object>.Fail("Seçilen tesis bulunamadı."));
+            location = string.IsNullOrWhiteSpace(place.Address) ? place.Name : place.Address!;
+        }
+        else
+        {
+            placeId = null;
+        }
+
+        var previous = activity.Title;
+        activity.Title = request.Title.Trim();
+        activity.Description = request.Description?.Trim() ?? string.Empty;
+        activity.PointsReward = request.PointsReward;
+        activity.Location = location;
+        if (request.ImageUrl != null)
+            activity.ImageUrl = MediaUrlNormalizer.Normalize(request.ImageUrl);
+        activity.Capacity = request.Capacity is > 0 ? request.Capacity : request.Capacity == 0 ? 0 : null;
+        activity.StartDate = request.StartDate;
+        activity.EndDate = request.EndDate;
+        activity.PlaceId = placeId;
+        activity.UpdatedDate = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+        await AuditLogsController.LogAsync(_context, "admin", "Admin", "Activity_Update", "Activities", "Activity", activity.Id.ToString(), previous, activity.Title, null);
+        return Ok(Result<object>.Ok(new { id = activity.Id }, "Etkinlik güncellendi."));
+    }
+
+    [HttpPost("{id:guid}/publish")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    public async Task<IActionResult> PublishActivity(Guid id)
+    {
+        var activity = await _context.Activities.FindAsync(id);
+        if (activity == null)
+            return NotFound(Result<object>.Fail("Etkinlik bulunamadı."));
+        activity.Status = "Active";
+        activity.UpdatedDate = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+        await AuditLogsController.LogAsync(_context, "admin", "Admin", "Activity_Publish", "Activities", "Activity", id.ToString(), null, "Active", null);
+        return Ok(Result<object>.Ok(new { id, status = activity.Status }, "Etkinlik yayına alındı."));
+    }
+
+    [HttpPost("{id:guid}/unpublish")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    public async Task<IActionResult> UnpublishActivity(Guid id)
+    {
+        var activity = await _context.Activities.FindAsync(id);
+        if (activity == null)
+            return NotFound(Result<object>.Fail("Etkinlik bulunamadı."));
+        activity.Status = "Draft";
+        activity.UpdatedDate = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+        await AuditLogsController.LogAsync(_context, "admin", "Admin", "Activity_Unpublish", "Activities", "Activity", id.ToString(), "Active", "Draft", null);
+        return Ok(Result<object>.Ok(new { id, status = activity.Status }, "Etkinlik taslağa alındı."));
+    }
+
+    [HttpPost("{id:guid}/archive")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    public async Task<IActionResult> ArchiveActivity(Guid id)
+    {
+        var activity = await _context.Activities.FindAsync(id);
+        if (activity == null)
+            return NotFound(Result<object>.Fail("Etkinlik bulunamadı."));
+        activity.Status = "Archived";
+        activity.UpdatedDate = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+        await AuditLogsController.LogAsync(_context, "admin", "Admin", "Activity_Archive", "Activities", "Activity", id.ToString(), null, "Archived", null);
+        return Ok(Result<object>.Ok(new { id, status = activity.Status }, "Etkinlik arşivlendi."));
     }
 
     [HttpDelete("{id}")]
