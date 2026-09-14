@@ -1,27 +1,27 @@
 "use client"
 
-import { BookOpen, Coffee, Coins, Ticket } from "lucide-react"
+import { BookOpen, Coins, MapPin, Ticket } from "lucide-react"
 import { HomeSectionHeader } from "@/components/golbox/home-section-header"
 
-export type QuickActionId = "coupons" | "cafes" | "events" | "earn"
+export type QuickActionId = "coupons" | "places" | "cafes" | "events" | "earn"
 
 export interface QuickActionItem {
   id: QuickActionId
   title: string
   description: string
-  icon: "ticket" | "coffee" | "calendar" | "coins"
+  icon: "ticket" | "places" | "calendar" | "coins"
 }
 
 const ICONS = {
   ticket: Ticket,
-  coffee: Coffee,
+  places: MapPin,
   calendar: BookOpen,
   coins: Coins,
 }
 
 export const defaultQuickActions: QuickActionItem[] = [
   { id: "coupons", title: "Kuponlarım", description: "Aktif kuponlarını gör", icon: "ticket" },
-  { id: "cafes", title: "Göl Kafeler", description: "Yakındaki kafeleri keşfet", icon: "coffee" },
+  { id: "places", title: "Tesisler", description: "Belediye yerlerini keşfet", icon: "places" },
   { id: "events", title: "Etkinlikler", description: "Şehirde neler var?", icon: "calendar" },
   { id: "earn", title: "GölPuan kazan", description: "Kazanç yollarını gör", icon: "coins" },
 ]

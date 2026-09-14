@@ -15,7 +15,7 @@ export type PlaceCategory = (typeof PlaceCategories)[keyof typeof PlaceCategorie
 export const PLACE_CATEGORY_CHIPS: { id: "all" | PlaceCategory; label: string }[] = [
   { id: "all", label: "Tümü" },
   { id: "Cafe", label: "Göl Kafeler" },
-  { id: "ScienceCenter", label: "Bilim" },
+  { id: "ScienceCenter", label: "Bilim Şehitkamil" },
   { id: "Library", label: "Kütüphaneler" },
   { id: "YouthCenter", label: "Gençlik" },
   { id: "SportsFacility", label: "Spor" },

@@ -259,6 +259,10 @@ export function HomeScreen({
       openRewards("coupons")
       return
     }
+    if (id === "places") {
+      onOpenPlaces()
+      return
+    }
     if (id === "cafes") {
       onOpenCafes()
       return
