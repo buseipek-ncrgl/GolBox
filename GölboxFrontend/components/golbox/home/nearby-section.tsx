@@ -6,33 +6,34 @@ import { HomeSectionHeader } from "@/components/golbox/home-section-header"
 import { InlineError } from "@/components/golbox/inline-error"
 import { SectionSkeleton } from "@/components/golbox/section-skeleton"
 import { StatusChip } from "@/components/golbox/status-chip"
-import type { Cafe } from "@/lib/golbox-context"
-import { formatDistance, metersBetween } from "@/lib/golbox-geo"
+import { formatDistance } from "@/lib/golbox-geo"
+import { openStatusLabel, type PlaceNearbyItem } from "@/lib/places"
 
 export function NearbyPlaceCard({
-  cafe,
-  distanceMeters,
+  place,
   onOpen,
 }: {
-  cafe: Cafe
-  distanceMeters?: number
+  place: PlaceNearbyItem
   onOpen: (id: string) => void
 }) {
-  const open = cafe.isActive !== false
   return (
     <button
       type="button"
-      onClick={() => onOpen(cafe.id)}
+      onClick={() => onOpen(place.id)}
       className="gol-press gol-card flex w-full items-center gap-3 p-3 text-left"
     >
-      <CafeCover name={cafe.name} imageUrl={cafe.imageUrl} className="size-16 shrink-0 rounded-[14px]" />
+      <CafeCover name={place.name} imageUrl={place.coverImageUrl} className="size-16 shrink-0 rounded-[14px]" />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-foreground">{cafe.name}</p>
+        <p className="truncate text-sm font-semibold text-foreground">{place.name}</p>
         <p className="mt-0.5 truncate text-[12px] text-muted-foreground">
-          {Number.isFinite(distanceMeters) ? formatDistance(distanceMeters!) : cafe.address}
+          {Number.isFinite(place.distanceMeters)
+            ? `${formatDistance(place.distanceMeters)}${place.addressSummary ? ` · ${place.addressSummary}` : ""}`
+            : place.addressSummary || ""}
         </p>
         <div className="mt-1.5">
-          <StatusChip tone={open ? "success" : "neutral"}>{open ? "Açık" : "Kapalı"}</StatusChip>
+          <StatusChip tone={place.openStatus === "Open" ? "success" : "neutral"}>
+            {openStatusLabel(place.openStatus)}
+          </StatusChip>
         </div>
       </div>
       <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
@@ -41,16 +42,14 @@ export function NearbyPlaceCard({
 }
 
 export function NearbySection({
-  cafes,
-  origin,
+  places,
   ready,
   error,
   onRetry,
   onOpen,
   onSeeAll,
 }: {
-  cafes: Cafe[]
-  origin: { lat: number; lng: number }
+  places: PlaceNearbyItem[]
   ready: boolean
   error: boolean
   onRetry: () => void
@@ -66,7 +65,7 @@ export function NearbySection({
     )
   }
 
-  if (error && cafes.length === 0) {
+  if (error && places.length === 0) {
     return (
       <section aria-label="Yakınında" className="space-y-3">
         <HomeSectionHeader title="Yakınında" tone="utility" />
@@ -75,25 +74,14 @@ export function NearbySection({
     )
   }
 
-  if (cafes.length === 0) return null
-
-  const ranked = cafes
-    .map((cafe) => {
-      const lat = Number(cafe.latitude)
-      const lng = Number(cafe.longitude)
-      const distanceMeters =
-        Number.isFinite(lat) && Number.isFinite(lng) ? metersBetween(origin, { lat, lng }) : undefined
-      return { cafe, distanceMeters }
-    })
-    .sort((a, b) => (a.distanceMeters ?? Number.POSITIVE_INFINITY) - (b.distanceMeters ?? Number.POSITIVE_INFINITY))
-    .slice(0, 3)
+  if (places.length === 0) return null
 
   return (
     <section aria-label="Yakınında" className="space-y-3">
       <HomeSectionHeader title="Yakınında" actionLabel="Tümü" onAction={onSeeAll} tone="utility" />
       <div className="space-y-2">
-        {ranked.map(({ cafe, distanceMeters }) => (
-          <NearbyPlaceCard key={cafe.id} cafe={cafe} distanceMeters={distanceMeters} onOpen={onOpen} />
+        {places.slice(0, 3).map((place) => (
+          <NearbyPlaceCard key={place.id} place={place} onOpen={onOpen} />
         ))}
       </div>
     </section>

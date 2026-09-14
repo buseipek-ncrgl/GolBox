@@ -39,6 +39,10 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<NotificationRecord> Notifications => Set<NotificationRecord>();
     public DbSet<CityContent> CityContents => Set<CityContent>();
     public DbSet<UserNotification> UserNotifications => Set<UserNotification>();
+    public DbSet<Place> Places => Set<Place>();
+    public DbSet<PlaceImage> PlaceImages => Set<PlaceImage>();
+    public DbSet<PlaceOpeningHour> PlaceOpeningHours => Set<PlaceOpeningHour>();
+    public DbSet<PlaceAmenity> PlaceAmenities => Set<PlaceAmenity>();
 #pragma warning disable CS0618
     public DbSet<Coupon> Coupons => Set<Coupon>();
 #pragma warning restore CS0618

@@ -15,6 +15,7 @@ export const ContentCtaTypes = {
   InternalRoute: "InternalRoute",
   Activity: "Activity",
   Cafe: "Cafe",
+  Place: "Place",
   RewardCatalog: "RewardCatalog",
   Map: "Map",
   Profile: "Profile",
@@ -22,7 +23,7 @@ export const ContentCtaTypes = {
 
 export type ContentCtaType = (typeof ContentCtaTypes)[keyof typeof ContentCtaTypes]
 
-export const INTERNAL_ROUTES = ["home", "map", "qr", "profile", "catalog", "cafes", "earn"] as const
+export const INTERNAL_ROUTES = ["home", "map", "qr", "profile", "catalog", "cafes", "places", "earn"] as const
 export type InternalRoute = (typeof INTERNAL_ROUTES)[number]
 
 export interface CityContentItem {
@@ -149,6 +150,7 @@ export type ContentCtaAction =
   | { kind: "mayor" }
   | { kind: "activity"; activityId: string }
   | { kind: "cafe"; cafeId?: string }
+  | { kind: "place"; placeId?: string }
   | { kind: "catalog" }
   | { kind: "map" }
   | { kind: "profile" }
@@ -165,6 +167,8 @@ export function resolveContentCta(item: CityContentItem): ContentCtaAction {
       return item.ctaTarget ? { kind: "activity", activityId: item.ctaTarget } : { kind: "detail" }
     case ContentCtaTypes.Cafe:
       return { kind: "cafe", cafeId: item.ctaTarget || undefined }
+    case ContentCtaTypes.Place:
+      return { kind: "place", placeId: item.ctaTarget || undefined }
     case ContentCtaTypes.RewardCatalog:
       return { kind: "catalog" }
     case ContentCtaTypes.Map:
@@ -180,6 +184,7 @@ export function resolveContentCta(item: CityContentItem): ContentCtaAction {
       if (item.ctaTarget === "qr") return { kind: "qr" }
       if (item.ctaTarget === "catalog") return { kind: "catalog" }
       if (item.ctaTarget === "cafes") return { kind: "cafe" }
+      if (item.ctaTarget === "places") return { kind: "place" }
       if (item.ctaTarget === "earn") return { kind: "earn" }
       return { kind: "detail" }
     }

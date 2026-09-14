@@ -27,6 +27,10 @@ public static class ContentCtaValidator
                 => Result.Ok(),
             ContentCtaTypes.Cafe
                 => Result.Fail("Kafe CTA hedefi geçerli bir kimlik olmalıdır."),
+            ContentCtaTypes.Place when Guid.TryParse(target, out _)
+                => Result.Ok(),
+            ContentCtaTypes.Place
+                => Result.Fail("Tesis CTA hedefi geçerli bir kimlik olmalıdır."),
             ContentCtaTypes.ExternalUrl when TryValidateExternalUrl(target, out _)
                 => Result.Ok(),
             ContentCtaTypes.ExternalUrl

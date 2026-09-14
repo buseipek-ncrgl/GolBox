@@ -14,4 +14,5 @@ public class Organization : BaseEntity
     public virtual ICollection<User> Users { get; set; } = new List<User>();
     public virtual ICollection<Setting> Settings { get; set; } = new List<Setting>();
     public virtual ICollection<Cafe> Cafes { get; set; } = new List<Cafe>();
+    public virtual ICollection<Place> Places { get; set; } = new List<Place>();
 }

@@ -43,6 +43,8 @@ import {
   type CitizenNotification,
   type PublicActivity,
 } from "@/lib/city-content-api"
+import { fetchNearbyPlaces } from "@/lib/places-api"
+import type { PlaceNearbyItem } from "@/lib/places"
 import { selectPersonalPriority } from "@/lib/home-priority"
 import { useGolbox } from "@/lib/golbox-context"
 import { useCitizenLocation } from "@/lib/use-citizen-location"
@@ -65,22 +67,23 @@ export function HomeScreen({
   onNavigate,
   onOpenCafe,
   onOpenCafes,
+  onOpenPlace,
+  onOpenPlaces,
 }: {
   onNavigate: (tab: TabId) => void
   onOpenCafe: (id: string) => void
   onOpenCafes: () => void
+  onOpenPlace: (id: string) => void
+  onOpenPlaces: () => void
 }) {
   const {
     token,
     user,
     fieldDrops,
     pointTransactions,
-    cafes,
     orders,
     rewards,
     claimedRewards,
-    sessionReady,
-    sessionError,
     refreshData,
     publicSettings,
     unreadCount,
@@ -101,6 +104,9 @@ export function HomeScreen({
   const [activity, setActivity] = useState<PublicActivity | null>(null)
   const [activityBusy, setActivityBusy] = useState(false)
   const [upcomingEvent, setUpcomingEvent] = useState<CityContentItem | null>(null)
+  const [nearbyPlaces, setNearbyPlaces] = useState<PlaceNearbyItem[]>([])
+  const [nearbyReady, setNearbyReady] = useState(false)
+  const [nearbyError, setNearbyError] = useState(false)
 
   const isLoggedIn = Boolean(token)
 
@@ -160,6 +166,24 @@ export function HomeScreen({
     void loadHomeContent()
   }, [loadHomeContent])
 
+  const loadNearby = useCallback(async () => {
+    setNearbyReady(false)
+    setNearbyError(false)
+    try {
+      const rows = await fetchNearbyPlaces(origin.lat, origin.lng, 3, token)
+      setNearbyPlaces(rows)
+    } catch {
+      setNearbyPlaces([])
+      setNearbyError(true)
+    } finally {
+      setNearbyReady(true)
+    }
+  }, [origin.lat, origin.lng, token])
+
+  useEffect(() => {
+    void loadNearby()
+  }, [loadNearby])
+
   const nearbyDrop = fieldDrops.find((drop) => !capture.capturedIds.includes(drop.id)) ?? null
   const activeCoupons = claimedRewards.filter(isActiveCoupon)
   const priority = selectPersonalPriority({
@@ -182,6 +206,11 @@ export function HomeScreen({
     if (action.kind === "cafe") {
       if (action.cafeId) onOpenCafe(action.cafeId)
       else onOpenCafes()
+      return
+    }
+    if (action.kind === "place") {
+      if (action.placeId) onOpenPlace(action.placeId)
+      else onOpenPlaces()
       return
     }
     if (action.kind === "catalog") {
@@ -311,6 +340,10 @@ export function HomeScreen({
       onOpenCafe(item.targetId)
       return
     }
+    if (item.targetType === "Place" && item.targetId) {
+      onOpenPlace(item.targetId)
+      return
+    }
   }
 
   const handleJoinActivity = async () => {
@@ -386,13 +419,12 @@ export function HomeScreen({
       />
 
       <NearbySection
-        cafes={cafes}
-        origin={origin}
-        ready={sessionReady}
-        error={sessionError}
-        onRetry={() => void refreshData()}
-        onOpen={onOpenCafe}
-        onSeeAll={onOpenCafes}
+        places={nearbyPlaces}
+        ready={nearbyReady}
+        error={nearbyError}
+        onRetry={() => void loadNearby()}
+        onOpen={onOpenPlace}
+        onSeeAll={onOpenPlaces}
       />
 
       <EarnPointsSection
@@ -458,6 +490,9 @@ export function HomeScreen({
           onLogin={() => {
             setSheet(null)
             capture.setShowLogin(true)
+          }}
+          onOpenPlace={(id) => {
+            if (id) onOpenPlace(id)
           }}
         />
       )}

@@ -54,18 +54,19 @@ public static class ContentCtaTypes
     public const string InternalRoute = "InternalRoute";
     public const string Activity = "Activity";
     public const string Cafe = "Cafe";
+    public const string Place = "Place";
     public const string RewardCatalog = "RewardCatalog";
     public const string Map = "Map";
     public const string Profile = "Profile";
 
     public static readonly string[] All =
     [
-        None, ExternalUrl, InternalRoute, Activity, Cafe, RewardCatalog, Map, Profile
+        None, ExternalUrl, InternalRoute, Activity, Cafe, Place, RewardCatalog, Map, Profile
     ];
 
     public static readonly string[] InternalRoutes =
     [
-        "home", "map", "qr", "profile", "catalog", "cafes", "earn"
+        "home", "map", "qr", "profile", "catalog", "cafes", "places", "earn"
     ];
 
     public static readonly string[] ExternalHosts =
@@ -108,6 +109,7 @@ public static class NotificationTargetTypes
     public const string Content = "Content";
     public const string Activity = "Activity";
     public const string Cafe = "Cafe";
+    public const string Place = "Place";
     public const string Route = "Route";
     public const string ExternalUrl = "ExternalUrl";
 }

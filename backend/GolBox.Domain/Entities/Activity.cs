@@ -17,7 +17,10 @@ public class Activity : BaseEntity
     public DateTime EndDate { get; set; }
     public string Status { get; set; } = "Active"; // Active, Cancelled, Completed
 
+    public Guid? PlaceId { get; set; }
+
     // Navigations
     public virtual Organization Organization { get; set; } = null!;
+    public virtual Place? Place { get; set; }
     public virtual ICollection<UserActivity> UserActivities { get; set; } = new List<UserActivity>();
 }

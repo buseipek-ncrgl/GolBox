@@ -16,13 +16,14 @@ const CTA_TYPES = [
   { id: 'InternalRoute', label: 'İç rota' },
   { id: 'Activity', label: 'Etkinlik' },
   { id: 'Cafe', label: 'Kafe' },
+  { id: 'Place', label: 'Tesis' },
   { id: 'RewardCatalog', label: 'Katalog' },
   { id: 'Map', label: 'Harita' },
   { id: 'Profile', label: 'Profil' },
   { id: 'ExternalUrl', label: 'Dış bağlantı' }
 ];
 
-const INTERNAL_ROUTES = ['home', 'map', 'qr', 'profile', 'catalog', 'cafes', 'earn'];
+const INTERNAL_ROUTES = ['home', 'map', 'qr', 'profile', 'catalog', 'cafes', 'places', 'earn'];
 
 const emptyForm = () => ({
   id: '',
@@ -93,16 +94,19 @@ export const HomeContentPanel: React.FC<{
   const [editing, setEditing] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [activities, setActivities] = useState<any[]>([]);
+  const [places, setPlaces] = useState<any[]>([]);
 
   const load = async () => {
     setLoading(true);
     try {
-      const [content, events] = await Promise.all([
+      const [content, events, facility] = await Promise.all([
         api.getCityContent({ type: typeFilter || undefined, status: statusFilter || undefined, search: search || undefined }),
-        api.getAdminActivities().catch(() => api.getActivities().catch(() => []))
+        api.getAdminActivities().catch(() => api.getActivities().catch(() => [])),
+        api.getAdminPlaces().catch(() => ({ items: [] }))
       ]);
       setItems(content?.items || (Array.isArray(content) ? content : []));
       setActivities(events?.items || (Array.isArray(events) ? events : []));
+      setPlaces(facility?.items || (Array.isArray(facility) ? facility : []));
     } catch (err: any) {
       onError(err.message || 'İçerikler yüklenemedi.');
     } finally {
@@ -327,6 +331,13 @@ export const HomeContentPanel: React.FC<{
                   <select value={form.activityId || form.ctaTarget} onChange={(e) => setForm({ ...form, activityId: e.target.value, ctaType: 'Activity', ctaTarget: e.target.value })} style={inputStyle}>
                     <option value="">Seçin</option>
                     {activities.map((a) => <option key={a.id} value={a.id}>{a.title}</option>)}
+                  </select>
+                </label>
+              ) : form.ctaType === 'Place' ? (
+                <label style={labelStyle}>Tesis
+                  <select value={form.ctaTarget} onChange={(e) => setForm({ ...form, ctaType: 'Place', ctaTarget: e.target.value })} style={inputStyle}>
+                    <option value="">Seçin</option>
+                    {places.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                   </select>
                 </label>
               ) : form.ctaType !== 'None' && form.ctaType !== 'Map' && form.ctaType !== 'Profile' && form.ctaType !== 'RewardCatalog' ? (

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { useAuth } from '../store/AuthContext';
 import { HomeContentPanel } from './HomeContentPanel';
+import { PlacesPanel } from './PlacesPanel';
 import { 
   LayoutDashboard, Users, Building2, Coffee, ShoppingBag, 
   History, Award, Sparkles, CheckSquare, Calendar, Bell, 
@@ -9,7 +10,7 @@ import {
   LogOut, Plus, Search, Filter, AlertTriangle, ChevronRight,
   Upload, Image as ImageIcon, ShieldCheck, CheckCircle2, XCircle, 
   Download, MoreVertical, X, ChevronLeft, ChevronDown, Check, ArrowRight, RefreshCw,
-  Clock, TrendingUp, HelpCircle, MapPin, Receipt, Gift, CreditCard, Megaphone, BarChart3, FileCheck, Trash2, Eye, Phone, Edit3, Save, Send, Shield, DollarSign, Layers, Heart, Tag
+  Clock, TrendingUp, HelpCircle, MapPin, Receipt, Gift, CreditCard, Megaphone, BarChart3, FileCheck, Trash2, Eye, Phone, Edit3, Save, Send, Shield, DollarSign, Layers, Heart, Tag, Landmark
 } from 'lucide-react';
 
 // Safe array extraction helper
@@ -73,7 +74,7 @@ export const Admin: React.FC = () => {
   // 14 Core Specification Sidebar Modules
   const [activeMenu, setActiveMenu] = useState<
     'overview' | 'users' | 'cafes' | 'products' | 'points' | 
-    'qr' | 'rewards' | 'fieldDrops' | 'ismarliyor' | 'homeContent' | 'campaigns' | 'events' | 
+    'qr' | 'rewards' | 'fieldDrops' | 'ismarliyor' | 'homeContent' | 'places' | 'campaigns' | 'events' | 
     'notifications' | 'reports' | 'roles' | 'audit'
   >('overview');
 
@@ -174,6 +175,8 @@ export const Admin: React.FC = () => {
   const [newEventTitle, setNewEventTitle] = useState('');
   const [newEventDesc, setNewEventDesc] = useState('');
   const [newEventLocation, setNewEventLocation] = useState('Şehitkamil Gençlik Merkezi');
+  const [newEventPlaceId, setNewEventPlaceId] = useState('');
+  const [eventPlacesList, setEventPlacesList] = useState<any[]>([]);
   const [newEventPoints, setNewEventPoints] = useState<number>(100);
   const [newEventQuota, setNewEventQuota] = useState<number>(50);
 
@@ -318,8 +321,10 @@ export const Admin: React.FC = () => {
       } else if (activeMenu === 'events') {
         const a = await api.getAdminActivities().catch(() => api.getActivities());
         setEventsList(extractArray(a));
-      } else if (activeMenu === 'homeContent') {
-        // HomeContentPanel loads its own data.
+        const places = await api.getAdminPlaces().catch(() => ({ items: [] }));
+        setEventPlacesList(places?.items || extractArray(places));
+      } else if (activeMenu === 'homeContent' || activeMenu === 'places') {
+        // Panels load their own data.
       } else if (activeMenu === 'notifications') {
         const n = await api.getNotifications();
         setNotificationsList(extractArray(n));
@@ -596,6 +601,7 @@ export const Admin: React.FC = () => {
         title: newEventTitle,
         description: newEventDesc,
         location: newEventLocation || 'Şehitkamil Gençlik Merkezi',
+        placeId: newEventPlaceId || undefined,
         pointsReward: Number(newEventPoints),
         capacity: Number(newEventQuota) || undefined,
         imageUrl: uploadedImageUrl || undefined,
@@ -612,6 +618,7 @@ export const Admin: React.FC = () => {
       setNewEventTitle('');
       setNewEventDesc('');
       setNewEventLocation('');
+      setNewEventPlaceId('');
       setNewEventPoints(100);
       fetchData();
     } catch (err: any) {
@@ -897,6 +904,7 @@ export const Admin: React.FC = () => {
       overview: 'Genel bakış',
       users: 'Vatandaşlar',
       cafes: 'Göl Kafeler',
+      places: 'Tesisler',
       products: 'Menü ve ürünler',
       points: 'GölPuan defteri',
       qr: 'QR işlemleri',
@@ -972,6 +980,7 @@ export const Admin: React.FC = () => {
               items: [
                 { id: 'overview', label: 'Genel bakış', icon: LayoutDashboard },
                 { id: 'users', label: 'Vatandaşlar', icon: Users },
+                { id: 'places', label: 'Tesisler', icon: Landmark },
                 { id: 'cafes', label: 'Göl Kafeler', icon: Building2 },
                 { id: 'products', label: 'Menü ve ürünler', icon: Coffee }
               ]
@@ -1702,6 +1711,10 @@ export const Admin: React.FC = () => {
             </div>
           )}
 
+          {activeMenu === 'places' && isAdminUser && (
+            <PlacesPanel onError={setError} onSuccess={setSuccess} />
+          )}
+
           {activeMenu === 'homeContent' && isAdminUser && (
             <HomeContentPanel onError={setError} onSuccess={setSuccess} />
           )}
@@ -1803,7 +1816,7 @@ export const Admin: React.FC = () => {
                       <span style={{ background: '#fef3c7', color: '#b45309', padding: '3px 10px', borderRadius: '100px', fontSize: '0.75rem', fontWeight: 800 }}>+{e.pointsReward} GP</span>
                     </div>
                     <p style={{ margin: 0, fontSize: '0.825rem', color: '#64748b' }}>{e.description}</p>
-                    <div style={{ fontSize: '0.75rem', color: '#0369a1', fontWeight: 600 }}>Konum: {e.location || '—'}</div>
+                    <div style={{ fontSize: '0.75rem', color: '#0369a1', fontWeight: 600 }}>Konum: {e.placeName || e.location || '—'}</div>
                   </div>
                 ))}
               </div>
@@ -2573,6 +2586,15 @@ export const Admin: React.FC = () => {
               <textarea rows={2} placeholder="Etkinlik detayları ve şartları..." value={newEventDesc} onChange={(e) => setNewEventDesc(e.target.value)} required style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', color: '#0f172a', outline: 'none', resize: 'vertical' }} />
             </div>
 
+            <div>
+              <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Belediye tesisi (opsiyonel)</label>
+              <select value={newEventPlaceId} onChange={(e) => setNewEventPlaceId(e.target.value)} style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', color: '#0f172a', outline: 'none' }}>
+                <option value="">Serbest konum / tesis yok</option>
+                {eventPlacesList.map((place) => (
+                  <option key={place.id} value={place.id}>{place.name}</option>
+                ))}
+              </select>
+            </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
               <div>
                 <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Etkinlik Konumu</label>

@@ -43,5 +43,12 @@ public class CafeConfiguration : IEntityTypeConfiguration<Cafe>
             .WithMany(cc => cc.Cafes)
             .HasForeignKey(c => c.CategoryId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(c => c.Place)
+            .WithMany(p => p.Cafes)
+            .HasForeignKey(c => c.PlaceId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasIndex(c => c.PlaceId);
     }
 }

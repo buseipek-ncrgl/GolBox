@@ -178,6 +178,7 @@ export function ActivityDetailSheet({
   onClose,
   onJoin,
   onLogin,
+  onOpenPlace,
 }: {
   activity: PublicActivity | null
   isLoggedIn: boolean
@@ -185,6 +186,7 @@ export function ActivityDetailSheet({
   onClose: () => void
   onJoin: () => void
   onLogin: () => void
+  onOpenPlace?: (id: string) => void
 }) {
   if (!activity) {
     return (
@@ -207,7 +209,23 @@ export function ActivityDetailSheet({
       </div>
       <h3 className="mt-4 font-serif text-2xl leading-snug text-foreground">{activity.title}</h3>
       <p className="mt-1 text-sm text-muted-foreground">{when}</p>
-      {activity.location ? <p className="mt-1 text-sm text-muted-foreground">{activity.location}</p> : null}
+      {activity.location && !activity.placeName ? <p className="mt-1 text-sm text-muted-foreground">{activity.location}</p> : null}
+      {activity.placeName ? (
+        <div className="gol-card mt-4 p-3">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Mekan</p>
+          <p className="mt-1 text-sm font-semibold text-foreground">{activity.placeName}</p>
+          {activity.placeAddress ? <p className="mt-0.5 text-[13px] text-muted-foreground">{activity.placeAddress}</p> : null}
+          {activity.placeLatitude != null && activity.placeLongitude != null && activity.placeId && onOpenPlace ? (
+            <button
+              type="button"
+              onClick={() => onOpenPlace(activity.placeId!)}
+              className="mt-2 min-h-11 text-sm font-semibold text-primary"
+            >
+              Haritada Gör
+            </button>
+          ) : null}
+        </div>
+      ) : null}
       <p className="mt-3 text-[15px] leading-relaxed text-foreground">{activity.description}</p>
       <div className="mt-4 flex flex-wrap gap-2 text-[12px] font-semibold text-muted-foreground">
         {remaining != null ? <span>Kalan kontenjan: {remaining}</span> : null}

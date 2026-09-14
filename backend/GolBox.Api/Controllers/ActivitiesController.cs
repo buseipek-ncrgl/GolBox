@@ -75,7 +75,12 @@ public class ActivitiesController : BaseApiController
                 a.Capacity,
                 a.UserActivities.Count,
                 a.PointsReward,
-                userId.HasValue && joined.Contains(a.Id)
+                userId.HasValue && joined.Contains(a.Id),
+                a.PlaceId,
+                a.Place != null ? a.Place.Name : null,
+                a.Place != null ? a.Place.Address : null,
+                a.Place != null ? a.Place.Latitude : null,
+                a.Place != null ? a.Place.Longitude : null
             ))
             .ToListAsync(cancellationToken);
 
@@ -100,7 +105,12 @@ public class ActivitiesController : BaseApiController
                 a.EndDate,
                 a.Capacity,
                 JoinedCount = a.UserActivities.Count,
-                a.PointsReward
+                a.PointsReward,
+                a.PlaceId,
+                PlaceName = a.Place != null ? a.Place.Name : null,
+                PlaceAddress = a.Place != null ? a.Place.Address : null,
+                PlaceLatitude = a.Place != null ? a.Place.Latitude : null,
+                PlaceLongitude = a.Place != null ? a.Place.Longitude : null
             })
             .FirstOrDefaultAsync(cancellationToken);
 
@@ -125,7 +135,12 @@ public class ActivitiesController : BaseApiController
             activity.Capacity,
             activity.JoinedCount,
             activity.PointsReward,
-            isJoined
+            isJoined,
+            activity.PlaceId,
+            activity.PlaceName,
+            activity.PlaceAddress,
+            activity.PlaceLatitude,
+            activity.PlaceLongitude
         )));
     }
 
@@ -157,7 +172,9 @@ public class ActivitiesController : BaseApiController
                 a.Capacity,
                 joinedCount = a.UserActivities.Count,
                 a.PointsReward,
-                a.Status
+                a.Status,
+                a.PlaceId,
+                placeName = a.Place != null ? a.Place.Name : null
             })
             .ToListAsync(cancellationToken);
 
@@ -175,6 +192,14 @@ public class ActivitiesController : BaseApiController
     [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
     public async Task<IActionResult> CreateActivity([FromBody] CreateActivityRequest request)
     {
+        if (request.PlaceId is Guid placeId)
+        {
+            var org = request.OrganizationId == Guid.Empty ? KnownOrganizations.Sehitkamil : request.OrganizationId;
+            var placeOk = await _context.Places.AnyAsync(p => p.Id == placeId && p.OrganizationId == org);
+            if (!placeOk)
+                return BadRequest(Result<object>.Fail("Seçilen tesis bulunamadı."));
+        }
+
         var activity = new Activity
         {
             Id = Guid.NewGuid(),
@@ -187,7 +212,8 @@ public class ActivitiesController : BaseApiController
             Capacity = request.Capacity is > 0 ? request.Capacity : null,
             StartDate = request.StartDate,
             EndDate = request.EndDate,
-            Status = "Active"
+            Status = "Active",
+            PlaceId = request.PlaceId
         };
 
         _context.Activities.Add(activity);
@@ -233,7 +259,12 @@ public record PublicActivityDto(
     int? Capacity,
     int JoinedCount,
     int RewardPoints,
-    bool IsJoined
+    bool IsJoined,
+    Guid? PlaceId = null,
+    string? PlaceName = null,
+    string? PlaceAddress = null,
+    decimal? PlaceLatitude = null,
+    decimal? PlaceLongitude = null
 );
 
 public class CreateActivityRequest
@@ -247,4 +278,5 @@ public class CreateActivityRequest
     public int? Capacity { get; set; }
     public DateTime StartDate { get; set; }
     public DateTime EndDate { get; set; }
+    public Guid? PlaceId { get; set; }
 }
