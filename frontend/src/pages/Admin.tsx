@@ -2504,7 +2504,7 @@ export const Admin: React.FC = () => {
               <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Kampanya Başlığı</label>
               <input
                 type="text"
-                placeholder="Örn: Şehitkamil Öğrencilerine %20 Kitap Kafe İndirimi"
+                placeholder="Örn: Kitap Kafelerde bahar etkinliği"
                 value={newCampTitle}
                 onChange={(e) => setNewCampTitle(e.target.value)}
                 required
