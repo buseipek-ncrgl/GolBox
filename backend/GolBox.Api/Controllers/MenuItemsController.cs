@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using GolBox.Application.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -48,6 +49,7 @@ public class MenuItemsController : BaseApiController
     }
 
     [HttpPost]
+    [Authorize(Policy = AuthorizationPolicies.StaffOrAdmin)]
     public async Task<IActionResult> CreateMenuItem(Guid cafeId, [FromBody] CreateMenuItemRequest request)
     {
         var cafeExists = await _context.Cafes.AnyAsync(c => c.Id == cafeId);
@@ -70,11 +72,13 @@ public class MenuItemsController : BaseApiController
 
         _context.MenuItems.Add(menuItem);
         await _context.SaveChangesAsync();
+        await AuditLogsController.LogAsync(_context, "staff", "Staff", "Menu_Create", "MenuItems", "MenuItem", menuItem.Id.ToString(), null, menuItem.Name, cafeId.ToString());
 
         return Ok(Result<object>.Ok(new { id = menuItem.Id }, "Ürün başarıyla eklendi."));
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Policy = AuthorizationPolicies.StaffOrAdmin)]
     public async Task<IActionResult> DeleteMenuItem(Guid cafeId, Guid id)
     {
         var menuItem = await _context.MenuItems

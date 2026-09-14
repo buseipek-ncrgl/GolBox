@@ -2,10 +2,11 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using MediatR;
+using GolBox.Application.Authorization;
+using GolBox.Application.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using GolBox.Application.Common;
 using GolBox.Application.Features.Users.Commands;
 using GolBox.Application.Features.Users.Queries;
 using GolBox.Application.Interfaces;
@@ -28,6 +29,7 @@ public class UsersController : BaseApiController
     }
 
     [HttpGet]
+    [Authorize(Policy = AuthorizationPolicies.StaffOrAdmin)]
     public async Task<IActionResult> GetAllUsers()
     {
         var users = await _context.Users
@@ -53,6 +55,8 @@ public class UsersController : BaseApiController
     [HttpGet("{id}/detail")]
     public async Task<IActionResult> GetUserDetail(Guid id)
     {
+        if (!_currentUserService.CanAccessUser(id))
+            return Forbid();
         var user = await _context.Users.FindAsync(id);
         if (user == null) return NotFound(Result<object>.Fail("Vatandaş bulunamadı."));
 
@@ -120,6 +124,7 @@ public class UsersController : BaseApiController
     }
 
     [HttpPost("{id}/adjust-points")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
     public async Task<IActionResult> AdjustPoints(Guid id, [FromBody] AdjustPointsRequest request)
     {
         var user = await _context.Users.FindAsync(id);
@@ -163,7 +168,7 @@ public class UsersController : BaseApiController
         await AuditLogsController.LogAsync(
             _context,
             adminUser?.Email ?? "admin@golbox.gov.tr",
-            "SuperAdmin",
+            adminUser?.Role ?? "Admin",
             $"Point_{actionType}",
             "Users",
             "User",

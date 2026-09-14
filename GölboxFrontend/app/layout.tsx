@@ -17,10 +17,9 @@ const fraunces = Fraunces({
 })
 
 export const metadata: Metadata = {
-  title: 'GölBox — Dijital Sadakat Deneyimi',
-  description:
-    'GölBox, kullanıcının zamanına saygı duyan premium dijital sadakat platformu. Göl Puan kazan, kafeleri keşfet, tek QR ile her şeyi hallet.',
-  generator: 'v0.app',
+  title: "Şehitkamil+",
+  description: "Şehitkamil Belediyesi’nin modern vatandaş uygulaması.",
+  generator: "v0.app",
 }
 
 export const viewport: Viewport = {

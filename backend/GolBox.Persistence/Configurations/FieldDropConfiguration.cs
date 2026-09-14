@@ -28,6 +28,10 @@ public class FieldDropConfiguration : IEntityTypeConfiguration<FieldDrop>
         builder.Property(x => x.ImageUrl).HasMaxLength(1000);
         builder.Property(x => x.ModelGlbUrl).HasMaxLength(1000);
 
+        builder.Property(x => x.RowVersion)
+            .IsConcurrencyToken()
+            .HasDefaultValue(0);
+
         builder.HasIndex(x => x.IsDeleted).HasFilter("IsDeleted = 0");
         builder.HasIndex(x => new { x.OrganizationId, x.IsActive });
 

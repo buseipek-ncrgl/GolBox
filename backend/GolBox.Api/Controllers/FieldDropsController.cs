@@ -1,10 +1,12 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using GolBox.Application.Authorization;
+using GolBox.Application.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
-using GolBox.Application.Common;
 using GolBox.Application.Interfaces;
 using GolBox.Domain.Entities;
 
@@ -24,6 +26,7 @@ public class FieldDropsController : BaseApiController
     }
 
     [HttpGet]
+    [Authorize(Policy = AuthorizationPolicies.StaffOrAdmin)]
     public async Task<IActionResult> GetFieldDrops()
     {
         var drops = await _context.FieldDrops
@@ -105,6 +108,7 @@ public class FieldDropsController : BaseApiController
     }
 
     [HttpGet("{id}")]
+    [Authorize(Policy = AuthorizationPolicies.StaffOrAdmin)]
     public async Task<IActionResult> GetFieldDrop(Guid id)
     {
         var drop = await _context.FieldDrops.Include(d => d.Cafe).FirstOrDefaultAsync(d => d.Id == id);
@@ -115,6 +119,7 @@ public class FieldDropsController : BaseApiController
     }
 
     [HttpGet("{id}/captures")]
+    [Authorize(Policy = AuthorizationPolicies.StaffOrAdmin)]
     public async Task<IActionResult> GetCaptures(Guid id)
     {
         var exists = await _context.FieldDrops.AnyAsync(d => d.Id == id);
@@ -143,6 +148,7 @@ public class FieldDropsController : BaseApiController
     }
 
     [HttpPost]
+    [Authorize(Policy = AuthorizationPolicies.StaffOrAdmin)]
     public async Task<IActionResult> Create([FromBody] UpsertFieldDropRequest request)
     {
         var error = Validate(request);
@@ -167,7 +173,7 @@ public class FieldDropsController : BaseApiController
         var drop = new FieldDrop
         {
             Id = Guid.NewGuid(),
-            OrganizationId = org?.Id ?? Guid.Parse("11111111-1111-1111-1111-111111111111"),
+            OrganizationId = org?.Id ?? KnownOrganizations.Sehitkamil,
             CafeId = EmptyToNull(request.CafeId),
             CatalogRewardId = EmptyToNull(request.CatalogRewardId),
             Title = request.Title.Trim(),
@@ -207,6 +213,7 @@ public class FieldDropsController : BaseApiController
     }
 
     [HttpPut("{id}")]
+    [Authorize(Policy = AuthorizationPolicies.StaffOrAdmin)]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpsertFieldDropRequest request)
     {
         var drop = await _context.FieldDrops.FindAsync(id);
@@ -239,6 +246,7 @@ public class FieldDropsController : BaseApiController
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Policy = AuthorizationPolicies.StaffOrAdmin)]
     public async Task<IActionResult> Delete(Guid id)
     {
         var drop = await _context.FieldDrops.FindAsync(id);
@@ -253,6 +261,7 @@ public class FieldDropsController : BaseApiController
     }
 
     [HttpPost("{id}/capture")]
+    [EnableRateLimiting("capture")]
     public async Task<IActionResult> Capture(Guid id, [FromBody] CaptureFieldDropRequest request)
     {
         var userId = _currentUser.UserId;
@@ -262,91 +271,114 @@ public class FieldDropsController : BaseApiController
         if (!IsValidCoordinate(request.Latitude, request.Longitude))
             return BadRequest(Result<object>.Fail("Geçerli bir konum gönderin."));
 
-        var user = await _context.Users.FindAsync(userId.Value);
-        if (user == null)
-            return NotFound(Result<object>.Fail("Kullanıcı bulunamadı."));
-
-        var drop = await _context.FieldDrops.FindAsync(id);
-        if (drop == null)
-            return NotFound(Result<object>.Fail("Saha hediyesi bulunamadı."));
-
-        var now = DateTime.UtcNow;
-        if (!drop.IsActive)
-            return BadRequest(Result<object>.Fail("Bu saha hediyesi yayında değil."));
-        if (now < drop.StartsAt || now > drop.EndsAt)
-            return BadRequest(Result<object>.Fail("Bu saha hediyesi şu an aktif değil."));
-        if (drop.TotalStock.HasValue && drop.CapturedCount >= drop.TotalStock.Value)
-            return BadRequest(Result<object>.Fail("Bu hediyenin stoğu tükendi."));
-
-        var lastCapture = await _context.UserFieldCaptures
-            .Where(c => c.UserId == user.Id)
-            .OrderByDescending(c => c.CreatedDate)
-            .FirstOrDefaultAsync();
-
-        var geoCheck = GeoAntiSpoofing.ValidateLocationCapture(
-            request.Latitude,
-            request.Longitude,
-            request.IsMockLocation,
-            lastCapture?.CapturedLatitude,
-            lastCapture?.CapturedLongitude,
-            lastCapture?.CreatedDate,
-            now);
-
-        if (!geoCheck.IsValid)
-            return BadRequest(Result<object>.Fail(geoCheck.ErrorMessage ?? "Konum doğrulaması başarısız."));
-
-        var already = await _context.UserFieldCaptures.CountAsync(c => c.FieldDropId == drop.Id && c.UserId == user.Id);
-        if (already >= drop.PerUserLimit)
-            return BadRequest(Result<object>.Fail("Bu hediyeyi daha önce topladınız."));
-
-        var distance = GeoDistance.Meters(request.Latitude, request.Longitude, drop.Latitude, drop.Longitude);
-        if (distance > drop.RadiusMeters)
-            return BadRequest(Result<object>.Fail($"Hediyeye henüz yeterince yakın değilsiniz. Kalan mesafe yaklaşık {Math.Ceiling(distance - drop.RadiusMeters)} metre."));
-
-        drop.CapturedCount += 1;
-        user.PointsBalance += drop.PointsGranted;
-
-        var capture = new UserFieldCapture
+        const int maxAttempts = 2;
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
         {
-            Id = Guid.NewGuid(),
-            OrganizationId = drop.OrganizationId,
-            FieldDropId = drop.Id,
-            UserId = user.Id,
-            CapturedLatitude = request.Latitude,
-            CapturedLongitude = request.Longitude,
-            AccuracyMeters = request.AccuracyMeters,
-            PointsGranted = drop.PointsGranted,
-            DistanceMeters = Math.Round(distance, 1),
-            CreatedDate = now
-        };
-        _context.UserFieldCaptures.Add(capture);
-
-        if (drop.PointsGranted != 0)
-        {
-            _context.PointTransactions.Add(new PointTransaction
+            await using var tx = await _context.Database.BeginTransactionAsync();
+            try
             {
-                Id = Guid.NewGuid(),
-                OrganizationId = drop.OrganizationId,
-                UserId = user.Id,
-                Amount = drop.PointsGranted,
-                Type = "Earn",
-                Description = $"Saha hediyesi: {drop.Title}",
-                ReferenceType = "FieldDrop",
-                ReferenceId = drop.Id,
-                CreatedDate = now
-            });
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId.Value);
+                if (user == null)
+                    return NotFound(Result<object>.Fail("Kullanıcı bulunamadı."));
+
+                var drop = await _context.FieldDrops.FirstOrDefaultAsync(d => d.Id == id);
+                if (drop == null)
+                    return NotFound(Result<object>.Fail("Saha hediyesi bulunamadı."));
+
+                var now = DateTime.UtcNow;
+                if (!drop.IsActive)
+                    return BadRequest(Result<object>.Fail("Bu saha hediyesi yayında değil."));
+                if (now < drop.StartsAt || now > drop.EndsAt)
+                    return BadRequest(Result<object>.Fail("Bu saha hediyesi şu an aktif değil."));
+                if (drop.TotalStock.HasValue && drop.CapturedCount >= drop.TotalStock.Value)
+                    return BadRequest(Result<object>.Fail("Bu hediyenin stoğu tükendi."));
+
+                var lastCapture = await _context.UserFieldCaptures
+                    .Where(c => c.UserId == user.Id)
+                    .OrderByDescending(c => c.CreatedDate)
+                    .FirstOrDefaultAsync();
+
+                var geoCheck = GeoAntiSpoofing.ValidateLocationCapture(
+                    request.Latitude,
+                    request.Longitude,
+                    request.IsMockLocation,
+                    lastCapture?.CapturedLatitude,
+                    lastCapture?.CapturedLongitude,
+                    lastCapture?.CreatedDate,
+                    now);
+
+                if (!geoCheck.IsValid)
+                    return BadRequest(Result<object>.Fail(geoCheck.ErrorMessage ?? "Konum doğrulaması başarısız."));
+
+                var already = await _context.UserFieldCaptures.CountAsync(c => c.FieldDropId == drop.Id && c.UserId == user.Id);
+                if (already >= drop.PerUserLimit)
+                    return BadRequest(Result<object>.Fail("Bu hediyeyi daha önce topladınız."));
+
+                var distance = GeoDistance.Meters(request.Latitude, request.Longitude, drop.Latitude, drop.Longitude);
+                if (distance > drop.RadiusMeters)
+                    return BadRequest(Result<object>.Fail($"Hediyeye henüz yeterince yakın değilsiniz. Kalan mesafe yaklaşık {Math.Ceiling(distance - drop.RadiusMeters)} metre."));
+
+                drop.CapturedCount += 1;
+                drop.RowVersion += 1;
+                user.PointsBalance += drop.PointsGranted;
+
+                var capture = new UserFieldCapture
+                {
+                    Id = Guid.NewGuid(),
+                    OrganizationId = drop.OrganizationId,
+                    FieldDropId = drop.Id,
+                    UserId = user.Id,
+                    CapturedLatitude = request.Latitude,
+                    CapturedLongitude = request.Longitude,
+                    AccuracyMeters = request.AccuracyMeters,
+                    PointsGranted = drop.PointsGranted,
+                    DistanceMeters = Math.Round(distance, 1),
+                    CreatedDate = now
+                };
+                _context.UserFieldCaptures.Add(capture);
+
+                if (drop.PointsGranted != 0)
+                {
+                    _context.PointTransactions.Add(new PointTransaction
+                    {
+                        Id = Guid.NewGuid(),
+                        OrganizationId = drop.OrganizationId,
+                        UserId = user.Id,
+                        Amount = drop.PointsGranted,
+                        Type = "Earn",
+                        Description = $"Saha hediyesi: {drop.Title}",
+                        ReferenceType = "FieldDrop",
+                        ReferenceId = drop.Id,
+                        CreatedDate = now
+                    });
+                }
+
+                await _context.SaveChangesAsync();
+                await tx.CommitAsync();
+
+                return Ok(Result<object>.Ok(new
+                {
+                    id = capture.Id,
+                    dropId = drop.Id,
+                    pointsGranted = drop.PointsGranted,
+                    newPointsBalance = user.PointsBalance,
+                    distanceMeters = capture.DistanceMeters
+                }, "Saha hediyesi alındı."));
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                await tx.RollbackAsync();
+                if (_context is Microsoft.EntityFrameworkCore.DbContext db)
+                {
+                    foreach (var entry in db.ChangeTracker.Entries().ToList())
+                        entry.State = EntityState.Detached;
+                }
+                if (attempt == maxAttempts)
+                    return Conflict(Result<object>.Fail("Stok aynı anda tükendi veya işlem çakıştı. Lütfen tekrar deneyin."));
+            }
         }
 
-        await _context.SaveChangesAsync();
-
-        return Ok(Result<object>.Ok(new
-        {
-            id = capture.Id,
-            dropId = drop.Id,
-            pointsGranted = drop.PointsGranted,
-            newPointsBalance = user.PointsBalance,
-            distanceMeters = capture.DistanceMeters
-        }, "Saha hediyesi alındı."));
+        return Conflict(Result<object>.Fail("Stok aynı anda tükendi veya işlem çakıştı. Lütfen tekrar deneyin."));
     }
 
     private static object ToAdminDto(FieldDrop d) => new
@@ -422,5 +454,10 @@ public class CaptureFieldDropRequest
     public decimal Latitude { get; set; }
     public decimal Longitude { get; set; }
     public double? AccuracyMeters { get; set; }
-    public bool IsMockLocation { get; set; } = false;
+
+    /// <summary>
+    /// Native clients may send true when mock GPS is detected.
+    /// Web browsers cannot reliably provide this flag; omit it. Do not fabricate a client-side value.
+    /// </summary>
+    public bool? IsMockLocation { get; set; }
 }

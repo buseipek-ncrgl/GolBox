@@ -11,6 +11,8 @@ public class Activity : BaseEntity
     public string Description { get; set; } = string.Empty;
     public int PointsReward { get; set; }
     public string Location { get; set; } = string.Empty;
+    public string? ImageUrl { get; set; }
+    public int? Capacity { get; set; }
     public DateTime StartDate { get; set; }
     public DateTime EndDate { get; set; }
     public string Status { get; set; } = "Active"; // Active, Cancelled, Completed

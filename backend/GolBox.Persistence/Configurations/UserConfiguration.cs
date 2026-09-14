@@ -37,7 +37,8 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
 
         builder.Property(u => u.PointsBalance)
             .IsRequired()
-            .HasDefaultValue(0);
+            .HasDefaultValue(0)
+            .IsConcurrencyToken();
 
         builder.Property(u => u.Role)
             .IsRequired()

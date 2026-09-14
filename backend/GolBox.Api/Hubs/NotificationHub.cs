@@ -1,41 +1,30 @@
-using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
+using GolBox.Application.Common;
 
 namespace GolBox.Api.Hubs;
 
-[AllowAnonymous]
+[Authorize]
 public class NotificationHub : Hub
 {
-    public async Task JoinUserGroup(string userId)
-    {
-        if (!string.IsNullOrWhiteSpace(userId))
-        {
-            await Groups.AddToGroupAsync(Context.ConnectionId, $"User_{userId}");
-        }
-    }
-
-    public async Task LeaveUserGroup(string userId)
-    {
-        if (!string.IsNullOrWhiteSpace(userId))
-        {
-            await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"User_{userId}");
-        }
-    }
-
-    public async Task JoinAdminGroup()
-    {
-        await Groups.AddToGroupAsync(Context.ConnectionId, "Admins");
-    }
+    public const string AdminGroup = "Admins";
 
     public override async Task OnConnectedAsync()
     {
+        var role = Context.User?.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+        if (RoleMatrix.IsStaffOrAdmin(role))
+            await Groups.AddToGroupAsync(Context.ConnectionId, AdminGroup);
+
         await base.OnConnectedAsync();
     }
 
-    public override async Task OnDisconnectedAsync(Exception? exception)
+    public Task JoinAdminGroup()
     {
-        await base.OnDisconnectedAsync(exception);
+        var role = Context.User?.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+        if (!RoleMatrix.IsStaffOrAdmin(role))
+            return Task.CompletedTask;
+
+        return Groups.AddToGroupAsync(Context.ConnectionId, AdminGroup);
     }
 }

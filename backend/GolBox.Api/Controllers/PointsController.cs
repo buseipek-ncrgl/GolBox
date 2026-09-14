@@ -2,10 +2,11 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using MediatR;
+using GolBox.Application.Authorization;
+using GolBox.Application.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using GolBox.Application.Common;
 using GolBox.Application.Features.Points.Commands;
 using GolBox.Application.Features.Points.Queries;
 using GolBox.Application.Interfaces;
@@ -32,6 +33,7 @@ public class PointsController : BaseApiController
     }
 
     [HttpGet("ledger")]
+    [Authorize(Policy = AuthorizationPolicies.StaffOrAdmin)]
     public async Task<IActionResult> GetLedger([FromQuery] int page = 1, [FromQuery] int pageSize = 50)
     {
         var query = _context.PointTransactions
@@ -65,9 +67,28 @@ public class PointsController : BaseApiController
     }
 
     [HttpPost("grant")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
     public async Task<IActionResult> GrantPoints([FromBody] GrantPointsCommand command)
     {
         var result = await _mediator.Send(command);
+        if (result.Success)
+        {
+            var actor = HttpContext.User?.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value
+                        ?? HttpContext.User?.Identity?.Name
+                        ?? "admin";
+            var role = HttpContext.User?.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "Admin";
+            await AuditLogsController.LogAsync(
+                _context,
+                actor,
+                role,
+                "Points_Grant",
+                "Points",
+                "User",
+                command.UserId.ToString(),
+                null,
+                command.Amount.ToString(),
+                command.Description);
+        }
         return HandleResult(result);
     }
 }

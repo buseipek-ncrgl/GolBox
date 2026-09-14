@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { useAuth } from '../store/AuthContext';
+import { HomeContentPanel } from './HomeContentPanel';
 import { 
   LayoutDashboard, Users, Building2, Coffee, ShoppingBag, 
   History, Award, Sparkles, CheckSquare, Calendar, Bell, 
@@ -62,6 +63,8 @@ export const Admin: React.FC = () => {
   const adminRole = currentUser?.role
     || (Array.isArray(currentUser?.roles) ? currentUser.roles[0] : null)
     || 'Admin';
+  const isAdminUser = adminRole === 'Admin';
+  const staffMenuIds = new Set(['overview', 'users', 'cafes', 'products', 'points', 'qr', 'fieldDrops', 'ismarliyor', 'events']);
   const adminInitials = `${currentUser?.firstName?.[0] || ''}${currentUser?.lastName?.[0] || ''}`.trim() || 'GB';
   
   // Sidebar Collapse State
@@ -70,9 +73,15 @@ export const Admin: React.FC = () => {
   // 14 Core Specification Sidebar Modules
   const [activeMenu, setActiveMenu] = useState<
     'overview' | 'users' | 'cafes' | 'products' | 'points' | 
-    'qr' | 'rewards' | 'fieldDrops' | 'ismarliyor' | 'campaigns' | 'events' | 
+    'qr' | 'rewards' | 'fieldDrops' | 'ismarliyor' | 'homeContent' | 'campaigns' | 'events' | 
     'notifications' | 'reports' | 'roles' | 'audit'
   >('overview');
+
+  useEffect(() => {
+    if (!isAdminUser && !staffMenuIds.has(activeMenu)) {
+      setActiveMenu('overview');
+    }
+  }, [isAdminUser, activeMenu]);
 
   // Data states
   const [loading, setLoading] = useState(true);
@@ -120,6 +129,10 @@ export const Admin: React.FC = () => {
   const [pushTitle, setPushTitle] = useState('');
   const [pushMessage, setPushMessage] = useState('');
   const [pushTargetGroup, setPushTargetGroup] = useState('All');
+  const [pushMinAge, setPushMinAge] = useState('');
+  const [pushMaxAge, setPushMaxAge] = useState('');
+  const [pushEducation, setPushEducation] = useState('');
+  const [pushUserId, setPushUserId] = useState('');
 
   // Image Upload State
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string>('');
@@ -128,8 +141,7 @@ export const Admin: React.FC = () => {
   // Filter & Search State
   const [searchQuery, setSearchQuery] = useState('');
 
-  // POS QR Scan Modal State
-  const [showQrModal, setShowQrModal] = useState(false);
+  // POS QR Scan State
   const [qrTokenInput, setQrTokenInput] = useState('');
   const [qrSelectedCafeId, setQrSelectedCafeId] = useState('');
   const [qrAmount, setQrAmount] = useState<number>(45);
@@ -137,6 +149,7 @@ export const Admin: React.FC = () => {
   const [qrScanResult, setQrScanResult] = useState<any>(null);
   const [qrScanLoading, setQrScanLoading] = useState(false);
   const [qrScanError, setQrScanError] = useState<string | null>(null);
+  const [qrRedeemCode, setQrRedeemCode] = useState('');
 
   // Creation Modals
   const [showAddCafeModal, setShowAddCafeModal] = useState(false);
@@ -303,8 +316,10 @@ export const Admin: React.FC = () => {
         const c = await api.getCampaigns();
         setCampaignsList(extractArray(c));
       } else if (activeMenu === 'events') {
-        const a = await api.getActivities();
+        const a = await api.getAdminActivities().catch(() => api.getActivities());
         setEventsList(extractArray(a));
+      } else if (activeMenu === 'homeContent') {
+        // HomeContentPanel loads its own data.
       } else if (activeMenu === 'notifications') {
         const n = await api.getNotifications();
         setNotificationsList(extractArray(n));
@@ -582,6 +597,8 @@ export const Admin: React.FC = () => {
         description: newEventDesc,
         location: newEventLocation || 'Şehitkamil Gençlik Merkezi',
         pointsReward: Number(newEventPoints),
+        capacity: Number(newEventQuota) || undefined,
+        imageUrl: uploadedImageUrl || undefined,
         startDate: new Date().toISOString(),
         endDate: new Date(Date.now() + 7 * 86400000).toISOString()
       });
@@ -644,7 +661,11 @@ export const Admin: React.FC = () => {
         title: pushTitle,
         message: pushMessage,
         targetUserGroup: pushTargetGroup || 'All',
-        notificationType: 'General'
+        notificationType: 'General',
+        minAge: pushMinAge === '' ? undefined : Number(pushMinAge),
+        maxAge: pushMaxAge === '' ? undefined : Number(pushMaxAge),
+        educationLevel: pushEducation || undefined,
+        targetUserId: pushUserId || undefined
       });
       setSuccess('Bildirim kaydedildi.');
       setPushTitle('');
@@ -711,15 +732,26 @@ export const Admin: React.FC = () => {
     setQrScanResult(null);
 
     try {
-      const selectedCafe = qrSelectedCafeId || (cafesList[0]?.id ?? '33333333-3333-3333-3333-333333333333');
+      if (!qrTokenInput.trim()) {
+        setQrScanError('Vatandaş dinamik QR tokenını girin.');
+        setQrScanLoading(false);
+        return;
+      }
+      const selectedCafe = qrSelectedCafeId || cafesList[0]?.id;
+      if (!selectedCafe) {
+        setQrScanError('Önce bir tesis seçin.');
+        setQrScanLoading(false);
+        return;
+      }
       const res = await api.scanQr({
-        qrToken: qrTokenInput || '88888888-8888-8888-8888-888888888888',
+        qrToken: qrTokenInput.trim(),
         cafeId: selectedCafe,
         amount: Number(qrAmount) || 0,
-        paidWithPoints: qrPaidWithPoints
+        paidWithPoints: qrPaidWithPoints,
+        redeemCode: qrRedeemCode.trim() || null
       });
       setQrScanResult(res);
-      setSuccess(`QR okundu. +${res.pointsEarned} GP. Bakiye: ${res.newPointsBalance} GP`);
+      setSuccess(`QR okundu. ${res.memberName || ''} · ${res.operation || 'işlem'}`);
       fetchData();
     } catch (err: any) {
       setQrScanError(err.message || 'QR Kod doğrulanamadı.');
@@ -871,6 +903,7 @@ export const Admin: React.FC = () => {
       rewards: 'Ödüller',
       fieldDrops: 'Saha hediyeleri',
       ismarliyor: 'Ismarlıyor',
+      homeContent: 'Ana Sayfa İçerikleri',
       campaigns: 'Kampanyalar',
       events: 'Etkinlikler',
       notifications: 'Duyurular',
@@ -956,6 +989,7 @@ export const Admin: React.FC = () => {
             {
               section: 'İletişim',
               items: [
+                { id: 'homeContent', label: 'Ana Sayfa İçerikleri', icon: FileText },
                 { id: 'campaigns', label: 'Kampanyalar', icon: Megaphone },
                 { id: 'events', label: 'Etkinlikler', icon: Calendar },
                 { id: 'notifications', label: 'Duyurular', icon: Bell }
@@ -969,7 +1003,10 @@ export const Admin: React.FC = () => {
                 { id: 'audit', label: 'Denetim', icon: FileCheck }
               ]
             }
-          ].map((grp, idx) => (
+          ].map((grp, idx) => {
+            const items = grp.items.filter((item) => isAdminUser || staffMenuIds.has(item.id));
+            if (items.length === 0) return null;
+            return (
             <div key={idx} style={{ marginBottom: '1.1rem' }}>
               {!sidebarCollapsed && (
                 <div style={{ fontSize: '0.65rem', fontWeight: 700, color: 'rgba(255,255,255,0.55)', padding: '0 0.75rem 0.4rem', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
@@ -977,7 +1014,7 @@ export const Admin: React.FC = () => {
                 </div>
               )}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                {grp.items.map((item) => {
+                {items.map((item) => {
                   const Icon = item.icon;
                   const isActive = activeMenu === item.id;
                   return (
@@ -1010,7 +1047,8 @@ export const Admin: React.FC = () => {
                 })}
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
 
         <div style={{ padding: sidebarCollapsed ? '0.75rem 0.5rem' : '0.9rem 1rem', borderTop: '1px solid rgba(255,255,255,0.12)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -1664,6 +1702,10 @@ export const Admin: React.FC = () => {
             </div>
           )}
 
+          {activeMenu === 'homeContent' && isAdminUser && (
+            <HomeContentPanel onError={setError} onSuccess={setSuccess} />
+          )}
+
           {/* ------------------------------------------------------------- */}
           {/* 9. KAMPANYALAR & İNDİRİMLER (PRO CREATION & DATES & CRITERIA) */}
           {/* ------------------------------------------------------------- */}
@@ -1788,6 +1830,31 @@ export const Admin: React.FC = () => {
                   <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Bildirim Mesajı</label>
                   <textarea rows={3} placeholder="Duyuru detayını yazın..." value={pushMessage} onChange={(e) => setPushMessage(e.target.value)} required style={{ width: '100%', padding: '0.65rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px' }} />
                 </div>
+                <div>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Hedef kitle</label>
+                  <select value={pushTargetGroup} onChange={(e) => setPushTargetGroup(e.target.value)} style={{ width: '100%', padding: '0.65rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px' }}>
+                    <option value="All">Herkese</option>
+                    <option value="AgeRange">Yaş aralığı</option>
+                    <option value="EducationLevel">Eğitim seviyesi</option>
+                    <option value="SingleUser">Belirli kullanıcı</option>
+                  </select>
+                </div>
+                {pushTargetGroup === 'AgeRange' && (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
+                    <input type="number" placeholder="Min yaş" value={pushMinAge} onChange={(e) => setPushMinAge(e.target.value)} style={{ width: '100%', padding: '0.65rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px' }} />
+                    <input type="number" placeholder="Max yaş" value={pushMaxAge} onChange={(e) => setPushMaxAge(e.target.value)} style={{ width: '100%', padding: '0.65rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px' }} />
+                  </div>
+                )}
+                {pushTargetGroup === 'EducationLevel' && (
+                  <select value={pushEducation} onChange={(e) => setPushEducation(e.target.value)} style={{ width: '100%', padding: '0.65rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px' }}>
+                    <option value="">Seçin</option>
+                    <option value="Lise">Lise</option>
+                    <option value="Üniversite">Üniversite</option>
+                  </select>
+                )}
+                {pushTargetGroup === 'SingleUser' && (
+                  <input placeholder="Kullanıcı Id" value={pushUserId} onChange={(e) => setPushUserId(e.target.value)} style={{ width: '100%', padding: '0.65rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px' }} />
+                )}
                 <button type="submit" style={{ padding: '0.75rem', background: '#1d5f60', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
                   <Send size={16} /> Toplu Anlık Bildirim Gönder
                 </button>
@@ -1860,7 +1927,45 @@ export const Admin: React.FC = () => {
           {activeMenu === 'qr' && (
             <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
               <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>QR & Teslim Kayıtları</h1>
-              <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: 0 }}>Ismarlıyor teslim kodları ve sipariş durumları.</p>
+              <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: 0 }}>Kasa tarama: dinamik HMAC QR veya kupon RedeemCode.</p>
+
+              <form onSubmit={handleScanQrSubmit} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569' }}>Dinamik QR token
+                  <input required value={qrTokenInput} onChange={(e) => setQrTokenInput(e.target.value)} placeholder="GBQR:..." style={{ width: '100%', marginTop: 4, padding: '0.65rem', border: '1px solid #cbd5e1', borderRadius: 8 }} />
+                </label>
+                <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569' }}>Kupon RedeemCode (opsiyonel)
+                  <input value={qrRedeemCode} onChange={(e) => setQrRedeemCode(e.target.value)} placeholder="Kişiye özel kupon kodu" style={{ width: '100%', marginTop: 4, padding: '0.65rem', border: '1px solid #cbd5e1', borderRadius: 8 }} />
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
+                  <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569' }}>Tesis
+                    <select value={qrSelectedCafeId} onChange={(e) => setQrSelectedCafeId(e.target.value)} style={{ width: '100%', marginTop: 4, padding: '0.65rem', border: '1px solid #cbd5e1', borderRadius: 8 }}>
+                      <option value="">Seçin</option>
+                      {extractArray(cafesList).map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  </label>
+                  <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569' }}>Tutar (TL)
+                    <input type="number" min={0} value={qrAmount} onChange={(e) => setQrAmount(Number(e.target.value))} style={{ width: '100%', marginTop: 4, padding: '0.65rem', border: '1px solid #cbd5e1', borderRadius: 8 }} />
+                  </label>
+                </div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.8rem', fontWeight: 600 }}>
+                  <input type="checkbox" checked={qrPaidWithPoints} onChange={(e) => setQrPaidWithPoints(e.target.checked)} />
+                  GölPuan ile öde
+                </label>
+                {qrScanError && <p style={{ color: '#b91c1c', fontSize: '0.85rem', margin: 0 }}>{qrScanError}</p>}
+                <button type="submit" disabled={qrScanLoading} style={{ padding: '10px', background: '#1d5f60', border: 'none', borderRadius: 10, color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
+                  {qrScanLoading ? 'Okunuyor...' : 'Kasa işlemini uygula'}
+                </button>
+                {qrScanResult && (
+                  <div style={{ background: '#f8fafc', borderRadius: 12, padding: '0.85rem', fontSize: '0.85rem' }}>
+                    <div><strong>Üye:</strong> {qrScanResult.memberName || '—'}</div>
+                    <div><strong>İşlem:</strong> {qrScanResult.operation || '—'}</div>
+                    <div><strong>Puan:</strong> −{qrScanResult.pointsDeducted ?? 0} / +{qrScanResult.pointsEarned ?? 0} · bakiye {qrScanResult.newPointsBalance ?? '—'}</div>
+                    <div><strong>Kupon:</strong> {qrScanResult.couponTitle || qrScanResult.couponCode || '—'}</div>
+                    <div><strong>Sonuç:</strong> {qrScanResult.status || 'Completed'}</div>
+                  </div>
+                )}
+              </form>
+
               <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '16px', overflow: 'hidden' }}>
                 {getFilteredList(ordersList).length === 0 ? (
                   <p style={{ padding: '1.5rem', color: '#64748b' }}>Kayıtlı teslim işlemi yok.</p>
@@ -2477,6 +2582,10 @@ export const Admin: React.FC = () => {
                 <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#1d5f60', display: 'block', marginBottom: '4px' }}>GölPuan Ödülü (GP)</label>
                 <input type="number" min={10} value={newEventPoints} onChange={(e) => setNewEventPoints(Number(e.target.value))} required style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '2px solid #1d5f60', borderRadius: '8px', color: '#0f172a', outline: 'none', fontWeight: 700 }} />
               </div>
+            </div>
+            <div>
+              <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Kontenjan (opsiyonel)</label>
+              <input type="number" min={0} value={newEventQuota} onChange={(e) => setNewEventQuota(Number(e.target.value))} style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px' }} />
             </div>
 
             <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>

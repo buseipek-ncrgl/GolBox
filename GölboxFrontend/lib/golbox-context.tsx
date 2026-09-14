@@ -3,9 +3,8 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react"
 import { useGolToast } from "@/components/golbox/gol-toast"
 import * as signalR from "@microsoft/signalr"
-
-const API_BASE_URL = "http://localhost:5155/api/v1"
-const HUB_URL = "http://localhost:5155/hubs/orders"
+import { API_BASE_URL, HUB_URL, NOTIFICATION_HUB_URL } from "@/lib/api-config"
+import { fetchUnreadCount } from "@/lib/city-content-api"
 
 export interface UserProfile {
   id: string
@@ -120,6 +119,14 @@ export interface FieldDropCapture {
   imageUrl?: string | null
 }
 
+export interface PublicSettings {
+  visitBonusPoints: number
+  rewardExpireDays: number
+  pointsExchangeRate: number
+}
+
+export type CafesLoadState = "idle" | "ok" | "empty" | "error"
+
 export interface PointTransaction {
   id: string
   amount: number
@@ -142,6 +149,10 @@ interface GolboxContextType {
   fieldDrops: FieldDropNearby[]
   myCaptures: FieldDropCapture[]
   loading: boolean
+  sessionReady: boolean
+  sessionError: boolean
+  cafesLoadState: CafesLoadState
+  publicSettings: PublicSettings
   login: (email: string, password: string) => Promise<boolean>
   logout: () => void
   register: (data: any) => Promise<boolean>
@@ -157,6 +168,8 @@ interface GolboxContextType {
   loadNearbyFieldDrops: (latitude: number, longitude: number) => Promise<void>
   loadMyCaptures: () => Promise<void>
   captureFieldDrop: (id: string, latitude: number, longitude: number) => Promise<boolean>
+  unreadCount: number
+  refreshUnreadCount: () => Promise<void>
 }
 
 const CART_PREFIX = "gol_cart_"
@@ -216,6 +229,15 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
   const [fieldDrops, setFieldDrops] = useState<FieldDropNearby[]>([])
   const [myCaptures, setMyCaptures] = useState<FieldDropCapture[]>([])
   const [loading, setLoading] = useState(false)
+  const [sessionReady, setSessionReady] = useState(false)
+  const [sessionError, setSessionError] = useState(false)
+  const [cafesLoadState, setCafesLoadState] = useState<CafesLoadState>("idle")
+  const [publicSettings, setPublicSettings] = useState<PublicSettings>({
+    visitBonusPoints: 15,
+    rewardExpireDays: 365,
+    pointsExchangeRate: 1,
+  })
+  const [unreadCount, setUnreadCount] = useState(0)
   const showToast = useGolToast()
 
   // Load token from localStorage on mount
@@ -228,6 +250,7 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
 
   const refreshData = useCallback(async () => {
     const authHeader: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {}
+    setSessionError(false)
     try {
       // 1. Fetch profile and collected field boxes first so Home/Profile
       // do not wait on cafe menus.
@@ -246,7 +269,18 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // 2. Fetch cafes (public or authenticated)
+      const settingsRes = await fetch(`${API_BASE_URL}/settings/public`, { headers: authHeader })
+      if (settingsRes.ok) {
+        const settingsJson = await settingsRes.json()
+        const s = settingsJson.data || {}
+        setPublicSettings({
+          visitBonusPoints: Number(s.visitBonusPoints) > 0 ? Number(s.visitBonusPoints) : 15,
+          rewardExpireDays: Number(s.rewardExpireDays) > 0 ? Number(s.rewardExpireDays) : 365,
+          pointsExchangeRate: Number(s.pointsExchangeRate) > 0 ? Number(s.pointsExchangeRate) : 1,
+        })
+      }
+
+      // 2. Fetch cafes — never fall back to fake venues.
       const cafesRes = await fetch(`${API_BASE_URL}/cafes`, { headers: authHeader })
       if (cafesRes.ok) {
         const res = await cafesRes.json()
@@ -264,47 +298,11 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
           })
         )
 
-        // Fallback default Şehitkamil cafes if empty
-        const defaultCafes: Cafe[] = [
-          {
-            id: '33333333-3333-3333-3333-333333333333',
-            name: 'Gaziantep Şehitkamil Merkez Kitap Kafe',
-            address: 'İncilipınar Mah. Muammer Aksoy Bulv. No:12, Şehitkamil / Gaziantep',
-            categoryId: '22222222-2222-2222-2222-222222222222',
-            menuItems: [
-              { id: 'm-1', name: 'Sıcak Filtre Kahve', description: 'Taze demlenmiş espresso blend filtre kahve', price: 25, minAge: 0, maxAge: 99, requiredEducation: 'Tüm Vatandaşlar' },
-              { id: 'm-2', name: 'Türk Kahvesi & Lokum', description: 'Geleneksel közde pişirilmiş Türk kahvesi', price: 20, minAge: 0, maxAge: 99, requiredEducation: 'Tüm Vatandaşlar' },
-              { id: 'm-3', name: 'Soğuk Brew Latte', description: 'Özel demlenmiş soğuk sütlü kahve', price: 35, minAge: 16, maxAge: 30, requiredEducation: 'Gençler & Öğrenciler' }
-            ]
-          },
-          {
-            id: '33333333-3333-3333-3333-444444444444',
-            name: 'Şehitkamil Gençlik Kitap Kafe',
-            address: 'Atatürk Mah. 15. Sok. No:4, Şehitkamil / Gaziantep',
-            categoryId: '22222222-2222-2222-2222-222222222222',
-            menuItems: [
-              { id: 'm-4', name: 'Demli Çay & Simit', description: 'Taze fırın simidi ve sınırsız demli çay ikramı', price: 15 },
-              { id: 'm-5', name: 'Bitki Çayı Çeşitleri', description: 'Ihlamur, adaçayı ve yeşil çay', price: 20 }
-            ]
-          }
-        ]
-
-        setCafes(enrichedCafes.length > 0 ? enrichedCafes : defaultCafes)
+        setCafes(enrichedCafes)
+        setCafesLoadState(enrichedCafes.length > 0 ? "ok" : "empty")
       } else {
-        // Fallback default cafes if server unauthenticated
-        setCafes([
-          {
-            id: '33333333-3333-3333-3333-333333333333',
-            name: 'Gaziantep Şehitkamil Merkez Kitap Kafe',
-            address: 'İncilipınar Mah. Muammer Aksoy Bulv. No:12, Şehitkamil / Gaziantep',
-            categoryId: '22222222-2222-2222-2222-222222222222',
-            menuItems: [
-              { id: 'm-1', name: 'Sıcak Filtre Kahve', description: 'Taze demlenmiş espresso blend filtre kahve', price: 25 },
-              { id: 'm-2', name: 'Türk Kahvesi & Lokum', description: 'Geleneksel közde pişirilmiş Türk kahvesi', price: 20 },
-              { id: 'm-3', name: 'Soğuk Brew Latte', description: 'Özel demlenmiş soğuk sütlü kahve', price: 35 }
-            ]
-          }
-        ])
+        setCafes([])
+        setCafesLoadState("error")
       }
 
       // 3. Fetch user orders if token exists
@@ -348,6 +346,11 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
 
     } catch (e) {
       console.error("Failed to load user session data", e)
+      setSessionError(true)
+      setCafes([])
+      setCafesLoadState("error")
+    } finally {
+      setSessionReady(true)
     }
   }, [token])
 
@@ -358,6 +361,7 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
       setPointTransactions([])
       setMyCaptures([])
       setClaimedRewards([])
+      setUnreadCount(0)
     }
     void refreshData()
   }, [token, refreshData])
@@ -385,6 +389,43 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
       connection.stop()
     }
   }, [token, refreshData, showToast])
+
+  const refreshUnreadCount = useCallback(async () => {
+    if (!token) {
+      setUnreadCount(0)
+      return
+    }
+    try {
+      setUnreadCount(await fetchUnreadCount(token))
+    } catch {
+      setUnreadCount(0)
+    }
+  }, [token])
+
+  useEffect(() => {
+    void refreshUnreadCount()
+  }, [refreshUnreadCount])
+
+  useEffect(() => {
+    if (!token) return
+
+    const connection = new signalR.HubConnectionBuilder()
+      .withUrl(NOTIFICATION_HUB_URL, {
+        accessTokenFactory: () => token,
+      })
+      .withAutomaticReconnect()
+      .build()
+
+    connection.on("ReceiveNotification", (payload: { title?: string }) => {
+      if (payload?.title) showToast(payload.title)
+      void refreshUnreadCount()
+    })
+
+    connection.start().catch((err) => console.log("Notification hub error:", err))
+    return () => {
+      connection.stop()
+    }
+  }, [token, refreshUnreadCount, showToast])
 
   const uploadFile = async (file: File): Promise<string | null> => {
     try {
@@ -446,7 +487,6 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...data,
-          organizationId: "11111111-1111-1111-1111-111111111111" // Gölbaşı organization
         })
       })
 
@@ -756,6 +796,10 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
         fieldDrops,
         myCaptures,
         loading,
+        sessionReady,
+        sessionError,
+        cafesLoadState,
+        publicSettings,
         login,
         logout,
         register,
@@ -770,7 +814,9 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
         refreshData,
         loadNearbyFieldDrops,
         loadMyCaptures,
-        captureFieldDrop
+        captureFieldDrop,
+        unreadCount,
+        refreshUnreadCount,
       }}
     >
       {children}

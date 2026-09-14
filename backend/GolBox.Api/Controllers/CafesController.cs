@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using GolBox.Application.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -47,6 +48,7 @@ public class CafesController : BaseApiController
     }
 
     [HttpPost]
+    [Authorize(Policy = AuthorizationPolicies.StaffOrAdmin)]
     public async Task<IActionResult> CreateCafe([FromBody] CreateCafeRequest request)
     {
         var categoryId = request.CategoryId;
@@ -82,11 +84,13 @@ public class CafesController : BaseApiController
 
         _context.Cafes.Add(cafe);
         await _context.SaveChangesAsync();
+        await AuditLogsController.LogAsync(_context, "staff", "Staff", "Cafe_Create", "Cafes", "Cafe", cafe.Id.ToString(), null, cafe.Name, null);
 
         return Ok(Result<object>.Ok(new { id = cafe.Id }, "Tesis başarıyla oluşturuldu."));
     }
 
     [HttpPut("{id}")]
+    [Authorize(Policy = AuthorizationPolicies.StaffOrAdmin)]
     public async Task<IActionResult> UpdateCafe(Guid id, [FromBody] UpdateCafeRequest request)
     {
         var cafe = await _context.Cafes.FindAsync(id);
@@ -110,11 +114,13 @@ public class CafesController : BaseApiController
 
         cafe.UpdatedDate = DateTime.UtcNow;
         await _context.SaveChangesAsync();
+        await AuditLogsController.LogAsync(_context, "staff", "Staff", "Cafe_Update", "Cafes", "Cafe", cafe.Id.ToString(), null, cafe.Name, null);
 
         return Ok(Result<object>.Ok(new { id = cafe.Id }, "Tesis başarıyla güncellendi."));
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Policy = AuthorizationPolicies.StaffOrAdmin)]
     public async Task<IActionResult> DeleteCafe(Guid id)
     {
         var cafe = await _context.Cafes.FindAsync(id);
@@ -125,13 +131,14 @@ public class CafesController : BaseApiController
         cafe.DeletedDate = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
+        await AuditLogsController.LogAsync(_context, "staff", "Staff", "Cafe_Delete", "Cafes", "Cafe", id.ToString(), cafe.Name, null, null);
         return Ok(Result<object>.Ok(new { id }, "Kafe başarıyla silindi."));
     }
 }
 
 public class CreateCafeRequest
 {
-    public Guid OrganizationId { get; set; } = Guid.Parse("11111111-1111-1111-1111-111111111111");
+    public Guid OrganizationId { get; set; } = KnownOrganizations.Sehitkamil;
     public string Name { get; set; } = string.Empty;
     public string Address { get; set; } = string.Empty;
     public decimal Latitude { get; set; } = 37.0750m;

@@ -1,14 +1,14 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using GolBox.Application.Authorization;
+using GolBox.Application.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using GolBox.Application.Interfaces;
 using GolBox.Domain.Entities;
-using GolBox.Application.Common;
-
-using Microsoft.AspNetCore.SignalR;
 using GolBox.Api.Hubs;
 
 namespace GolBox.Api.Controllers;
@@ -31,14 +31,12 @@ public class OrdersController : BaseApiController
     public async Task<IActionResult> GetOrders()
     {
         var currentUserId = _currentUserService.UserId;
-        var currentUser = await _context.Users.FindAsync(currentUserId);
+        if (currentUserId == null || currentUserId == Guid.Empty)
+            return Unauthorized(Result<object>.Fail("Oturum doğrulanamadı."));
 
         var query = _context.Orders.AsQueryable();
-
-        if (currentUser != null && currentUser.Role != "Admin" && currentUser.Role != "Staff" && currentUser.Email != "admin@golbox.gov.tr")
-        {
-            query = query.Where(o => o.UserId == currentUserId);
-        }
+        if (!_currentUserService.IsStaffOrAdmin)
+            query = query.Where(o => o.UserId == currentUserId.Value);
 
         var orders = await query
             .Include(o => o.User)
@@ -78,6 +76,7 @@ public class OrdersController : BaseApiController
     }
 
     [HttpPut("{id}/status")]
+    [Authorize(Policy = AuthorizationPolicies.StaffOrAdmin)]
     public async Task<IActionResult> UpdateOrderStatus(Guid id, [FromBody] UpdateOrderStatusRequest request)
     {
         var order = await _context.Orders.FindAsync(id);
@@ -89,14 +88,15 @@ public class OrdersController : BaseApiController
 
         await _context.SaveChangesAsync();
 
-        // Broadcast real-time SignalR notification to user and admins
-        await _hubContext.Clients.All.SendAsync("OrderStatusUpdated", new
+        var payload = new
         {
             orderId = order.Id,
             userId = order.UserId,
             status = order.Status,
             collectionCode = order.CollectionCode
-        });
+        };
+        await _hubContext.Clients.User(order.UserId.ToString()).SendAsync("OrderStatusUpdated", payload);
+        await _hubContext.Clients.Group(OrderHub.StaffGroup).SendAsync("OrderStatusUpdated", payload);
 
         return Ok(Result<object>.Ok(new { id = order.Id, status = order.Status }, $"Sipariş durumu '{order.Status}' olarak güncellendi."));
     }
@@ -104,7 +104,11 @@ public class OrdersController : BaseApiController
     [HttpPost]
     public async Task<IActionResult> CreateOrder([FromBody] CreateOrderRequest request)
     {
-        var targetUserId = request.UserId != Guid.Empty ? request.UserId : (_currentUserService.UserId ?? Guid.Empty);
+        var callerId = _currentUserService.UserId ?? Guid.Empty;
+        var targetUserId = request.UserId != Guid.Empty ? request.UserId : callerId;
+        if (!_currentUserService.IsStaffOrAdmin && targetUserId != callerId)
+            return Forbid();
+
         var user = await _context.Users.FindAsync(targetUserId);
         if (user == null)
             return NotFound(Result<object>.Fail("Kullanıcı bulunamadı."));

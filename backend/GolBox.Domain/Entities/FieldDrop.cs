@@ -23,6 +23,11 @@ public class FieldDrop : BaseEntity
     public string? ModelGlbUrl { get; set; }
     public bool IsActive { get; set; } = true;
 
+    /// <summary>
+    /// Optimistic concurrency token for stock/capture races.
+    /// </summary>
+    public int RowVersion { get; set; }
+
     public virtual Organization Organization { get; set; } = null!;
     public virtual Cafe? Cafe { get; set; }
     public virtual Reward? CatalogReward { get; set; }

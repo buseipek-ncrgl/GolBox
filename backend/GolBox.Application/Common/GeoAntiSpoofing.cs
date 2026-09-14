@@ -10,7 +10,7 @@ public static class GeoAntiSpoofing
     public static (bool IsValid, string? ErrorMessage) ValidateLocationCapture(
         decimal currentLat,
         decimal currentLng,
-        bool isMockLocation,
+        bool? isMockLocation,
         decimal? previousLat,
         decimal? previousLng,
         DateTime? previousTimestamp,
@@ -22,8 +22,9 @@ public static class GeoAntiSpoofing
             return (false, "Geçersiz konum koordinatları.");
         }
 
-        // 2. Mock location check
-        if (isMockLocation)
+        // Native clients may send true. Web browsers cannot reliably detect mock GPS;
+        // a missing/null flag is treated as unsupported, not as a pass/fail signal.
+        if (isMockLocation == true)
         {
             return (false, "Sahte konum (Mock Location) tespiti nedeniyle işlem reddedildi.");
         }

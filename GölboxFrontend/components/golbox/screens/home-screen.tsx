@@ -1,19 +1,65 @@
 "use client"
 
-import { useState } from "react"
-import { Gift, MapPin } from "lucide-react"
+import { useCallback, useEffect, useState } from "react"
 import { Screen } from "@/components/golbox/screen"
-import { UserCard } from "@/components/golbox/user-card"
-import { WaitingTreats, useWaitingTreats } from "@/components/golbox/waiting-treats"
+import { AppHeader } from "@/components/golbox/app-header"
 import { CaptureOverlay } from "@/components/golbox/capture-overlay"
-import { CafeCover } from "@/components/golbox/cafe-cover"
-import { LoginScreen } from "@/components/golbox/screens/login-screen"
+import { LoginRequiredSheet } from "@/components/golbox/login-required-sheet"
+import { LocationPermissionSheet } from "@/components/golbox/location-permission-sheet"
 import { RewardsScreen } from "@/components/golbox/screens/rewards-screen"
-import { activity, cafes as mockCafes, type TabId } from "@/lib/golbox-data"
+import { HomeHeroCarousel } from "@/components/golbox/home/home-hero-carousel"
+import { PersonalPrioritySection } from "@/components/golbox/home/personal-priority-section"
+import { PointsCard } from "@/components/golbox/home/points-card"
+import { QuickActions, type QuickActionId } from "@/components/golbox/home/quick-actions"
+import { CityAgendaSection } from "@/components/golbox/home/city-agenda-section"
+import { NearbySection } from "@/components/golbox/home/nearby-section"
+import { EarnPointsSection } from "@/components/golbox/home/earn-points-section"
+import {
+  ActivityDetailSheet,
+  AgendaDetailSheet,
+  AgendaListSheet,
+  EarnInfoSheet,
+  MayorMessageSheet,
+  NotificationsSheet,
+} from "@/components/golbox/home/home-sheets"
+import { isActiveCoupon } from "@/components/golbox/coupon-pass"
+import { GPValue } from "@/components/golbox/gp-value"
+import { InlineError } from "@/components/golbox/inline-error"
+import { SectionSkeleton } from "@/components/golbox/section-skeleton"
+import {
+  mayorFromList,
+  resolveContentCta,
+  upcomingEventFromList,
+  type CityContentItem,
+} from "@/lib/city-content"
+import {
+  fetchAgendaContent,
+  fetchHeroContent,
+  fetchMyNotifications,
+  fetchPublicActivities,
+  fetchPublicActivity,
+  joinPublicActivity,
+  markNotificationRead,
+  type CitizenNotification,
+  type PublicActivity,
+} from "@/lib/city-content-api"
+import { selectPersonalPriority } from "@/lib/home-priority"
 import { useGolbox } from "@/lib/golbox-context"
-import { formatDistance } from "@/lib/golbox-geo"
 import { useCitizenLocation } from "@/lib/use-citizen-location"
 import { useCaptureSession } from "@/lib/use-capture-session"
+import type { TabId } from "@/lib/golbox-data"
+
+type HomeSheet =
+  | { type: "mayor"; item: CityContentItem }
+  | { type: "agenda-item"; item: CityContentItem }
+  | { type: "agenda-list" }
+  | { type: "notifications" }
+  | { type: "activity"; activityId: string }
+  | { type: "earn" }
+  | { type: "location" }
+  | null
+
+type RewardsTab = "catalog" | "cart" | "coupons"
 
 export function HomeScreen({
   onNavigate,
@@ -24,207 +70,421 @@ export function HomeScreen({
   onOpenCafe: (id: string) => void
   onOpenCafes: () => void
 }) {
-  const { fieldDrops, token, pointTransactions, cafes: liveCafes } = useGolbox()
-  const { origin, usingFallback } = useCitizenLocation()
+  const {
+    token,
+    user,
+    fieldDrops,
+    pointTransactions,
+    cafes,
+    orders,
+    rewards,
+    claimedRewards,
+    sessionReady,
+    sessionError,
+    refreshData,
+    publicSettings,
+    unreadCount,
+    refreshUnreadCount,
+  } = useGolbox()
+  const { origin, permission } = useCitizenLocation()
   const capture = useCaptureSession(origin, fieldDrops)
-  const waitingTreats = useWaitingTreats()
   const [showRewards, setShowRewards] = useState(false)
+  const [rewardsTab, setRewardsTab] = useState<RewardsTab>("catalog")
+  const [sheet, setSheet] = useState<HomeSheet>(null)
+  const [heroItems, setHeroItems] = useState<CityContentItem[]>([])
+  const [agendaItems, setAgendaItems] = useState<CityContentItem[]>([])
+  const [heroError, setHeroError] = useState(false)
+  const [agendaError, setAgendaError] = useState(false)
+  const [heroLoading, setHeroLoading] = useState(true)
+  const [notifications, setNotifications] = useState<CitizenNotification[]>([])
+  const [notificationsLoading, setNotificationsLoading] = useState(false)
+  const [activity, setActivity] = useState<PublicActivity | null>(null)
+  const [activityBusy, setActivityBusy] = useState(false)
+  const [upcomingEvent, setUpcomingEvent] = useState<CityContentItem | null>(null)
 
-  const nearbyDrop = fieldDrops[0] ?? null
-  const already = nearbyDrop ? capture.capturedIds.includes(nearbyDrop.id) : false
-  const remaining = nearbyDrop
-    ? Math.max(0, Number(nearbyDrop.distanceMeters) - Number(nearbyDrop.radiusMeters))
-    : 0
+  const isLoggedIn = Boolean(token)
 
-  const nearestLive = liveCafes[0]
-  const nearestMock = mockCafes[0]
-  const cafeCard = nearestLive
-    ? {
-        id: nearestLive.id,
-        name: nearestLive.name,
-        meta: nearestLive.address,
-        imageUrl: nearestLive.imageUrl,
-        badge: nearestLive.isActive === false ? "Kapalı" : "Açık",
+  const loadHomeContent = useCallback(async () => {
+    setHeroLoading(true)
+    setHeroError(false)
+    setAgendaError(false)
+    try {
+      const hero = await fetchHeroContent(token)
+      setHeroItems(hero)
+    } catch {
+      setHeroItems([])
+      setHeroError(true)
+    } finally {
+      setHeroLoading(false)
+    }
+
+    let upcoming: CityContentItem | null = null
+    try {
+      const agenda = await fetchAgendaContent(token, 1, 12)
+      setAgendaItems(agenda.items)
+      upcoming = upcomingEventFromList(agenda.items)
+    } catch {
+      setAgendaItems([])
+      setAgendaError(true)
+    }
+
+    try {
+      const activities = await fetchPublicActivities(token, 1, 8)
+      const first = activities.items[0]
+      if (!upcoming && first) {
+        upcoming = {
+          id: first.id,
+          type: "EventPromo",
+          title: first.title,
+          subtitle: first.location,
+          body: first.description,
+          imageUrl: first.imageUrl || undefined,
+          ctaLabel: "Etkinliği gör",
+          ctaType: "Activity",
+          ctaTarget: first.id,
+          startAt: first.startDate,
+          endAt: first.endDate,
+          priority: 1,
+          isPublished: true,
+          categoryLabel: "Etkinlik",
+          activityId: first.id,
+        }
       }
-    : {
-        id: nearestMock.id,
-        name: nearestMock.name,
-        meta: `${nearestMock.distance} · ${nearestMock.walk}`,
-        imageUrl: undefined as string | undefined,
-        badge: nearestMock.open ? `Açık · ${nearestMock.closeAt}` : "Kapalı",
-      }
+    } catch {
+      /* priority event is optional */
+    }
+    setUpcomingEvent(upcoming)
+  }, [token])
 
-  const recentMoves =
-    token && pointTransactions.length > 0
-      ? pointTransactions.slice(0, 3).map((pt) => ({
-          id: pt.id,
-          label: pt.description || "GölPuan",
-          when: new Date(pt.createdDate).toLocaleString("tr-TR", {
-            day: "numeric",
-            month: "short",
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-          value: `${pt.amount > 0 ? "+" : ""}${pt.amount}`,
-          kind: pt.amount >= 0 ? "earn" : "spend",
-        }))
-      : activity.slice(0, 3)
+  useEffect(() => {
+    void loadHomeContent()
+  }, [loadHomeContent])
+
+  const nearbyDrop = fieldDrops.find((drop) => !capture.capturedIds.includes(drop.id)) ?? null
+  const activeCoupons = claimedRewards.filter(isActiveCoupon)
+  const priority = selectPersonalPriority({
+    isLoggedIn,
+    orders,
+    fieldDrops,
+    capturedIds: capture.capturedIds,
+    claimedRewards,
+    upcomingEvent,
+  })
+
+  const lastMove = isLoggedIn && pointTransactions[0] ? pointTransactions[0] : null
+
+  const openContent = (item: CityContentItem) => {
+    const action = resolveContentCta(item)
+    if (action.kind === "mayor") {
+      setSheet({ type: "mayor", item: mayorFromList([item, ...heroItems, ...agendaItems]) ?? item })
+      return
+    }
+    if (action.kind === "cafe") {
+      if (action.cafeId) onOpenCafe(action.cafeId)
+      else onOpenCafes()
+      return
+    }
+    if (action.kind === "catalog") {
+      setRewardsTab("catalog")
+      setShowRewards(true)
+      return
+    }
+    if (action.kind === "map") {
+      onNavigate("map")
+      return
+    }
+    if (action.kind === "qr") {
+      onNavigate("qr")
+      return
+    }
+    if (action.kind === "profile") {
+      onNavigate("profile")
+      return
+    }
+    if (action.kind === "earn") {
+      setSheet({ type: "earn" })
+      return
+    }
+    if (action.kind === "external") {
+      window.open(action.url, "_blank", "noopener,noreferrer")
+      return
+    }
+    if (action.kind === "activity") {
+      setSheet({ type: "activity", activityId: action.activityId })
+      return
+    }
+    setSheet({ type: "agenda-item", item })
+  }
+
+  const openRewards = (tab: RewardsTab) => {
+    if (tab !== "catalog" && !isLoggedIn) {
+      capture.setShowLogin(true)
+      return
+    }
+    setRewardsTab(tab)
+    setShowRewards(true)
+  }
+
+  const handleQuickAction = (id: QuickActionId) => {
+    if (id === "coupons") {
+      openRewards("coupons")
+      return
+    }
+    if (id === "cafes") {
+      onOpenCafes()
+      return
+    }
+    if (id === "events") {
+      setSheet({ type: "agenda-list" })
+      return
+    }
+    setSheet({ type: "earn" })
+  }
+
+  const collectDrop = (id: string) => {
+    if (permission === "denied") {
+      setSheet({ type: "location" })
+      return
+    }
+    capture.openCapture(id)
+  }
+
+  useEffect(() => {
+    if (sheet?.type !== "notifications" || !token) return
+    let cancelled = false
+    setNotificationsLoading(true)
+    void fetchMyNotifications(token)
+      .then((page) => {
+        if (!cancelled) setNotifications(page.items)
+      })
+      .catch(() => {
+        if (!cancelled) setNotifications([])
+      })
+      .finally(() => {
+        if (!cancelled) setNotificationsLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [sheet, token])
+
+  useEffect(() => {
+    if (sheet?.type !== "activity") {
+      setActivity(null)
+      return
+    }
+    let cancelled = false
+    void fetchPublicActivity(sheet.activityId, token)
+      .then((item) => {
+        if (!cancelled) setActivity(item)
+      })
+      .catch(() => {
+        if (!cancelled) setActivity(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [sheet, token])
+
+  const handleNotificationOpen = async (item: CitizenNotification) => {
+    if (token && !item.isRead) {
+      try {
+        await markNotificationRead(token, item.id)
+        setNotifications((current) => current.map((row) => (row.id === item.id ? { ...row, isRead: true } : row)))
+        await refreshUnreadCount()
+      } catch {
+        /* keep list usable */
+      }
+    }
+    if (item.targetType === "Activity" && item.targetId) {
+      setSheet({ type: "activity", activityId: item.targetId })
+      return
+    }
+    if (item.targetType === "Content" && item.targetId) {
+      const found = [...heroItems, ...agendaItems].find((row) => row.id === item.targetId)
+      if (found) {
+        openContent(found)
+        return
+      }
+    }
+    if (item.targetType === "Cafe" && item.targetId) {
+      onOpenCafe(item.targetId)
+      return
+    }
+  }
+
+  const handleJoinActivity = async () => {
+    if (!token || !activity) {
+      capture.setShowLogin(true)
+      return
+    }
+    setActivityBusy(true)
+    try {
+      await joinPublicActivity(activity.id, token)
+      setActivity(await fetchPublicActivity(activity.id, token))
+      await refreshData()
+    } catch {
+      /* join error stays on current sheet */
+    } finally {
+      setActivityBusy(false)
+    }
+  }
 
   if (showRewards) {
-    return <RewardsScreen onClose={() => setShowRewards(false)} closeLabel="Ana sayfaya dön" />
+    return (
+      <RewardsScreen
+        onClose={() => setShowRewards(false)}
+        closeLabel="Ana sayfaya dön"
+        initialTab={rewardsTab}
+      />
+    )
   }
-
-  if (capture.showLogin && !capture.token) {
-    return <LoginScreen onClose={() => capture.setShowLogin(false)} closeLabel="Ana sayfaya dön" />
-  }
-
-  const ismarliyor = (
-    <section aria-label="Ismarlıyor" className="space-y-3">
-      <div className="flex items-end justify-between">
-        <div>
-          <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">Ismarlıyor</p>
-          <h2 className="mt-1 font-serif text-[1.65rem] leading-none text-foreground">Seni bekleyen</h2>
-        </div>
-      </div>
-      <WaitingTreats compact onShowQr={() => onNavigate("qr")} onExploreCafes={onOpenCafes} />
-    </section>
-  )
-
-  const fieldDrop = (
-    <section aria-label="Yakındaki saha hediyesi" className="space-y-3">
-      <div className="flex items-end justify-between">
-        <div>
-          <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">Saha kutusu</p>
-          <h2 className="mt-1 font-serif text-[1.65rem] leading-none text-foreground">Yakındaki hediye</h2>
-        </div>
-        <button type="button" onClick={() => onNavigate("map")} className="text-sm font-medium text-primary">
-          Harita
-        </button>
-      </div>
-
-      {nearbyDrop ? (
-        <article className="gol-card">
-          <div className="flex items-start gap-3 p-4">
-            <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-secondary text-primary">
-              <Gift className="size-5" strokeWidth={1.8} />
-            </span>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-start justify-between gap-2">
-                <p className="font-semibold text-card-foreground">{nearbyDrop.title}</p>
-                <span className="shrink-0 rounded-full bg-accent/20 px-2.5 py-1 font-serif text-xs font-semibold text-accent-foreground">
-                  +{nearbyDrop.pointsGranted} GP
-                </span>
-              </div>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {formatDistance(Number(nearbyDrop.distanceMeters))}
-                {nearbyDrop.inRange ? " · yarıçap içindesiniz" : ""}
-                {usingFallback ? " · Şehitkamil" : ""}
-              </p>
-            </div>
-          </div>
-          <div className="px-4 pb-4">
-            {already ? (
-              <p className="text-sm font-medium text-primary">Toplandı</p>
-            ) : nearbyDrop.inRange ? (
-              <button
-                type="button"
-                disabled={capture.loading || capture.busyId === nearbyDrop.id}
-                onClick={() => capture.openCapture(nearbyDrop.id)}
-                className="w-full rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground disabled:opacity-60"
-              >
-                {capture.busyId === nearbyDrop.id
-                  ? "Alınıyor..."
-                  : capture.token
-                    ? "Kamerayı aç ve al"
-                    : "Giriş yap ve al"}
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => onNavigate("map")}
-                className="w-full rounded-full bg-secondary py-3 text-sm font-semibold text-secondary-foreground"
-              >
-                Henüz yakın değilsiniz · kalan {Math.ceil(remaining)} m
-              </button>
-            )}
-          </div>
-        </article>
-      ) : (
-        <p className="gol-card border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
-          Yakında yayında saha hediyesi yok.
-        </p>
-      )}
-    </section>
-  )
 
   return (
-    <Screen>
-      <UserCard onOpenCatalog={() => setShowRewards(true)} />
+    <Screen className="space-y-6">
+      <AppHeader
+        firstName={user?.firstName}
+        unreadCount={unreadCount}
+        onNotifications={() => setSheet({ type: "notifications" })}
+        onProfile={() => onNavigate("profile")}
+      />
 
-      {/* Dynamic ordering: Active Field Drops or Waiting Treats top-prioritized */}
-      {nearbyDrop && !already && fieldDrop}
-      {waitingTreats.length > 0 && ismarliyor}
-      {(!nearbyDrop || already) && fieldDrop}
+      {heroError ? (
+        <InlineError message="Duyurular yüklenemedi." onRetry={() => void loadHomeContent()} />
+      ) : heroLoading ? (
+        <SectionSkeleton lines={1} />
+      ) : (
+        <HomeHeroCarousel items={heroItems} compact={Boolean(priority)} onOpen={openContent} />
+      )}
 
-      <section aria-label="Sana en yakın şube" className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-foreground">Sana en yakın</h2>
-          <button type="button" onClick={onOpenCafes} className="text-sm font-medium text-primary">
-            Tümü
-          </button>
-        </div>
+      <PersonalPrioritySection
+        item={priority}
+        onShowQr={() => onNavigate("qr")}
+        onMap={() => onNavigate("map")}
+        onCollect={collectDrop}
+        onCoupons={() => openRewards("coupons")}
+        onEvent={() => priority?.kind === "event" && openContent(priority.content)}
+      />
+
+      <PointsCard
+        isLoggedIn={isLoggedIn}
+        points={user?.pointsBalance ?? 0}
+        rewards={rewards}
+        onOpenCatalog={() => openRewards("catalog")}
+        onEarn={() => setSheet({ type: "earn" })}
+        onLogin={() => capture.setShowLogin(true)}
+      />
+
+      <QuickActions couponCount={isLoggedIn ? activeCoupons.length : undefined} onSelect={handleQuickAction} />
+
+      <CityAgendaSection
+        items={agendaItems}
+        error={agendaError}
+        onRetry={() => void loadHomeContent()}
+        onOpen={openContent}
+        onSeeAll={() => setSheet({ type: "agenda-list" })}
+      />
+
+      <NearbySection
+        cafes={cafes}
+        origin={origin}
+        ready={sessionReady}
+        error={sessionError}
+        onRetry={() => void refreshData()}
+        onOpen={onOpenCafe}
+        onSeeAll={onOpenCafes}
+      />
+
+      <EarnPointsSection
+        drop={isLoggedIn ? nearbyDrop : null}
+        visitBonusPoints={publicSettings.visitBonusPoints}
+        onAction={(action) => onNavigate(action)}
+      />
+
+      {lastMove ? (
         <button
           type="button"
-          onClick={() => onOpenCafe(cafeCard.id)}
-          className="gol-card group block w-full text-left"
+          onClick={() => onNavigate("profile")}
+          className="flex w-full items-center justify-between gap-3 text-left"
         >
-          <CafeCover name={cafeCard.name} imageUrl={cafeCard.imageUrl} className="h-32 w-full" />
-          <div className="flex items-center gap-3 p-4">
-            <div className="min-w-0 flex-1">
-              <p className="truncate font-semibold text-card-foreground">{cafeCard.name}</p>
-              <p className="mt-0.5 flex items-center gap-1 text-sm text-muted-foreground">
-                <MapPin className="size-3.5" /> {cafeCard.meta}
-              </p>
-            </div>
-            <span className="rounded-full bg-secondary px-3 py-1.5 text-xs font-medium text-secondary-foreground">
-              {cafeCard.badge}
+          <span className="min-w-0">
+            <span className="block text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              Son işlem
             </span>
-          </div>
+            <span className="mt-0.5 block truncate text-sm text-foreground">
+              {lastMove.description || "GölPuan"}
+            </span>
+          </span>
+          <span className="flex shrink-0 items-center gap-2 text-sm font-semibold text-primary">
+            <GPValue amount={lastMove.amount} signed className="text-sm" />
+            Tümü
+          </span>
         </button>
-      </section>
+      ) : null}
 
-      {/* If no waiting treats, place Ismarlıyor down here */}
-      {waitingTreats.length === 0 && ismarliyor}
+      <div aria-hidden className="h-2" />
 
-      <section aria-label="Son hareketler" className="space-y-3">
-        <h2 className="text-sm font-semibold text-foreground">Son hareketler</h2>
-        <ul className="gol-card divide-y divide-border">
-          {recentMoves.map((row) => (
-            <li key={row.id} className="flex items-center gap-3 px-4 py-3">
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-card-foreground">{row.label}</p>
-                <p className="text-xs text-muted-foreground">{row.when}</p>
-              </div>
-              <span
-                className={
-                  row.kind === "earn"
-                    ? "font-serif text-base text-accent-foreground"
-                    : "font-serif text-base text-muted-foreground"
-                }
-              >
-                {row.value}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </section>
-
+      {capture.showLogin && !capture.token && (
+        <LoginRequiredSheet onClose={() => capture.setShowLogin(false)} closeLabel="Ana sayfaya dön" />
+      )}
       {capture.pendingDrop && (
         <CaptureOverlay
           drop={capture.pendingDrop}
           busy={capture.busyId === capture.pendingDrop.id}
           onConfirm={capture.confirmCapture}
           onClose={capture.closeCapture}
+        />
+      )}
+      {sheet?.type === "mayor" && <MayorMessageSheet item={sheet.item} onClose={() => setSheet(null)} />}
+      {sheet?.type === "agenda-item" && <AgendaDetailSheet item={sheet.item} onClose={() => setSheet(null)} />}
+      {sheet?.type === "agenda-list" && (
+        <AgendaListSheet
+          items={agendaItems}
+          onClose={() => setSheet(null)}
+          onOpen={(item) => {
+            const action = resolveContentCta(item)
+            if (action.kind === "activity") setSheet({ type: "activity", activityId: action.activityId })
+            else setSheet({ type: "agenda-item", item })
+          }}
+        />
+      )}
+      {sheet?.type === "activity" && (
+        <ActivityDetailSheet
+          activity={activity}
+          isLoggedIn={isLoggedIn}
+          busy={activityBusy}
+          onClose={() => setSheet(null)}
+          onJoin={() => void handleJoinActivity()}
+          onLogin={() => {
+            setSheet(null)
+            capture.setShowLogin(true)
+          }}
+        />
+      )}
+      {sheet?.type === "notifications" && (
+        <NotificationsSheet
+          isLoggedIn={isLoggedIn}
+          items={notifications}
+          loading={notificationsLoading}
+          onClose={() => setSheet(null)}
+          onLogin={() => {
+            setSheet(null)
+            capture.setShowLogin(true)
+          }}
+          onOpen={(item) => void handleNotificationOpen(item)}
+        />
+      )}
+      {sheet?.type === "earn" && (
+        <EarnInfoSheet
+          onClose={() => setSheet(null)}
+          onQr={() => onNavigate("qr")}
+          onMap={() => onNavigate("map")}
+        />
+      )}
+      {sheet?.type === "location" && (
+        <LocationPermissionSheet
+          onClose={() => setSheet(null)}
+          onContinueWithout={() => setSheet(null)}
         />
       )}
     </Screen>

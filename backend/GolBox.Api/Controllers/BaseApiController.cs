@@ -16,8 +16,7 @@ public abstract class BaseApiController : ControllerBase
             return Ok(result);
         }
 
-        // Standard validation or rule violations: HTTP 422
-        return UnprocessableEntity(result);
+        return BadRequest(result);
     }
 
     protected ActionResult HandleResult(Result result)
@@ -29,7 +28,6 @@ public abstract class BaseApiController : ControllerBase
             return Ok(result);
         }
 
-        // Standard validation or rule violations: HTTP 422
-        return UnprocessableEntity(result);
+        return BadRequest(result);
     }
 }

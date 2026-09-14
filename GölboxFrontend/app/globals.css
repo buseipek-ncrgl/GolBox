@@ -51,33 +51,54 @@
 
 :root {
   color-scheme: light;
-  --background: oklch(0.984 0.006 150);
-  --foreground: oklch(0.24 0.03 155);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.24 0.03 155);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.24 0.03 155);
-  --primary: oklch(0.46 0.11 152);
-  --primary-foreground: oklch(0.98 0.01 150);
-  --secondary: oklch(0.95 0.02 150);
-  --secondary-foreground: oklch(0.38 0.08 152);
-  --muted: oklch(0.955 0.01 150);
-  --muted-foreground: oklch(0.5 0.03 155);
-  --accent: oklch(0.83 0.11 78);
-  --accent-foreground: oklch(0.34 0.055 62);
-  --gol: oklch(0.82 0.12 76);
-  --gol-foreground: oklch(0.32 0.06 60);
-  --destructive: oklch(0.577 0.2 27.325);
-  --border: oklch(0.91 0.014 150);
-  --input: oklch(0.91 0.014 150);
-  --ring: oklch(0.46 0.11 152);
-  --chart-1: oklch(0.46 0.11 152);
-  --chart-2: oklch(0.6 0.1 150);
-  --chart-3: oklch(0.82 0.12 76);
-  --chart-4: oklch(0.55 0.09 165);
-  --chart-5: oklch(0.4 0.08 140);
-  --radius: 1.25rem;
-  --gol-dock: 6.25rem;
+  --color-brand-900: #123f40;
+  --color-brand-700: #1d5f60;
+  --color-brand-600: #277172;
+  --color-brand-100: #e8f1f0;
+  --color-brand-50: #f3f8f7;
+  --color-surface: #ffffff;
+  --color-background: #f7f8f6;
+  --color-border: #e4e8e4;
+  --color-text-primary: #17201f;
+  --color-text-secondary: #65706e;
+  --color-text-muted: #8a9491;
+  --color-gold: #b8913e;
+  --color-success: #2f6f4e;
+  --color-warning: #9a6b12;
+  --color-danger: #b42318;
+  --color-info: #2563a8;
+  --gol-radius-sm: 10px;
+  --gol-radius-md: 14px;
+  --gol-radius-lg: 18px;
+  --gol-radius-xl: 24px;
+  --shadow-soft: 0 4px 20px rgba(20, 40, 35, 0.06);
+  --background: #f7f8f6;
+  --foreground: #17201f;
+  --card: #ffffff;
+  --card-foreground: #17201f;
+  --popover: #ffffff;
+  --popover-foreground: #17201f;
+  --primary: #1d5f60;
+  --primary-foreground: #f7fbfa;
+  --secondary: #e8f1f0;
+  --secondary-foreground: #123f40;
+  --muted: #f3f8f7;
+  --muted-foreground: #65706e;
+  --accent: #b8913e;
+  --accent-foreground: #3f3416;
+  --gol: #b8913e;
+  --gol-foreground: #3f3416;
+  --destructive: #b42318;
+  --border: #e4e8e4;
+  --input: #e4e8e4;
+  --ring: #1d5f60;
+  --chart-1: #1d5f60;
+  --chart-2: #277172;
+  --chart-3: #b8913e;
+  --chart-4: #2f6f4e;
+  --chart-5: #123f40;
+  --radius: 1.125rem;
+  --gol-dock: 7.5rem;
   --gol-card: 1.5rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.24 0.03 155);
@@ -237,13 +258,56 @@
 .gol-screen {
   padding-left: 1.25rem;
   padding-right: 1.25rem;
-  padding-top: 0.75rem;
+  padding-top: 0.5rem;
   padding-bottom: calc(var(--gol-dock) + env(safe-area-inset-bottom, 0px));
 }
 
 .gol-card {
   overflow: hidden;
   border-radius: var(--gol-card);
-  border: 1px solid color-mix(in oklab, var(--border) 88%, transparent);
-  background: var(--card);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.gol-press {
+  transition: transform 0.16s ease;
+}
+.gol-press:active {
+  transform: scale(0.985);
+}
+
+.gp-value {
+  color: var(--color-gold);
+  font-family: var(--font-serif), ui-serif, Georgia, serif;
+  font-variant-numeric: tabular-nums;
+}
+
+.gol-skeleton {
+  background: linear-gradient(90deg, var(--color-brand-50) 20%, #ffffff 50%, var(--color-brand-50) 80%);
+  background-size: 200% 100%;
+  animation: gol-shimmer 1.4s ease infinite;
+}
+
+@keyframes gol-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gol-toast-in,
+  .gol-fade-up,
+  .gol-sheet-up,
+  .gol-fade,
+  .gol-skeleton {
+    animation: none !important;
+  }
+  .gol-press,
+  .gol-press:active {
+    transition: none !important;
+    transform: none !important;
+  }
 }

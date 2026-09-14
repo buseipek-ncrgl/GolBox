@@ -18,6 +18,9 @@ public record ActivityDto(
     string Description,
     int PointsReward,
     string Location,
+    string? ImageUrl,
+    int? Capacity,
+    int JoinedCount,
     DateTime StartDate,
     DateTime EndDate,
     bool IsJoined
@@ -54,6 +57,19 @@ public class GetUpcomingActivitiesQueryHandler : IRequestHandler<GetUpcomingActi
         var activities = await _context.Activities
             .Where(a => a.OrganizationId == user.OrganizationId && a.Status == "Active" && a.EndDate >= now)
             .OrderBy(a => a.StartDate)
+            .Select(a => new
+            {
+                a.Id,
+                a.Title,
+                a.Description,
+                a.PointsReward,
+                a.Location,
+                a.ImageUrl,
+                a.Capacity,
+                a.StartDate,
+                a.EndDate,
+                JoinedCount = a.UserActivities.Count()
+            })
             .ToListAsync(cancellationToken);
 
         var joinedActivityIds = await _context.UserActivities
@@ -67,6 +83,9 @@ public class GetUpcomingActivitiesQueryHandler : IRequestHandler<GetUpcomingActi
             a.Description,
             a.PointsReward,
             a.Location,
+            a.ImageUrl,
+            a.Capacity,
+            a.JoinedCount,
             a.StartDate,
             a.EndDate,
             joinedActivityIds.Contains(a.Id)

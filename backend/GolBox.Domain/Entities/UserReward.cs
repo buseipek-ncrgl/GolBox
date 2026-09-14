@@ -10,7 +10,7 @@ public class UserReward : BaseEntity
     public DateTime ClaimedAt { get; set; } = DateTime.UtcNow;
     public DateTime? RedeemedAt { get; set; }
     public DateTime ExpiresAt { get; set; }
-    public string Status { get; set; } = "Claimed"; // Claimed, Redeemed, Cancelled
+    public string Status { get; set; } = "Claimed"; // Claimed, Redeemed, Expired, Cancelled
     public string RedeemCode { get; set; } = string.Empty;
     public Guid OrganizationId { get; set; }
 

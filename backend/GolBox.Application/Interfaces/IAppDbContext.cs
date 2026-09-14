@@ -1,12 +1,14 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using GolBox.Domain.Entities;
 
 namespace GolBox.Application.Interfaces;
 
 public interface IAppDbContext
 {
+    DatabaseFacade Database { get; }
     DbSet<Organization> Organizations { get; }
     DbSet<User> Users { get; }
     DbSet<RefreshToken> RefreshTokens { get; }
@@ -28,7 +30,11 @@ public interface IAppDbContext
     DbSet<ApprovalRequest> ApprovalRequests { get; }
     DbSet<Campaign> Campaigns { get; }
     DbSet<NotificationRecord> Notifications { get; }
+    DbSet<CityContent> CityContents { get; }
+    DbSet<UserNotification> UserNotifications { get; }
+#pragma warning disable CS0618
     DbSet<Coupon> Coupons { get; }
+#pragma warning restore CS0618
     DbSet<StaffUser> StaffUsers { get; }
     DbSet<FieldDrop> FieldDrops { get; }
     DbSet<UserFieldCapture> UserFieldCaptures { get; }

@@ -11,7 +11,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GolBox.Domain", "GolBox.Dom
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GolBox.Infrastructure", "GolBox.Infrastructure\GolBox.Infrastructure.csproj", "{DAE93F86-E825-430A-8A4E-C2C513E81209}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GolBox.Persistence", "GolBox.Persistence\GolBox.Persistence.csproj", "{1DF8CF55-6545-42C5-B56E-2E7E603D99C7}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GolBox.Tests", "GolBox.Tests\GolBox.Tests.csproj", "{B7A1C2D3-E4F5-6789-ABCD-EF0123456789}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -42,5 +42,9 @@ Global
 		{1DF8CF55-6545-42C5-B56E-2E7E603D99C7}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1DF8CF55-6545-42C5-B56E-2E7E603D99C7}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1DF8CF55-6545-42C5-B56E-2E7E603D99C7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B7A1C2D3-E4F5-6789-ABCD-EF0123456789}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B7A1C2D3-E4F5-6789-ABCD-EF0123456789}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B7A1C2D3-E4F5-6789-ABCD-EF0123456789}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B7A1C2D3-E4F5-6789-ABCD-EF0123456789}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

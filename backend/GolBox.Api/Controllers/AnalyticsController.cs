@@ -1,5 +1,6 @@
 using System.Threading.Tasks;
 using MediatR;
+using GolBox.Application.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using GolBox.Application.Features.Analytics.Queries;
@@ -24,6 +25,7 @@ public class AnalyticsController : BaseApiController
     }
 
     [HttpGet("admin")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
     public async Task<IActionResult> GetAdminAnalytics()
     {
         var result = await _mediator.Send(new GetAdminAnalyticsQuery());

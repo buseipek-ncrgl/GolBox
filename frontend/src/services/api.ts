@@ -1,4 +1,6 @@
-const API_BASE_URL = 'http://localhost:5155/api/v1';
+export const API_BASE_URL =
+  (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '') ||
+  (import.meta.env.DEV ? 'http://localhost:5155/api/v1' : '/api/v1');
 
 interface ApiResponse<T> {
   success: boolean;
@@ -250,6 +252,27 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+  getCityContent: (params?: { type?: string; status?: string; search?: string; page?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.type) query.set('type', params.type);
+    if (params?.status) query.set('status', params.status);
+    if (params?.search) query.set('search', params.search);
+    query.set('page', String(params?.page ?? 1));
+    query.set('pageSize', '50');
+    return request<any>(`/content/admin?${query.toString()}`);
+  },
+  getCityContentById: (id: string) => request<any>(`/content/admin/${id}`),
+  createCityContent: (data: any) =>
+    request<any>('/content', { method: 'POST', body: JSON.stringify(data) }),
+  updateCityContent: (id: string, data: any) =>
+    request<any>(`/content/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  publishCityContent: (id: string) =>
+    request<any>(`/content/${id}/publish`, { method: 'POST' }),
+  unpublishCityContent: (id: string) =>
+    request<any>(`/content/${id}/unpublish`, { method: 'POST' }),
+  deleteCityContent: (id: string) =>
+    request<any>(`/content/${id}`, { method: 'DELETE' }),
+  getAdminActivities: () => request<any>('/activities/admin'),
   getReportsSummary: () => request<any>('/reports/summary'),
   getFieldDrops: () => request<any>('/field-drops'),
   getFieldDropCaptures: (id: string) => request<any>(`/field-drops/${id}/captures`),

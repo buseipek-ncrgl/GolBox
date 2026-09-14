@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using GolBox.Application.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -9,7 +10,7 @@ using GolBox.Application.Interfaces;
 
 namespace GolBox.Api.Controllers;
 
-[Authorize]
+[Authorize(Policy = AuthorizationPolicies.StaffOrAdmin)]
 public class DashboardController : BaseApiController
 {
     private readonly IAppDbContext _context;

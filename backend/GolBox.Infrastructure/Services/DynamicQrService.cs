@@ -1,84 +1,82 @@
 using System;
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.Extensions.Configuration;
+using GolBox.Application.Interfaces;
 
 namespace GolBox.Infrastructure.Services;
 
-public interface IDynamicQrService
-{
-    string GenerateDynamicQrToken(Guid userId);
-    (bool IsValid, Guid? UserId, string? ErrorMessage) ValidateDynamicQrToken(string qrToken);
-}
-
 public class DynamicQrService : IDynamicQrService
 {
-    private const string SecretKey = "GolBox_SuperSecret_DynamicQR_HMACKey_2026";
-    private const int TimeStepSeconds = 30;
+    public const int TimeStepSeconds = 30;
+    private const int AllowedStepSkew = 1;
+
+    private readonly byte[] _keyBytes;
+
+    public DynamicQrService(IConfiguration configuration)
+    {
+        var secretKey = configuration["Security:DynamicQr:HmacKey"];
+        if (string.IsNullOrWhiteSpace(secretKey) || secretKey.Length < 32)
+        {
+            throw new InvalidOperationException(
+                "Security:DynamicQr:HmacKey is not configured or is shorter than 32 characters.");
+        }
+
+        _keyBytes = Encoding.UTF8.GetBytes(secretKey);
+    }
 
     public string GenerateDynamicQrToken(Guid userId)
     {
-        var epoch = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        var timeStep = epoch / TimeStepSeconds;
-        var rawPayload = $"{userId}:{timeStep}";
-
-        using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(SecretKey));
-        var hash = Convert.ToBase64String(hmac.ComputeHash(Encoding.UTF8.GetBytes(rawPayload)))
-            .Replace("+", "-")
-            .Replace("/", "_")
-            .TrimEnd('=');
-
-        return $"GBQR:{userId}:{timeStep}:{hash}";
+        var timeStep = CurrentTimeStep();
+        var hash = ComputeHash(userId, timeStep);
+        return $"GBQR:{userId:D}:{timeStep}:{hash}";
     }
 
-    public (bool IsValid, Guid? UserId, string? ErrorMessage) ValidateDynamicQrToken(string qrToken)
+    public DynamicQrValidationResult ValidateDynamicQrToken(string qrToken)
     {
-        if (string.IsNullOrWhiteSpace(qrToken) || !qrToken.StartsWith("GBQR:"))
-        {
-            // Fallback for simple legacy QR tokens during transition
-            if (Guid.TryParse(qrToken, out var legacyGuid))
-            {
-                return (true, legacyGuid, null);
-            }
-            return (false, null, "Geçersiz QR kod formatı.");
-        }
+        if (string.IsNullOrWhiteSpace(qrToken) || !qrToken.StartsWith("GBQR:", StringComparison.OrdinalIgnoreCase))
+            return DynamicQrValidationResult.Fail("Geçersiz QR kod formatı.");
 
         var parts = qrToken.Split(':');
         if (parts.Length != 4)
-        {
-            return (false, null, "Geçersiz QR kod yapısı.");
-        }
+            return DynamicQrValidationResult.Fail("Geçersiz QR kod yapısı.");
 
-        if (!Guid.TryParse(parts[1], out var userId))
-        {
-            return (false, null, "Geçersiz kullanıcı kimliği.");
-        }
+        if (!Guid.TryParse(parts[1], out var userId) || userId == Guid.Empty)
+            return DynamicQrValidationResult.Fail("Geçersiz kullanıcı kimliği.");
 
         if (!long.TryParse(parts[2], out var tokenTimeStep))
+            return DynamicQrValidationResult.Fail("Geçersiz zaman damgası.");
+
+        var currentTimeStep = CurrentTimeStep();
+        if (Math.Abs(currentTimeStep - tokenTimeStep) > AllowedStepSkew)
         {
-            return (false, null, "Geçersiz zaman damgası.");
+            return DynamicQrValidationResult.Fail(
+                "QR kodun süresi dolmuş (30 saniye geçerlidir). Lütfen yeni QR kod oluşturun.");
         }
 
-        var currentEpoch = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        var currentTimeStep = currentEpoch / TimeStepSeconds;
+        var expectedHash = ComputeHash(userId, tokenTimeStep);
+        var providedHash = parts[3];
+        if (expectedHash.Length != providedHash.Length)
+            return DynamicQrValidationResult.Fail("QR kod imzası geçersiz veya sahte.");
 
-        // Allow current time step and 1 previous time step (max 60 seconds tolerance)
-        if (Math.Abs(currentTimeStep - tokenTimeStep) > 1)
-        {
-            return (false, null, "QR kodun süresi dolmuş (30 saniye geçerlidir). Lütfen yeni QR kod oluşturun.");
-        }
+        var expectedBytes = Encoding.UTF8.GetBytes(expectedHash);
+        var providedBytes = Encoding.UTF8.GetBytes(providedHash);
+        if (!CryptographicOperations.FixedTimeEquals(expectedBytes, providedBytes))
+            return DynamicQrValidationResult.Fail("QR kod imzası geçersiz veya sahte.");
 
-        var expectedPayload = $"{userId}:{tokenTimeStep}";
-        using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(SecretKey));
-        var expectedHash = Convert.ToBase64String(hmac.ComputeHash(Encoding.UTF8.GetBytes(expectedPayload)))
+        return DynamicQrValidationResult.Ok(userId, tokenTimeStep);
+    }
+
+    private static long CurrentTimeStep() =>
+        DateTimeOffset.UtcNow.ToUnixTimeSeconds() / TimeStepSeconds;
+
+    private string ComputeHash(Guid userId, long timeStep)
+    {
+        var rawPayload = $"{userId:D}:{timeStep}";
+        using var hmac = new HMACSHA256(_keyBytes);
+        return Convert.ToBase64String(hmac.ComputeHash(Encoding.UTF8.GetBytes(rawPayload)))
             .Replace("+", "-")
             .Replace("/", "_")
             .TrimEnd('=');
-
-        if (parts[3] != expectedHash)
-        {
-            return (false, null, "QR kod imzası geçersiz veya sahte.");
-        }
-
-        return (true, userId, null);
     }
 }
