@@ -4,6 +4,24 @@ import { useAuth } from '../store/AuthContext';
 import { HomeContentPanel } from './HomeContentPanel';
 import { PlacesPanel } from './PlacesPanel';
 import { SettingsPanel } from '../components/admin/SettingsPanel';
+import { ConfirmDialog } from '../components/admin/ConfirmDialog';
+import {
+  MAX_ACTIVITY_REWARD_GP,
+  MAX_MANUAL_GP,
+  MAX_REWARD_GP,
+  MIN_MANUAL_REASON,
+  NAV_TARGETS,
+  campaignAudienceLabel,
+  canonicalizeOrderStatus,
+  educationLabel,
+  isCitizenRole,
+  notificationGroupLabel,
+  orderStatusLabel,
+  pointTypeLabel,
+  qrResultLabel,
+  rewardStatusLabel
+} from '../lib/adminLabels';
+import { MEDIA_FALLBACK, resolveMediaUrl } from '../lib/mediaUrl';
 import { 
   LayoutDashboard, Users, Building2, Coffee, ShoppingBag, 
   History, Award, Sparkles, CheckSquare, Calendar, Bell, 
@@ -37,26 +55,16 @@ const emptyNote = (text: string) => (
   <div style={{ background: '#fff', border: '1px dashed #d7e3e0', borderRadius: '20px', padding: '2rem', color: '#5b6f6e' }}>{text}</div>
 );
 
-const campaignTypeLabel = (type?: string) => {
-  const map: Record<string, string> = {
-    FixedBonus: 'Sabit bonus',
-    DoublePoints: 'Çift puan',
-    ProductDiscount: 'Ürün indirimi',
-    FirstOrderBonus: 'İlk sipariş',
-    BranchSpecial: 'Şube özel',
-    TargetGroupSpecial: 'Hedef kitle'
-  };
-  return (type && map[type]) || type || '—';
-};
+const campaignTypeLabel = (type?: string) => campaignAudienceLabel(type);
+const targetGroupLabel = (group?: string) => campaignAudienceLabel(group);
 
-const targetGroupLabel = (group?: string) => {
-  const map: Record<string, string> = {
-    All: 'Tüm vatandaşlar',
-    HighSchool: 'Lise',
-    University: 'Üniversite',
-    AgeGroup: 'Yaş grubu'
-  };
-  return (group && map[group]) || group || '—';
+const SafeImg: React.FC<{ src?: string | null; alt?: string; style?: React.CSSProperties }> = ({ src, alt, style }) => {
+  const [broken, setBroken] = useState(false);
+  const resolved = resolveMediaUrl(src);
+  if (!resolved || broken) {
+    return <img src={MEDIA_FALLBACK} alt={alt || ''} style={style} />;
+  }
+  return <img src={resolved} alt={alt || ''} style={style} onError={() => setBroken(true)} />;
 };
 
 export const Admin: React.FC = () => {
@@ -118,19 +126,44 @@ export const Admin: React.FC = () => {
   const [editCafeName, setEditCafeName] = useState('');
   const [editCafeAddress, setEditCafeAddress] = useState('');
   const [editCafeImageUrl, setEditCafeImageUrl] = useState('');
+  const [editCafeActive, setEditCafeActive] = useState(true);
   const [savingCafeEdit, setSavingCafeEdit] = useState(false);
+  const [cafePlacesList, setCafePlacesList] = useState<any[]>([]);
+  const [editCafePlaceId, setEditCafePlaceId] = useState('');
+  const [savingKey, setSavingKey] = useState<string | null>(null);
+  const [confirmState, setConfirmState] = useState<{
+    title?: string;
+    message: string;
+    confirmLabel?: string;
+    cancelLabel?: string;
+    danger?: boolean;
+    onConfirm: () => Promise<void> | void;
+  } | null>(null);
+  const [confirmPending, setConfirmPending] = useState(false);
+  const [editingReward, setEditingReward] = useState<any>(null);
+  const [pushNavTarget, setPushNavTarget] = useState('none');
+  const [pushPreview, setPushPreview] = useState<any>(null);
+  const [productFilterCafeId, setProductFilterCafeId] = useState('ALL');
+  const [newProdMinAge, setNewProdMinAge] = useState('');
+  const [newProdEducation, setNewProdEducation] = useState('');
+  const [newEventStartDate, setNewEventStartDate] = useState('');
+  const [newEventStartTime, setNewEventStartTime] = useState('10:00');
+  const [newEventEndDate, setNewEventEndDate] = useState('');
+  const [newEventEndTime, setNewEventEndTime] = useState('12:00');
+  const [newCampDetail, setNewCampDetail] = useState('');
+  const [newCampCta, setNewCampCta] = useState('');
 
   // Point Adjustment Form State
   const [pointAdjustUserId, setPointAdjustUserId] = useState<string | null>(null);
   const [pointAmount, setPointAmount] = useState<number>(50);
-  const [pointActionType, setPointActionType] = useState<'Add' | 'Deduct' | 'Reward' | 'Coupon'>('Add');
+  const [pointActionType, setPointActionType] = useState<'Add' | 'Deduct'>('Add');
   const [pointReason, setPointReason] = useState<string>('');
   const [pointDescription, setPointDescription] = useState<string>('');
 
   // Push Notification Form State
   const [pushTitle, setPushTitle] = useState('');
   const [pushMessage, setPushMessage] = useState('');
-  const [pushTargetGroup, setPushTargetGroup] = useState('All');
+  const [pushTargetGroup, setPushTargetGroup] = useState('');
   const [pushMinAge, setPushMinAge] = useState('');
   const [pushMaxAge, setPushMaxAge] = useState('');
   const [pushEducation, setPushEducation] = useState('');
@@ -185,11 +218,9 @@ export const Admin: React.FC = () => {
   const [showAddCampaignModal, setShowAddCampaignModal] = useState(false);
   const [newCampTitle, setNewCampTitle] = useState('');
   const [newCampDesc, setNewCampDesc] = useState('');
-  const [newCampType, setNewCampType] = useState<'Percentage' | 'FixedAmount' | 'BonusPoints' | 'BuyOneGetOne'>('Percentage');
-  const [newCampValue, setNewCampValue] = useState<number>(20);
   const [newCampStartDate, setNewCampStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [newCampEndDate, setNewCampEndDate] = useState(new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0]);
-  const [newCampTargetGroup, setNewCampTargetGroup] = useState('Students');
+  const [newCampTargetGroup, setNewCampTargetGroup] = useState('All');
   const [newCampCafeId, setNewCampCafeId] = useState('ALL');
   const [newCampImageUrl, setNewCampImageUrl] = useState('');
 
@@ -263,21 +294,25 @@ export const Admin: React.FC = () => {
         const [data, orders, users, cafes, menu] = await Promise.all([
           api.getDashboardOverview(),
           api.getOrders().catch(() => []),
-          api.getUsers().catch(() => []),
+          api.getUsers('citizen').catch(() => []),
           api.getCafes().catch(() => []),
           api.getAllMenuItems().catch(() => []),
         ]);
         setOverviewData(data);
         setOrdersList(extractArray(orders));
-        setUsersList(extractArray(users));
+        setUsersList(extractArray(users).filter((u: any) => isCitizenRole(u.role)));
         setCafesList(extractArray(cafes));
         setMenuItemsList(extractArray(menu));
       } else if (activeMenu === 'users') {
-        const users = await api.getUsers();
-        setUsersList(extractArray(users));
+        const citizens = await api.getUsers('citizen');
+        setUsersList(extractArray(citizens).filter((u: any) => isCitizenRole(u.role)));
       } else if (activeMenu === 'cafes') {
-        const cafes = await api.getCafes();
+        const [cafes, places] = await Promise.all([
+          api.getCafes(),
+          api.getAdminPlaces().catch(() => ({ items: [] }))
+        ]);
         setCafesList(extractArray(cafes));
+        setCafePlacesList(places?.items || extractArray(places));
       } else if (activeMenu === 'products') {
         const [cafes, menu] = await Promise.all([
           api.getCafes(),
@@ -289,18 +324,18 @@ export const Admin: React.FC = () => {
         const [orders, cafes, users, menu] = await Promise.all([
           api.getOrders(),
           api.getCafes(),
-          api.getUsers().catch(() => []),
+          api.getUsers('citizen').catch(() => []),
           api.getAllMenuItems().catch(() => []),
         ]);
         setOrdersList(extractArray(orders));
         setCafesList(extractArray(cafes));
-        setUsersList(extractArray(users));
+        setUsersList(extractArray(users).filter((u: any) => isCitizenRole(u.role)));
         setMenuItemsList(extractArray(menu));
       } else if (activeMenu === 'points') {
         const pts = await api.getPointsLedger();
         setPointsList(extractArray(pts));
       } else if (activeMenu === 'rewards') {
-        const r = await api.getRewards();
+        const r = await api.getAdminRewards().catch(() => api.getRewards());
         setRewardsList(extractArray(r));
       } else if (activeMenu === 'fieldDrops') {
         const [drops, cafes, rewards] = await Promise.all([
@@ -328,8 +363,12 @@ export const Admin: React.FC = () => {
       } else if (activeMenu === 'homeContent' || activeMenu === 'places') {
         // Panels load their own data.
       } else if (activeMenu === 'notifications') {
-        const n = await api.getNotifications();
+        const [n, users] = await Promise.all([
+          api.getNotifications(),
+          api.getUsers('citizen').catch(() => [])
+        ]);
         setNotificationsList(extractArray(n));
+        setUsersList(extractArray(users).filter((u: any) => isCitizenRole(u.role)));
       } else if (activeMenu === 'audit') {
         const logs = await api.getAuditLogs();
         setAuditLogsList(extractArray(logs));
@@ -361,6 +400,25 @@ export const Admin: React.FC = () => {
   useEffect(() => {
     fetchData();
   }, [activeMenu, selectedFieldDropId]);
+
+  useEffect(() => {
+    if (!success) return;
+    const timer = window.setTimeout(() => setSuccess(null), 4000);
+    return () => window.clearTimeout(timer);
+  }, [success]);
+
+  const citizenUsers = () => extractArray(usersList).filter((u: any) => isCitizenRole(u.role));
+
+  const runConfirm = async () => {
+    if (!confirmState) return;
+    setConfirmPending(true);
+    try {
+      await confirmState.onConfirm();
+      setConfirmState(null);
+    } finally {
+      setConfirmPending(false);
+    }
+  };
 
   // Global Live Filtering Logic
   const getFilteredList = (list: any[]) => {
@@ -410,6 +468,8 @@ export const Admin: React.FC = () => {
     setEditCafeName(cafe.name || '');
     setEditCafeAddress(cafe.address || '');
     setEditCafeImageUrl(cafe.imageUrl || '');
+    setEditCafeActive(cafe.isActive !== false);
+    setEditCafePlaceId(cafe.placeId || '');
   };
 
   // File Upload Helper
@@ -438,7 +498,8 @@ export const Admin: React.FC = () => {
         name: editCafeName,
         address: editCafeAddress,
         imageUrl: editCafeImageUrl || undefined,
-        categoryId: selectedCafeDetail.categoryId || '22222222-2222-2222-2222-222222222222'
+        isActive: editCafeActive,
+        categoryId: selectedCafeDetail.categoryId || undefined
       });
       setSuccess(`Göl Kafe '${editCafeName}' kaydedildi.`);
       setSelectedCafeDetail(null);
@@ -450,9 +511,10 @@ export const Admin: React.FC = () => {
     }
   };
 
-  // Creation Handlers
   const handleCreateCafe = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (savingKey) return;
+    setSavingKey('cafe');
     try {
       const res = await api.createCafe({
         name: newCafeName,
@@ -476,28 +538,35 @@ export const Admin: React.FC = () => {
       fetchData();
     } catch (err: any) {
       setError(err.message || 'Göl Kafe eklenemedi.');
+    } finally {
+      setSavingKey(null);
     }
   };
 
   const handleCreateMenuItem = async (e: React.FormEvent) => {
     e.preventDefault();
-    const targetCafeId = newProdCafeId || 'ALL';
-    const targetCafeObj = cafesList.find(c => c.id === targetCafeId);
-    const cafeNameLabel = targetCafeId === 'ALL' ? 'Tüm Şubelerde Geçerli' : (targetCafeObj?.name || 'Göl Kafe Şubesi');
-
-    const cafeId = targetCafeId === 'ALL' ? cafesList[0]?.id : targetCafeId;
-    if (!cafeId) {
-      setError('Menü ürünü eklemek için önce bir Göl Kafe ekleyin.');
+    if (!newProdCafeId) {
+      setError('Ürün eklemek için bir Göl Kafe seçin.');
       return;
     }
-
+    if (!newProdName.trim() || !newProdDesc.trim()) {
+      setError('Ürün adı ve açıklaması zorunludur.');
+      return;
+    }
+    if (Number(newProdPrice) <= 0) {
+      setError('Ürün fiyatı 0’dan büyük olmalıdır.');
+      return;
+    }
+    if (savingKey) return;
+    setSavingKey('menu');
     try {
-      const newItem = await api.createMenuItem(cafeId, {
-        name: newProdName,
-        description: newProdDesc,
+      const newItem = await api.createMenuItem(newProdCafeId, {
+        name: newProdName.trim(),
+        description: newProdDesc.trim(),
         price: Number(newProdPrice),
         imageUrl: uploadedImageUrl || undefined,
-        requiredEducation: undefined
+        minAge: newProdMinAge === '' ? undefined : Number(newProdMinAge),
+        requiredEducation: newProdEducation || undefined
       });
 
       if (!createdId(newItem)) {
@@ -510,36 +579,53 @@ export const Admin: React.FC = () => {
       setNewProdDesc('');
       setNewProdPrice(45);
       setUploadedImageUrl('');
-      setNewProdCafeId('ALL');
+      setNewProdCafeId('');
+      setNewProdMinAge('');
+      setNewProdEducation('');
       fetchData();
     } catch (err: any) {
       setError(err.message || 'Ürün eklenemedi.');
+    } finally {
+      setSavingKey(null);
     }
   };
 
   const handleCreateReward = async (e: React.FormEvent) => {
     e.preventDefault();
+    const points = Number(newRewardPoints);
+    if (points < 1 || points > MAX_REWARD_GP) {
+      setError(`Ödül fiyatı 1 ile ${MAX_REWARD_GP} GP arasında olmalıdır.`);
+      return;
+    }
+    if (savingKey) return;
+    setSavingKey('reward');
     try {
-      const res = await api.createReward({
+      const payload = {
         title: newRewardTitle,
         description: newRewardDesc,
-        requiredPoints: Number(newRewardPoints),
+        requiredPoints: points,
         imageUrl: uploadedImageUrl || undefined
-      });
+      };
+      const res = editingReward
+        ? await api.updateReward(editingReward.id, payload)
+        : await api.createReward(payload);
 
-      if (!createdId(res)) {
+      if (!editingReward && !createdId(res)) {
         throw new Error('Ödül oluşturuldu ancak kimlik dönmedi.');
       }
 
-      setSuccess(`Ödül '${newRewardTitle}' eklendi. ${newRewardPoints} GP`);
+      setSuccess(editingReward ? 'Ödül güncellendi.' : `Ödül oluşturuldu.`);
       setShowAddRewardModal(false);
+      setEditingReward(null);
       setNewRewardTitle('');
       setNewRewardDesc('');
       setNewRewardPoints(50);
       setUploadedImageUrl('');
       fetchData();
     } catch (err: any) {
-      setError(err.message || 'Ödül eklenemedi.');
+      setError(err.message || 'Ödül kaydedilemedi.');
+    } finally {
+      setSavingKey(null);
     }
   };
 
@@ -597,17 +683,45 @@ export const Admin: React.FC = () => {
   // FIX EVENT CREATION FUNCTION
   const handleCreateEvent = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!newEventStartDate || !newEventStartTime || !newEventEndDate || !newEventEndTime) {
+      setError('Başlangıç ve bitiş tarihi/saati zorunludur.');
+      return;
+    }
+    const startDate = new Date(`${newEventStartDate}T${newEventStartTime}`);
+    const endDate = new Date(`${newEventEndDate}T${newEventEndTime}`);
+    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime()) || endDate <= startDate) {
+      setError('Bitiş, başlangıçtan sonra olmalıdır.');
+      return;
+    }
+    if (startDate.getTime() < Date.now() - 5 * 60 * 1000) {
+      setError('Etkinlik başlangıcı geçmiş bir tarih olamaz.');
+      return;
+    }
+    if (Number(newEventPoints) < 0 || Number(newEventPoints) > MAX_ACTIVITY_REWARD_GP) {
+      setError(`GölPuan ödülü 0 ile ${MAX_ACTIVITY_REWARD_GP} arasında olmalıdır.`);
+      return;
+    }
+    if (Number(newEventQuota) < 0) {
+      setError('Kontenjan 0 veya daha büyük olmalıdır.');
+      return;
+    }
+    const selectedPlace = eventPlacesList.find((p: any) => p.id === newEventPlaceId);
+    const location = selectedPlace
+      ? (selectedPlace.address || selectedPlace.name)
+      : newEventLocation;
+    if (savingKey) return;
+    setSavingKey('event');
     try {
       const newAct = await api.createActivity({
         title: newEventTitle,
         description: newEventDesc,
-        location: newEventLocation || 'Şehitkamil Gençlik Merkezi',
+        location: location || '',
         placeId: newEventPlaceId || undefined,
         pointsReward: Number(newEventPoints),
-        capacity: Number(newEventQuota) || undefined,
+        capacity: newEventQuota === undefined ? undefined : Number(newEventQuota),
         imageUrl: uploadedImageUrl || undefined,
-        startDate: new Date().toISOString(),
-        endDate: new Date(Date.now() + 7 * 86400000).toISOString()
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString()
       });
       
       if (!createdId(newAct) && !newAct?.id) {
@@ -621,20 +735,28 @@ export const Admin: React.FC = () => {
       setNewEventLocation('');
       setNewEventPlaceId('');
       setNewEventPoints(100);
+      setNewEventStartDate('');
+      setNewEventEndDate('');
       fetchData();
     } catch (err: any) {
       setError(err.message || 'Etkinlik eklenemedi.');
+    } finally {
+      setSavingKey(null);
     }
   };
 
-  // DETAILED CAMPAIGN & DISCOUNT CREATION FUNCTION
   const handleCreateCampaign = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (savingKey) return;
+    setSavingKey('campaign');
     try {
+      const description = [newCampDesc.trim(), newCampDetail.trim(), newCampCta.trim() ? `Yönlendirme: ${newCampCta.trim()}` : '']
+        .filter(Boolean)
+        .join('\n\n');
       const res = await api.createCampaign({
         title: newCampTitle,
-        description: newCampDesc,
-        campaignType: newCampType,
+        description,
+        campaignType: 'Announcement',
         targetUserGroup: newCampTargetGroup,
         startDate: new Date(newCampStartDate).toISOString(),
         endDate: new Date(newCampEndDate).toISOString(),
@@ -648,14 +770,33 @@ export const Admin: React.FC = () => {
 
       setSuccess(`Kampanya yayınlandı: ${newCampTitle}`);
       setShowAddCampaignModal(false);
-      setNewCampTitle('');
       setNewCampDesc('');
+      setNewCampDetail('');
+      setNewCampCta('');
       setNewCampImageUrl('');
       setUploadedImageUrl('');
       fetchData();
     } catch (err: any) {
       setError(err.message || 'Kampanya oluşturulamadı.');
+    } finally {
+      setSavingKey(null);
     }
+  };
+
+  const notificationPayload = () => {
+    const nav = NAV_TARGETS.find((t) => t.id === pushNavTarget) || NAV_TARGETS[0];
+    return {
+      title: pushTitle,
+      message: pushMessage,
+      targetUserGroup: pushTargetGroup,
+      notificationType: 'General',
+      minAge: pushMinAge === '' ? undefined : Number(pushMinAge),
+      maxAge: pushMaxAge === '' ? undefined : Number(pushMaxAge),
+      educationLevel: pushEducation || undefined,
+      targetUserId: pushTargetGroup === 'SingleUser' ? (pushUserId || undefined) : undefined,
+      targetType: nav.targetType,
+      targetId: nav.targetId || undefined
+    };
   };
 
   const handleSendPushNotification = async (e: React.FormEvent) => {
@@ -664,35 +805,118 @@ export const Admin: React.FC = () => {
       setError('Lütfen bildirim başlığı ve mesajı girin.');
       return;
     }
+    if (!pushTargetGroup) {
+      setError('Lütfen hedef kitle seçin.');
+      return;
+    }
+    if (pushTargetGroup === 'SingleUser' && !pushUserId) {
+      setError('Belirli vatandaş için listeden seçim yapın.');
+      return;
+    }
+    if (savingKey) return;
+    setSavingKey('notification-preview');
     try {
-      await api.sendNotification({
-        title: pushTitle,
-        message: pushMessage,
-        targetUserGroup: pushTargetGroup || 'All',
-        notificationType: 'General',
-        minAge: pushMinAge === '' ? undefined : Number(pushMinAge),
-        maxAge: pushMaxAge === '' ? undefined : Number(pushMaxAge),
-        educationLevel: pushEducation || undefined,
-        targetUserId: pushUserId || undefined
+      const preview = await api.previewNotification(notificationPayload());
+      setPushPreview({
+        ...notificationPayload(),
+        recipientCount: preview?.recipientCount ?? preview?.data?.recipientCount ?? 0,
+        everyoneWarning: pushTargetGroup === 'All'
       });
-      setSuccess('Bildirim kaydedildi.');
-      setPushTitle('');
-      setPushMessage('');
-      fetchData();
     } catch (err: any) {
-      setError(err.message || 'Bildirim gönderilemedi.');
+      setError(err.message || 'Bildirim önizlemesi alınamadı.');
+    } finally {
+      setSavingKey(null);
     }
   };
 
-  // Single Click Order Status Update
+  const confirmSendNotification = async () => {
+    if (savingKey) return;
+    setSavingKey('notification');
+    try {
+      await api.sendNotification(notificationPayload());
+      setSuccess('Bildirim gönderildi.');
+      setPushTitle('');
+      setPushMessage('');
+      setPushTargetGroup('');
+      setPushUserId('');
+      setPushPreview(null);
+      fetchData();
+    } catch (err: any) {
+      setError(err.message || 'Bildirim gönderilemedi.');
+    } finally {
+      setSavingKey(null);
+    }
+  };
+
   const handleUpdateOrderStatus = async (orderId: string, status: string) => {
+    if (savingKey) return;
+    setSavingKey(`order-${orderId}`);
     try {
       await api.updateOrderStatus(orderId, status);
-      setSuccess(`Sipariş ${status === 'Delivered' ? 'teslim edildi' : status}.`);
+      setSuccess('Sipariş durumu güncellendi.');
       fetchData();
     } catch (err: any) {
       setError(err.message || 'Sipariş durumu güncellenemedi.');
+    } finally {
+      setSavingKey(null);
     }
+  };
+
+  const requestOrderTransition = (order: any, nextStatus: string) => {
+    if (nextStatus === 'Cancelled') {
+      setConfirmState({
+        title: 'Siparişi iptal et',
+        message: 'Bu sipariş iptal edilecek. Kullanılan GölPuan varsa iade işlemi uygulanacaktır. Devam edilsin mi?',
+        confirmLabel: 'İptal Et',
+        danger: true,
+        onConfirm: () => handleUpdateOrderStatus(order.id, 'Cancelled')
+      });
+      return;
+    }
+    if (nextStatus === 'Completed') {
+      setConfirmState({
+        title: 'Teslim onayı',
+        message: 'Bu siparişi teslim edilmiş olarak işaretlemek istiyor musunuz?',
+        confirmLabel: 'Teslim Edildi',
+        onConfirm: () => handleUpdateOrderStatus(order.id, 'Completed')
+      });
+      return;
+    }
+    void handleUpdateOrderStatus(order.id, nextStatus);
+  };
+
+  const renderOrderActions = (order: any) => {
+    const status = canonicalizeOrderStatus(order.status);
+    const busy = savingKey === `order-${order.id}`;
+    const btn = (label: string, next: string, danger = false) => (
+      <button
+        key={next}
+        disabled={busy}
+        onClick={() => requestOrderTransition(order, next)}
+        style={{
+          padding: '6px 12px',
+          background: danger ? '#b91c1c' : '#1d5f60',
+          border: 'none',
+          color: '#fff',
+          borderRadius: '8px',
+          fontSize: '0.775rem',
+          fontWeight: 800,
+          cursor: busy ? 'not-allowed' : 'pointer'
+        }}
+      >
+        {busy ? 'Kaydediliyor…' : label}
+      </button>
+    );
+    if (status === 'Pending') {
+      return <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>{btn('Hazırlamaya Başla', 'Preparing')}{btn('İptal Et', 'Cancelled', true)}</div>;
+    }
+    if (status === 'Preparing') {
+      return <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>{btn('Teslime Hazır', 'Ready')}{btn('İptal Et', 'Cancelled', true)}</div>;
+    }
+    if (status === 'Ready') {
+      return <div style={{ display: 'flex', justifyContent: 'flex-end' }}>{btn('Teslim Edildi', 'Completed')}</div>;
+    }
+    return null;
   };
 
   // Open Citizen Detail Drawer
@@ -707,32 +931,54 @@ export const Admin: React.FC = () => {
   };
 
   // Submit Point/Reward Adjustment
-  const handleAdjustPointsSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleAdjustPointsSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     if (!pointAdjustUserId) return;
-    if (!pointReason || pointReason.length < 3) {
-      setError('Lütfen gerekçeli işlem nedenini açıkça yazın.');
+    if (Number(pointAmount) < 1 || Number(pointAmount) > MAX_MANUAL_GP) {
+      setError(`Miktar 1 ile ${MAX_MANUAL_GP} GP arasında olmalıdır.`);
       return;
     }
-
-    try {
-      await api.adjustUserPoints(pointAdjustUserId, {
-        amount: pointAmount,
-        actionType: pointActionType as any,
-        reason: pointReason,
-        description: pointDescription
-      });
-      setSuccess(`Gerekçeli işlem kaydedildi (${pointActionType}: ${pointAmount} GP).`);
-      setPointAdjustUserId(null);
-      setPointReason('');
-      setPointDescription('');
-      fetchData();
-    } catch (err: any) {
-      setError(err.message || 'Puan işlemi kaydedilemedi.');
+    if (!pointReason || pointReason.trim().length < MIN_MANUAL_REASON) {
+      setError('Sebep en az 3 karakter olmalıdır.');
+      return;
     }
+    const target = extractArray(usersList).concat(selectedUserDrawer ? [selectedUserDrawer] : [])
+      .find((u: any) => u.id === pointAdjustUserId);
+    const name = `${target?.firstName || ''} ${target?.lastName || ''}`.trim() || target?.email || 'Vatandaş';
+    const verb = pointActionType === 'Deduct' ? 'hesabından' : 'hesabına';
+    const action = pointActionType === 'Deduct' ? 'düşülecek' : 'eklenecek';
+    setConfirmState({
+      title: 'GölPuan işlemi',
+      message: `${name} ${verb} ${pointAmount} GP ${action}. Devam edilsin mi?`,
+      confirmLabel: 'İşlemi uygula',
+      danger: pointActionType === 'Deduct',
+      onConfirm: async () => {
+        if (savingKey) return;
+        setSavingKey('manual-gp');
+        try {
+          await api.adjustUserPoints(pointAdjustUserId, {
+            amount: Number(pointAmount),
+            actionType: pointActionType,
+            reason: pointReason.trim(),
+            description: pointDescription
+          });
+          setSuccess(pointActionType === 'Deduct' ? 'GölPuan düşüldü.' : 'GölPuan eklendi.');
+          setPointAdjustUserId(null);
+          setPointReason('');
+          setPointDescription('');
+          if (selectedUserDrawer?.id === pointAdjustUserId) {
+            await handleOpenUserDrawer(selectedUserDrawer);
+          }
+          fetchData();
+        } catch (err: any) {
+          setError(err.message || 'Puan işlemi kaydedilemedi.');
+        } finally {
+          setSavingKey(null);
+        }
+      }
+    });
   };
 
-  // POS QR Scan Submit
   const handleScanQrSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setQrScanLoading(true);
@@ -741,7 +987,7 @@ export const Admin: React.FC = () => {
 
     try {
       if (!qrTokenInput.trim()) {
-        setQrScanError('Vatandaş dinamik QR tokenını girin.');
+        setQrScanError('Vatandaş karekod verisini girin.');
         setQrScanLoading(false);
         return;
       }
@@ -759,7 +1005,7 @@ export const Admin: React.FC = () => {
         redeemCode: qrRedeemCode.trim() || null
       });
       setQrScanResult(res);
-      setSuccess(`QR okundu. ${res.memberName || ''} · ${res.operation || 'işlem'}`);
+      setSuccess(qrResultLabel(res));
       fetchData();
     } catch (err: any) {
       setQrScanError(err.message || 'QR Kod doğrulanamadı.');
@@ -859,19 +1105,22 @@ export const Admin: React.FC = () => {
     }
   };
 
-  const handleDeleteFieldDrop = async (id: string) => {
-    if (!window.confirm('Bu saha hediyesini kaldırmak istediğinize emin misiniz?')) return;
-    try {
-      await api.deleteFieldDrop(id);
-      if (selectedFieldDropId === id) {
-        setSelectedFieldDropId(null);
-        setFieldCapturesList([]);
+  const handleDeleteFieldDrop = (id: string) => {
+    setConfirmState({
+      title: 'Saha hediyesini kaldır',
+      message: 'Bu saha hediyesi kaldırılacak. Devam edilsin mi?',
+      confirmLabel: 'Kaldır',
+      danger: true,
+      onConfirm: async () => {
+        await api.deleteFieldDrop(id);
+        if (selectedFieldDropId === id) {
+          setSelectedFieldDropId(null);
+          setFieldCapturesList([]);
+        }
+        setSuccess('Saha hediyesi kaldırıldı.');
+        fetchData();
       }
-      setSuccess('Saha hediyesi kaldırıldı.');
-      fetchData();
-    } catch (err: any) {
-      setError(err.message || 'Saha hediyesi silinemedi.');
-    }
+    });
   };
 
   const handleToggleFieldDrop = async (drop: any) => {
@@ -1186,7 +1435,10 @@ export const Admin: React.FC = () => {
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem' }}>
                 <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '1.5rem' }}>
                   <h3 style={{ margin: '0 0 1rem', fontSize: '1.1rem', fontWeight: 800, color: '#0f172a' }}>Bekleyen Ismarlıyor</h3>
-                  {ordersList.filter((o: any) => o.status === 'Pending' || o.status === 'Preparing' || o.status === 'Submitted' || o.status === 'Created').length === 0 ? (
+                  {ordersList.filter((o: any) => {
+                    const s = canonicalizeOrderStatus(o.status);
+                    return s === 'Pending' || s === 'Preparing';
+                  }).length === 0 ? (
                     <p style={{ margin: 0, color: '#64748b', fontSize: '0.85rem' }}>Bekleyen kayıt yok.</p>
                   ) : (
                   <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
@@ -1200,16 +1452,17 @@ export const Admin: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {ordersList.filter((o: any) => o.status === 'Pending' || o.status === 'Preparing' || o.status === 'Submitted' || o.status === 'Created').slice(0, 4).map(o => (
+                      {ordersList.filter((o: any) => {
+                        const s = canonicalizeOrderStatus(o.status);
+                        return s === 'Pending' || s === 'Preparing';
+                      }).slice(0, 4).map(o => (
                         <tr key={o.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                           <td style={{ padding: '0.75rem 0.65rem', fontWeight: 800, color: '#b45309' }}>{o.collectionCode}</td>
                           <td style={{ padding: '0.75rem 0.65rem', fontWeight: 700 }}>{o.userFullName}</td>
                           <td style={{ padding: '0.75rem 0.65rem', color: '#64748b' }}>{o.targetCriteria || '—'}</td>
                           <td style={{ padding: '0.75rem 0.65rem', color: '#64748b' }}>{o.cafeName}</td>
                           <td style={{ padding: '0.75rem 0.65rem', textAlign: 'right' }}>
-                            <button onClick={() => handleUpdateOrderStatus(o.id, 'Delivered')} style={{ padding: '4px 10px', background: '#1d5f60', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}>
-                              Onayla
-                            </button>
+                            {renderOrderActions(o)}
                           </td>
                         </tr>
                       ))}
@@ -1223,12 +1476,16 @@ export const Admin: React.FC = () => {
                   <button onClick={() => setShowAddIsmarliyorModal(true)} style={{ padding: '0.75rem', background: '#1d5f60', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <Gift size={18} /> Yeni Ismarlıyor
                   </button>
+                  {isAdminUser && (
                   <button onClick={() => setShowAddEventModal(true)} style={{ padding: '0.75rem', background: '#fff', color: '#0f172a', border: '1px solid #cbd5e1', borderRadius: '10px', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <Calendar size={18} /> Yeni etkinlik
                   </button>
-                  <button onClick={() => setShowAddRewardModal(true)} style={{ padding: '0.75rem', background: '#fff', color: '#0f172a', border: '1px solid #cbd5e1', borderRadius: '10px', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  )}
+                  {isAdminUser && (
+                  <button onClick={() => { setEditingReward(null); setShowAddRewardModal(true); }} style={{ padding: '0.75rem', background: '#fff', color: '#0f172a', border: '1px solid #cbd5e1', borderRadius: '10px', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <Award size={18} /> Yeni ödül
                   </button>
+                  )}
                   <button onClick={() => setActiveMenu('fieldDrops')} style={{ padding: '0.75rem', background: '#fff', color: '#0f172a', border: '1px solid #cbd5e1', borderRadius: '10px', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <MapPin size={18} /> Saha hediyeleri
                   </button>
@@ -1240,8 +1497,8 @@ export const Admin: React.FC = () => {
           {activeMenu === 'users' && (
             <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
               <div>
-                <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Vatandaş & Kullanıcı Yönetimi</h1>
-                <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '4px' }}>Gaziantep Şehitkamil ilçesi kayıtlı vatandaşlar ve puan hareketleri.</p>
+                <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Vatandaşlar</h1>
+                <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '4px' }}>Yalnız vatandaş hesapları. Personel yetkilendirme ekranındadır.</p>
               </div>
 
               <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 4px 20px -2px rgba(0,0,0,0.03)' }}>
@@ -1253,16 +1510,15 @@ export const Admin: React.FC = () => {
                       <th style={{ padding: '0.85rem 1rem' }}>Yaş</th>
                       <th style={{ padding: '0.85rem 1rem' }}>Öğrenim Durumu</th>
                       <th style={{ padding: '0.85rem 1rem' }}>GölPuan Bakiyesi</th>
-                      <th style={{ padding: '0.85rem 1rem' }}>Hesap Durumu</th>
                       <th style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>İşlemler</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {getFilteredList(usersList).length === 0 ? (
+                    {getFilteredList(citizenUsers()).length === 0 ? (
                       <tr>
-                        <td colSpan={7} style={{ padding: '1.5rem', color: '#64748b' }}>Vatandaş kaydı yok.</td>
+                        <td colSpan={6} style={{ padding: '1.5rem', color: '#64748b' }}>Vatandaş kaydı yok.</td>
                       </tr>
-                    ) : getFilteredList(usersList).map((u) => (
+                    ) : getFilteredList(citizenUsers()).map((u) => (
                       <tr key={u.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                         <td style={{ padding: '0.85rem 1rem' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
@@ -1288,19 +1544,16 @@ export const Admin: React.FC = () => {
                         <td style={{ padding: '0.85rem 1rem', fontWeight: 800, color: '#b45309', fontSize: '1rem' }}>
                           {u.pointsBalance} GP
                         </td>
-                        <td style={{ padding: '0.85rem 1rem' }}>
-                          <span style={{ background: '#e8f2f2', color: '#1d5f60', padding: '3px 10px', borderRadius: '100px', fontSize: '0.75rem', fontWeight: 700 }}>
-                            {u.role || u.status || 'Kayıtlı'}
-                          </span>
-                        </td>
                         <td style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>
                           <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'flex-end' }}>
                             <button onClick={() => handleOpenUserDrawer(u)} style={{ padding: '5px 10px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '6px', color: '#0f172a', fontSize: '0.75rem', cursor: 'pointer', fontWeight: 700 }}>
-                              Detay Drawer
+                              Detay
                             </button>
+                            {isAdminUser && (
                             <button onClick={() => setPointAdjustUserId(u.id)} style={{ padding: '5px 10px', background: '#1d5f60', border: 'none', borderRadius: '6px', color: '#fff', fontSize: '0.75rem', cursor: 'pointer', fontWeight: 700 }}>
                               Puan/İkram Tanımla
                             </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -1318,12 +1571,12 @@ export const Admin: React.FC = () => {
             <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Gaziantep Şehitkamil Göl Kafeler</h1>
-                  <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '4px' }}>Kafe silindiğinde operasyon kaydı pasife alınır. Bağlı tesis (Place) silinmez, vatandaş görünümünden taslağa çekilir.</p>
+                  <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Göl Kafeler</h1>
+                  <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '4px' }}>Fiziksel adres, konum ve çalışma saatleri Tesisler bölümünden yönetilir. Menü ve Ismarlıyor işlemleri bu bölümden yönetilir.</p>
                 </div>
                 <button onClick={() => setShowAddCafeModal(true)} style={{ background: '#1d5f60', color: '#fff', border: 'none', padding: '0.65rem 1.25rem', borderRadius: '10px', fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <Plus size={18} />
-                  <span>+ Yeni Şehitkamil Kafe Ekle</span>
+                  <span>Yeni Şehitkamil Kafe</span>
                 </button>
               </div>
 
@@ -1332,7 +1585,6 @@ export const Admin: React.FC = () => {
                 {getFilteredList(cafesList).map((c) => (
                   <div
                     key={c.id}
-                    onClick={() => handleOpenCafeDetail(c)}
                     style={{
                       background: '#ffffff',
                       border: '1px solid #e2e8f0',
@@ -1340,12 +1592,11 @@ export const Admin: React.FC = () => {
                       overflow: 'hidden',
                       display: 'flex',
                       flexDirection: 'column',
-                      cursor: 'pointer',
                       boxShadow: '0 4px 20px -2px rgba(0,0,0,0.03)'
                     }}
                   >
                     {c.imageUrl ? (
-                      <img src={c.imageUrl} alt={c.name} style={{ width: '100%', height: '140px', objectFit: 'cover' }} />
+                      <SafeImg src={c.imageUrl} alt={c.name} style={{ width: '100%', height: '140px', objectFit: 'cover' }} />
                     ) : (
                       <div style={{ width: '100%', height: '100px', background: '#1d5f60', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
                         <Building2 size={36} />
@@ -1361,6 +1612,14 @@ export const Admin: React.FC = () => {
                       <div style={{ fontSize: '0.8rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px' }}>
                         <MapPin size={14} /> <span>{c.address}</span>
                       </div>
+                      <div style={{ fontSize: '0.75rem', color: '#475569' }}>Bağlı Belediye Tesisi: {c.placeName || 'Atanmamış'}</div>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenCafeDetail(c)}
+                        style={{ alignSelf: 'flex-start', padding: '6px 12px', background: '#1d5f60', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer' }}
+                      >
+                        Düzenle
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -1398,7 +1657,7 @@ export const Admin: React.FC = () => {
                   }}
                 >
                   <Coffee size={18} />
-                  <span>+ Yeni Ürün / Menü Öğesi Ekle</span>
+                  <span>Yeni Ürün</span>
                 </button>
               </div>
 
@@ -1406,11 +1665,11 @@ export const Admin: React.FC = () => {
               <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', background: '#ffffff', padding: '0.85rem 1.25rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: 700, color: '#475569' }}>Filtrelenen Şube:</label>
                 <select
-                  value={newProdCafeId || 'ALL'}
-                  onChange={(e) => setNewProdCafeId(e.target.value)}
+                  value={productFilterCafeId}
+                  onChange={(e) => setProductFilterCafeId(e.target.value)}
                   style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f8fafc', fontWeight: 700, color: '#0f172a', outline: 'none' }}
                 >
-                  <option value="ALL">Tüm Şubelerdeki Ürünler</option>
+                  <option value="ALL">Tüm şubelerdeki ürünler</option>
                   {extractArray(cafesList).map(c => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
@@ -1420,7 +1679,7 @@ export const Admin: React.FC = () => {
               {/* Pro Product Cards Grid */}
               {(() => {
                 const productRows = getFilteredList(menuItemsList).filter((item: any) =>
-                  !newProdCafeId || newProdCafeId === 'ALL' ? true : item.cafeId === newProdCafeId
+                  !productFilterCafeId || productFilterCafeId === 'ALL' ? true : item.cafeId === productFilterCafeId
                 );
                 if (productRows.length === 0) return emptyNote('Ürün kaydı yok.');
                 return (
@@ -1428,7 +1687,7 @@ export const Admin: React.FC = () => {
                 {productRows.map((item) => (
                   <div key={item.id} style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 4px 20px -2px rgba(0,0,0,0.03)' }}>
                     {item.imageUrl ? (
-                      <img src={item.imageUrl} alt={item.name} style={{ width: '100%', height: '150px', objectFit: 'cover' }} />
+                      <SafeImg src={item.imageUrl} alt={item.name} style={{ width: '100%', height: '150px', objectFit: 'cover' }} />
                     ) : (
                       <div style={{ width: '100%', height: '110px', background: '#1d5f60', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
                         <Coffee size={36} />
@@ -1470,8 +1729,9 @@ export const Admin: React.FC = () => {
                   <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '4px' }}>Vatandaşların GölPuan ile Kitap Kafelerden ücretsiz alabileceği ikram hediyeleri.</p>
                 </div>
 
+                {isAdminUser && (
                 <button
-                  onClick={() => setShowAddRewardModal(true)}
+                  onClick={() => { setEditingReward(null); setShowAddRewardModal(true); }}
                   style={{
                     background: '#1d5f60',
                     color: '#ffffff',
@@ -1488,8 +1748,9 @@ export const Admin: React.FC = () => {
                   }}
                 >
                   <Award size={18} />
-                  <span>+ GölPuan İkram Ödülü Ekle</span>
+                  <span>Yeni ödül</span>
                 </button>
+                )}
               </div>
 
               {/* Rewards Cards Grid */}
@@ -1504,8 +1765,34 @@ export const Admin: React.FC = () => {
                       </span>
                     </div>
                     <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>{r.description}</p>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', paddingTop: '0.5rem', borderTop: '1px solid #f1f5f9' }}>
-                      <span style={{ background: '#dcfce7', color: '#15803d', padding: '3px 8px', borderRadius: '6px', fontSize: '0.725rem', fontWeight: 700 }}>{r.status || 'Kayıtlı'}</span>
+                    {r.imageUrl && <SafeImg src={r.imageUrl} alt="" style={{ width: '100%', height: 90, objectFit: 'cover', borderRadius: 8 }} />}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', paddingTop: '0.5rem', borderTop: '1px solid #f1f5f9', gap: 8 }}>
+                      <span style={{ background: r.status === 'Passive' ? '#fee2e2' : '#dcfce7', color: r.status === 'Passive' ? '#b91c1c' : '#15803d', padding: '3px 8px', borderRadius: '6px', fontSize: '0.725rem', fontWeight: 700 }}>{rewardStatusLabel(r.status)}</span>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button type="button" onClick={() => {
+                          setEditingReward(r);
+                          setNewRewardTitle(r.title || '');
+                          setNewRewardDesc(r.description || '');
+                          setNewRewardPoints(rewardPoints(r));
+                          setUploadedImageUrl(r.imageUrl || '');
+                          setShowAddRewardModal(true);
+                        }} style={{ padding: '5px 10px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: 6, fontWeight: 700, cursor: 'pointer' }}>Düzenle</button>
+                        {r.status === 'Passive' ? (
+                          <button type="button" onClick={() => api.activateReward(r.id).then(() => { setSuccess('Ödül yayına alındı.'); fetchData(); }).catch((err: any) => setError(err.message))} style={{ padding: '5px 10px', background: '#1d5f60', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 700, cursor: 'pointer' }}>Yayına Al</button>
+                        ) : (
+                          <button type="button" onClick={() => setConfirmState({
+                            title: 'Ödülü pasife al',
+                            message: 'Bu ödül vatandaş kataloğundan kaldırılacak. Devam edilsin mi?',
+                            confirmLabel: 'Pasife Al',
+                            danger: true,
+                            onConfirm: async () => {
+                              await api.deactivateReward(r.id);
+                              setSuccess('Ödül pasife alındı.');
+                              fetchData();
+                            }
+                          })} style={{ padding: '5px 10px', background: '#b91c1c', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 700, cursor: 'pointer' }}>Pasife Al</button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -1629,11 +1916,12 @@ export const Admin: React.FC = () => {
               {/* Status Filter Pills */}
               <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', background: '#ffffff', padding: '0.5rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
                 {[
-                  { id: 'All', label: 'Tüm İkramlar' },
-                  { id: 'Pending', label: 'İnceleme Bekleyenler' },
-                  { id: 'Approved', label: 'Onaylananlar' },
-                  { id: 'Live', label: 'Yayında (Hazır)' },
-                  { id: 'Completed', label: 'Tamamlandı' }
+                  { id: 'All', label: 'Tümü' },
+                  { id: 'Pending', label: 'Bekliyor' },
+                  { id: 'Approved', label: 'Hazırlanıyor' },
+                  { id: 'Live', label: 'Teslime Hazır' },
+                  { id: 'Completed', label: 'Tamamlandı' },
+                  { id: 'Rejected', label: 'İptal Edildi' }
                 ].map((st) => (
                   <button
                     key={st.id}
@@ -1665,7 +1953,7 @@ export const Admin: React.FC = () => {
                       <th style={{ padding: '0.85rem 1rem' }}>Şube & Tutarı</th>
                       <th style={{ padding: '0.85rem 1rem' }}>Ismarlayan Görseli</th>
                       <th style={{ padding: '0.85rem 1rem' }}>Durum</th>
-                      <th style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>Otomatik Onay</th>
+                      <th style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>İşlem</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1693,18 +1981,12 @@ export const Admin: React.FC = () => {
                           )}
                         </td>
                         <td style={{ padding: '0.85rem 1rem' }}>
-                          <span style={{ padding: '4px 10px', borderRadius: '100px', fontSize: '0.75rem', fontWeight: 700, background: o.status === 'Delivered' ? '#dcfce7' : '#fef3c7', color: o.status === 'Delivered' ? '#15803d' : '#b45309' }}>
-                            {o.status || '—'}
+                          <span style={{ padding: '4px 10px', borderRadius: '100px', fontSize: '0.75rem', fontWeight: 700, background: canonicalizeOrderStatus(o.status) === 'Completed' ? '#dcfce7' : canonicalizeOrderStatus(o.status) === 'Cancelled' ? '#fee2e2' : '#fef3c7', color: canonicalizeOrderStatus(o.status) === 'Completed' ? '#15803d' : canonicalizeOrderStatus(o.status) === 'Cancelled' ? '#b91c1c' : '#b45309' }}>
+                            {orderStatusLabel(o.status)}
                           </span>
                         </td>
                         <td style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>
-                          {o.status === 'Delivered' ? (
-                            <span style={{ color: '#15803d', fontWeight: 700, fontSize: '0.75rem' }}>✓ Teslim Edildi</span>
-                          ) : (
-                            <button onClick={() => handleUpdateOrderStatus(o.id, 'Delivered')} style={{ padding: '6px 14px', background: '#16a34a', border: 'none', color: '#fff', borderRadius: '8px', fontSize: '0.775rem', fontWeight: 800, cursor: 'pointer' }}>
-                              Tek Tıkla Onayla & İkram Et
-                            </button>
-                          )}
+                          {renderOrderActions(o)}
                         </td>
                       </tr>
                     ))}
@@ -1734,7 +2016,7 @@ export const Admin: React.FC = () => {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
                 <div>
                   <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Kampanya İçerikleri</h1>
-                  <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '4px' }}>CMS kampanya içerikleri. Bu ekran bir ödül/bonus motoru değildir.</p>
+                  <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '4px' }}>Bu alan uygulamada gösterilecek kampanya duyurularını yönetir. Otomatik indirim veya GölPuan kuralı uygulamaz.</p>
                 </div>
 
                 <button
@@ -1755,7 +2037,7 @@ export const Admin: React.FC = () => {
                   }}
                 >
                   <Tag size={18} />
-                  <span>+ Yeni kampanya içeriği</span>
+                  <span>Yeni kampanya içeriği</span>
                 </button>
               </div>
 
@@ -1765,7 +2047,7 @@ export const Admin: React.FC = () => {
                 {getFilteredList(campaignsList).map((c) => (
                   <div key={c.id} style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 4px 20px -2px rgba(0,0,0,0.03)' }}>
                     {c.imageUrl ? (
-                      <img src={c.imageUrl} alt={c.title} style={{ width: '100%', height: '140px', objectFit: 'cover' }} />
+                      <SafeImg src={c.imageUrl} alt={c.title} style={{ width: '100%', height: '140px', objectFit: 'cover' }} />
                     ) : (
                       <div style={{ width: '100%', height: '100px', background: '#1d5f60', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
                         <Tag size={36} />
@@ -1808,10 +2090,12 @@ export const Admin: React.FC = () => {
                   <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Gaziantep Şehitkamil Etkinlikleri & Görevler</h1>
                   <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '4px' }}>Saha etkinlikleri, gençlik faaliyetleri ve GölPuan ödülleri.</p>
                 </div>
+                {isAdminUser && (
                 <button onClick={() => setShowAddEventModal(true)} style={{ background: '#1d5f60', color: '#fff', border: 'none', padding: '0.65rem 1.25rem', borderRadius: '10px', fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <Plus size={18} />
-                  <span>+ Yeni Etkinlik Tanımla</span>
+                  <span>Yeni etkinlik</span>
                 </button>
+                )}
               </div>
 
               {getFilteredList(eventsList).length === 0 ? emptyNote('Etkinlik kaydı yok.') : (
@@ -1838,7 +2122,7 @@ export const Admin: React.FC = () => {
             <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
               <div>
                 <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Duyurular / Bildirimler</h1>
-                <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '4px' }}>Şehitkamil Belediyesi mobil vatandaşlarına özel anlık Push Notification gönderimi.</p>
+                <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '4px' }}>Hedef kitle seçilmeden gönderim yapılamaz.</p>
               </div>
 
               <form onSubmit={handleSendPushNotification} style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: '600px' }}>
@@ -1853,10 +2137,11 @@ export const Admin: React.FC = () => {
                 <div>
                   <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Hedef kitle</label>
                   <select value={pushTargetGroup} onChange={(e) => setPushTargetGroup(e.target.value)} style={{ width: '100%', padding: '0.65rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px' }}>
+                    <option value="">Lütfen hedef kitle seçin</option>
                     <option value="All">Herkese</option>
-                    <option value="AgeRange">Yaş aralığı</option>
-                    <option value="EducationLevel">Eğitim seviyesi</option>
-                    <option value="SingleUser">Belirli kullanıcı</option>
+                    <option value="AgeRange">Belirli yaş grubu</option>
+                    <option value="EducationLevel">Öğrenim durumuna göre</option>
+                    <option value="SingleUser">Belirli vatandaş</option>
                   </select>
                 </div>
                 {pushTargetGroup === 'AgeRange' && (
@@ -1873,10 +2158,21 @@ export const Admin: React.FC = () => {
                   </select>
                 )}
                 {pushTargetGroup === 'SingleUser' && (
-                  <input placeholder="Kullanıcı Id" value={pushUserId} onChange={(e) => setPushUserId(e.target.value)} style={{ width: '100%', padding: '0.65rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px' }} />
+                  <select value={pushUserId} onChange={(e) => setPushUserId(e.target.value)} style={{ width: '100%', padding: '0.65rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px' }}>
+                    <option value="">Vatandaş seçin</option>
+                    {citizenUsers().map((u: any) => (
+                      <option key={u.id} value={u.id}>{`${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email}</option>
+                    ))}
+                  </select>
                 )}
-                <button type="submit" style={{ padding: '0.75rem', background: '#1d5f60', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-                  <Send size={16} /> Toplu Anlık Bildirim Gönder
+                <div>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Uygulama yönlendirmesi</label>
+                  <select value={pushNavTarget} onChange={(e) => setPushNavTarget(e.target.value)} style={{ width: '100%', padding: '0.65rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px' }}>
+                    {NAV_TARGETS.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+                  </select>
+                </div>
+                <button type="submit" disabled={!pushTargetGroup || savingKey === 'notification-preview'} style={{ padding: '0.75rem', background: !pushTargetGroup ? '#94a3b8' : '#1d5f60', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 700, cursor: !pushTargetGroup ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                  <Send size={16} /> {savingKey === 'notification-preview' ? 'Hazırlanıyor…' : 'Önizle ve Gönder'}
                 </button>
               </form>
               {getFilteredList(notificationsList).length === 0 ? emptyNote('Gönderilmiş bildirim kaydı yok.') : (
@@ -1884,7 +2180,7 @@ export const Admin: React.FC = () => {
                   {getFilteredList(notificationsList).map((n: any) => (
                     <div key={n.id} style={{ padding: '0.9rem 1.25rem', borderBottom: '1px solid #f1f5f9' }}>
                       <div style={{ fontWeight: 700 }}>{n.title}</div>
-                      <div style={{ fontSize: '0.8rem', color: '#64748b' }}>{n.message} · {n.status || '—'} · {n.sentCount ?? 0} alıcı</div>
+                      <div style={{ fontSize: '0.8rem', color: '#64748b' }}>{n.message} · {n.status || '—'} · {n.sentCount ?? 0} alıcı · {notificationGroupLabel(n.targetUserGroup)}</div>
                     </div>
                   ))}
                 </div>
@@ -1935,7 +2231,7 @@ export const Admin: React.FC = () => {
                   <div key={pt.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.9rem 1.25rem', borderBottom: '1px solid #f1f5f9' }}>
                     <div>
                       <div style={{ fontWeight: 700 }}>{pt.userFullName || pt.description}</div>
-                      <div style={{ fontSize: '0.8rem', color: '#64748b' }}>{pt.description} · {pt.type}</div>
+                      <div style={{ fontSize: '0.8rem', color: '#64748b' }}>{pt.description} · {pointTypeLabel(pt.type)}</div>
                     </div>
                     <div style={{ fontWeight: 800, color: pt.amount >= 0 ? '#15803d' : '#b91c1c' }}>{pt.amount > 0 ? '+' : ''}{pt.amount} GP</div>
                   </div>
@@ -1947,13 +2243,13 @@ export const Admin: React.FC = () => {
           {activeMenu === 'qr' && (
             <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
               <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>QR & Teslim Kayıtları</h1>
-              <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: 0 }}>Kasa tarama: dinamik HMAC QR veya kupon RedeemCode.</p>
+              <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: 0 }}>Kasa tarama: vatandaş karekodu veya kupon kodu.</p>
 
               <form onSubmit={handleScanQrSubmit} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569' }}>Dinamik QR token
-                  <input required value={qrTokenInput} onChange={(e) => setQrTokenInput(e.target.value)} placeholder="GBQR:..." style={{ width: '100%', marginTop: 4, padding: '0.65rem', border: '1px solid #cbd5e1', borderRadius: 8 }} />
+                <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569' }}>Vatandaş karekod verisi
+                  <input required value={qrTokenInput} onChange={(e) => setQrTokenInput(e.target.value)} placeholder="Karekod verisini yapıştırın" style={{ width: '100%', marginTop: 4, padding: '0.65rem', border: '1px solid #cbd5e1', borderRadius: 8 }} />
                 </label>
-                <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569' }}>Kupon RedeemCode (opsiyonel)
+                <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569' }}>Kupon kodu (opsiyonel)
                   <input value={qrRedeemCode} onChange={(e) => setQrRedeemCode(e.target.value)} placeholder="Kişiye özel kupon kodu" style={{ width: '100%', marginTop: 4, padding: '0.65rem', border: '1px solid #cbd5e1', borderRadius: 8 }} />
                 </label>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
@@ -1973,15 +2269,14 @@ export const Admin: React.FC = () => {
                 </label>
                 {qrScanError && <p style={{ color: '#b91c1c', fontSize: '0.85rem', margin: 0 }}>{qrScanError}</p>}
                 <button type="submit" disabled={qrScanLoading} style={{ padding: '10px', background: '#1d5f60', border: 'none', borderRadius: 10, color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
-                  {qrScanLoading ? 'Okunuyor...' : 'Kasa işlemini uygula'}
+                  {qrScanLoading ? 'Okunuyor...' : 'İşlemi Tamamla'}
                 </button>
                 {qrScanResult && (
                   <div style={{ background: '#f8fafc', borderRadius: 12, padding: '0.85rem', fontSize: '0.85rem' }}>
                     <div><strong>Üye:</strong> {qrScanResult.memberName || '—'}</div>
-                    <div><strong>İşlem:</strong> {qrScanResult.operation || '—'}</div>
-                    <div><strong>Puan:</strong> −{qrScanResult.pointsDeducted ?? 0} / +{qrScanResult.pointsEarned ?? 0} · bakiye {qrScanResult.newPointsBalance ?? '—'}</div>
+                    <div><strong>Sonuç:</strong> {qrResultLabel(qrScanResult)}</div>
+                    <div><strong>Puan:</strong> {qrScanResult.pointsDeducted ? `−${qrScanResult.pointsDeducted}` : '0'} / {qrScanResult.pointsEarned ? `+${qrScanResult.pointsEarned}` : '+0'} · bakiye {qrScanResult.newPointsBalance ?? '—'}</div>
                     <div><strong>Kupon:</strong> {qrScanResult.couponTitle || qrScanResult.couponCode || '—'}</div>
-                    <div><strong>Sonuç:</strong> {qrScanResult.status || 'Completed'}</div>
                   </div>
                 )}
               </form>
@@ -1995,7 +2290,7 @@ export const Admin: React.FC = () => {
                       <div style={{ fontWeight: 800, color: '#1d5f60' }}>{o.collectionCode}</div>
                       <div style={{ fontSize: '0.8rem', color: '#64748b' }}>{o.userFullName} · {o.cafeName}</div>
                     </div>
-                    <div style={{ fontWeight: 700 }}>{o.status}</div>
+                    <div style={{ fontWeight: 700 }}>{orderStatusLabel(o.status)}</div>
                   </div>
                 ))}
               </div>
@@ -2218,10 +2513,10 @@ export const Admin: React.FC = () => {
             </div>
 
             <div>
-              <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Kampanya Açıklaması & Şartları</label>
+              <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Kısa açıklama</label>
               <textarea
                 rows={2}
-                placeholder="Tüm Kitap Kafelerde geçerli öğrenci kartı ibrazında %20 indirim fırsatı..."
+                placeholder="Uygulamada görünecek kısa duyuru metni"
                 value={newCampDesc}
                 onChange={(e) => setNewCampDesc(e.target.value)}
                 required
@@ -2229,36 +2524,15 @@ export const Admin: React.FC = () => {
               />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-              <div>
-                <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>İndirim Tipi</label>
-                <select
-                  value={newCampType}
-                  onChange={(e: any) => setNewCampType(e.target.value)}
-                  style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', color: '#0f172a', outline: 'none', fontWeight: 700 }}
-                >
-                  <option value="Percentage">Yüzde İndirim (%)</option>
-                  <option value="FixedAmount">Sabit Tutar İndirimi (TL)</option>
-                  <option value="BonusPoints">Ekstra GölPuan (+GP)</option>
-                  <option value="BuyOneGetOne">1 Alana 1 Bedava</option>
-                </select>
-              </div>
-
-              <div>
-                <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#1d5f60', display: 'block', marginBottom: '4px' }}>
-                  {newCampType === 'Percentage' ? 'İndirim Oranı (%)' :
-                   newCampType === 'FixedAmount' ? 'İndirim Tutarı (TL)' :
-                   newCampType === 'BonusPoints' ? 'Kazanılacak Ekstra GölPuan (+GP)' : 'İkram Fırsat Adedi'}
-                </label>
-                <input
-                  type="number"
-                  min={1}
-                  value={newCampValue}
-                  onChange={(e) => setNewCampValue(Number(e.target.value))}
-                  required
-                  style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '2px solid #1d5f60', borderRadius: '8px', color: '#0f172a', outline: 'none', fontWeight: 700 }}
-                />
-              </div>
+            <div>
+              <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Detay</label>
+              <textarea
+                rows={3}
+                placeholder="Kampanya detayı"
+                value={newCampDetail}
+                onChange={(e) => setNewCampDetail(e.target.value)}
+                style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', color: '#0f172a', outline: 'none', resize: 'vertical' }}
+              />
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
@@ -2287,16 +2561,16 @@ export const Admin: React.FC = () => {
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
               <div>
-                <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#1d5f60', display: 'block', marginBottom: '4px' }}>Hedef Kitle Kriteri</label>
+                <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#1d5f60', display: 'block', marginBottom: '4px' }}>Hedef kitle</label>
                 <select
                   value={newCampTargetGroup}
                   onChange={(e) => setNewCampTargetGroup(e.target.value)}
                   style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', color: '#0f172a', outline: 'none', fontWeight: 700 }}
                 >
-                  <option value="All">Tüm Vatandaşlar (Şartsız)</option>
-                  <option value="Students">Sadece Öğrencilere Özel</option>
-                  <option value="Youth">Sadece Gençler (18-25 Yaş)</option>
-                  <option value="Seniors">Sadece Emekliler (65+ Yaş)</option>
+                  <option value="All">Tüm vatandaşlar</option>
+                  <option value="HighSchool">Lise</option>
+                  <option value="University">Üniversite</option>
+                  <option value="AgeGroup">Yaş grubu</option>
                 </select>
               </div>
 
@@ -2316,6 +2590,17 @@ export const Admin: React.FC = () => {
             </div>
 
             <div>
+              <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>CTA / yönlendirme (opsiyonel)</label>
+              <input
+                type="text"
+                placeholder="Örn: Tesisler sayfasını ziyaret edin"
+                value={newCampCta}
+                onChange={(e) => setNewCampCta(e.target.value)}
+                style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px' }}
+              />
+            </div>
+
+            <div>
               <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Kampanya Görseli Yükle</label>
               <label style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f1f5f9', border: '1px dashed #cbd5e1', borderRadius: '8px', color: '#1d5f60', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
                 <Upload size={16} />
@@ -2326,7 +2611,7 @@ export const Admin: React.FC = () => {
 
             <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
               <button type="button" onClick={() => setShowAddCampaignModal(false)} style={{ flex: 1, padding: '10px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '10px', color: '#0f172a', fontWeight: 600, cursor: 'pointer' }}>İptal</button>
-              <button type="submit" style={{ flex: 1, padding: '10px', background: '#1d5f60', border: 'none', borderRadius: '10px', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>Kampanyayı Yayınla</button>
+              <button type="submit" disabled={savingKey === 'campaign'} style={{ flex: 1, padding: '10px', background: '#1d5f60', border: 'none', borderRadius: '10px', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>{savingKey === 'campaign' ? 'Kaydediliyor…' : 'Yayınla'}</button>
             </div>
           </form>
         </div>
@@ -2379,15 +2664,16 @@ export const Admin: React.FC = () => {
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
               <div>
-                <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#1d5f60', display: 'block', marginBottom: '4px' }}>Şube / Konum Geçerliliği</label>
+                <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#1d5f60', display: 'block', marginBottom: '4px' }}>Göl Kafe</label>
                 <select
                   value={newProdCafeId}
                   onChange={(e) => setNewProdCafeId(e.target.value)}
+                  required
                   style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '2px solid #1d5f60', borderRadius: '8px', color: '#0f172a', outline: 'none', fontWeight: 700 }}
                 >
-                  <option value="ALL">Tüm Şubelerde Geçerli (Bütün Şehitkamil Kafeler)</option>
+                  <option value="">Kafe seçin</option>
                   {extractArray(cafesList).map((c) => (
-                    <option key={c.id} value={c.id}>Sadece {c.name}</option>
+                    <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
                 </select>
               </div>
@@ -2396,12 +2682,28 @@ export const Admin: React.FC = () => {
                 <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#1d5f60', display: 'block', marginBottom: '4px' }}>Satış Fiyatı (TL)</label>
                 <input
                   type="number"
-                  min={0}
+                  min={0.01}
+                  step="0.01"
                   value={newProdPrice}
                   onChange={(e) => setNewProdPrice(Number(e.target.value))}
                   required
                   style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '2px solid #1d5f60', borderRadius: '8px', color: '#0f172a', outline: 'none', fontWeight: 700 }}
                 />
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              <div>
+                <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Minimum yaş (opsiyonel)</label>
+                <input type="number" min={0} value={newProdMinAge} onChange={(e) => setNewProdMinAge(e.target.value)} style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px' }} />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Öğrenim durumu (opsiyonel)</label>
+                <select value={newProdEducation} onChange={(e) => setNewProdEducation(e.target.value)} style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px' }}>
+                  <option value="">Şart yok</option>
+                  <option value="Lise">Lise</option>
+                  <option value="Üniversite">Üniversite</option>
+                </select>
               </div>
             </div>
 
@@ -2416,7 +2718,7 @@ export const Admin: React.FC = () => {
 
             <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
               <button type="button" onClick={() => setShowAddProductModal(false)} style={{ flex: 1, padding: '10px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '10px', color: '#0f172a', fontWeight: 600, cursor: 'pointer' }}>İptal</button>
-              <button type="submit" style={{ flex: 1, padding: '10px', background: '#1d5f60', border: 'none', borderRadius: '10px', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>Ürünü Menüye Ekle</button>
+              <button type="submit" disabled={savingKey === 'menu'} style={{ flex: 1, padding: '10px', background: '#1d5f60', border: 'none', borderRadius: '10px', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>{savingKey === 'menu' ? 'Kaydediliyor…' : 'Ürünü Menüye Ekle'}</button>
             </div>
           </form>
         </div>
@@ -2434,8 +2736,8 @@ export const Admin: React.FC = () => {
                   <Building2 size={20} />
                 </div>
                 <div>
-                  <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' }}>Yeni Şehitkamil Kafe / Tesis Ekle</h3>
-                  <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>Fotoğraflı şube yönetimi ve menü atama.</p>
+                  <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' }}>Yeni Göl Kafe</h3>
+                  <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>Menü ve Ismarlıyor bu kayıttan yönetilir. Adres/saat Tesisler’dedir.</p>
                 </div>
               </div>
               <button type="button" onClick={() => setShowAddCafeModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}>
@@ -2444,7 +2746,7 @@ export const Admin: React.FC = () => {
             </div>
 
             <div>
-              <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Tesis / Şube Adı</label>
+              <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Ad</label>
               <input
                 type="text"
                 placeholder="Örn: Şehitkamil Sanat Kitap Kafe"
@@ -2456,7 +2758,7 @@ export const Admin: React.FC = () => {
             </div>
 
             <div>
-              <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Tesis Adresi & Konumu</label>
+              <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Adres</label>
               <input
                 type="text"
                 placeholder="Örn: Atatürk Mah. 15. Sok. No:4, Şehitkamil / Gaziantep"
@@ -2506,7 +2808,7 @@ export const Admin: React.FC = () => {
 
             <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
               <button type="button" onClick={() => setShowAddCafeModal(false)} style={{ flex: 1, padding: '10px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '10px', color: '#0f172a', fontWeight: 600, cursor: 'pointer' }}>İptal</button>
-              <button type="submit" style={{ flex: 1, padding: '10px', background: '#1d5f60', border: 'none', borderRadius: '10px', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>Şubeyi Ekle ve Yayınla</button>
+              <button type="submit" disabled={savingKey === 'cafe'} style={{ flex: 1, padding: '10px', background: '#1d5f60', border: 'none', borderRadius: '10px', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>{savingKey === 'cafe' ? 'Kaydediliyor…' : 'Şubeyi Ekle'}</button>
             </div>
           </form>
         </div>
@@ -2524,7 +2826,7 @@ export const Admin: React.FC = () => {
                   <Award size={20} />
                 </div>
                 <div>
-                  <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' }}>Yeni GölPuan İkram Ödülü Ekle</h3>
+                  <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' }}>{editingReward ? 'Ödülü Düzenle' : 'Yeni GölPuan İkram Ödülü'}</h3>
                   <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>Vatandaş ikram ödül kataloğu tanımlama.</p>
                 </div>
               </div>
@@ -2561,7 +2863,8 @@ export const Admin: React.FC = () => {
               <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#1d5f60', display: 'block', marginBottom: '4px' }}>Gerekli GölPuan Tutarı (GP)</label>
               <input
                 type="number"
-                min={10}
+                min={1}
+                max={MAX_REWARD_GP}
                 value={newRewardPoints}
                 onChange={(e) => setNewRewardPoints(Number(e.target.value))}
                 required
@@ -2580,7 +2883,7 @@ export const Admin: React.FC = () => {
 
             <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
               <button type="button" onClick={() => setShowAddRewardModal(false)} style={{ flex: 1, padding: '10px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '10px', color: '#0f172a', fontWeight: 600, cursor: 'pointer' }}>İptal</button>
-              <button type="submit" style={{ flex: 1, padding: '10px', background: '#1d5f60', border: 'none', borderRadius: '10px', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>Ödülü Yayınla</button>
+              <button type="submit" disabled={savingKey === 'reward'} style={{ flex: 1, padding: '10px', background: '#1d5f60', border: 'none', borderRadius: '10px', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>{savingKey === 'reward' ? 'Kaydediliyor…' : (editingReward ? 'Kaydet' : 'Ödülü Yayınla')}</button>
             </div>
           </form>
         </div>
@@ -2618,30 +2921,55 @@ export const Admin: React.FC = () => {
             <div>
               <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Belediye tesisi (opsiyonel)</label>
               <select value={newEventPlaceId} onChange={(e) => setNewEventPlaceId(e.target.value)} style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', color: '#0f172a', outline: 'none' }}>
-                <option value="">Serbest konum / tesis yok</option>
+                <option value="">Belediye tesisi seçilmedi</option>
                 {eventPlacesList.map((place) => (
                   <option key={place.id} value={place.id}>{place.name}</option>
                 ))}
               </select>
+              {newEventPlaceId ? (
+                <p style={{ margin: '6px 0 0', fontSize: '0.75rem', color: '#1d5f60', fontWeight: 700 }}>Tesis adresi kullanılacak.</p>
+              ) : (
+                <p style={{ margin: '6px 0 0', fontSize: '0.75rem', color: '#64748b' }}>Tesis seçilmezse serbest konum yazılır.</p>
+              )}
+            </div>
+            {!newEventPlaceId && (
+            <div>
+              <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Serbest konum</label>
+              <input type="text" placeholder="Örn: Şehitkamil Gençlik Merkezi" value={newEventLocation} onChange={(e) => setNewEventLocation(e.target.value)} required style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', color: '#0f172a', outline: 'none' }} />
+            </div>
+            )}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              <div>
+                <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Başlangıç tarihi</label>
+                <input type="date" required value={newEventStartDate} onChange={(e) => setNewEventStartDate(e.target.value)} style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px' }} />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Başlangıç saati</label>
+                <input type="time" required value={newEventStartTime} onChange={(e) => setNewEventStartTime(e.target.value)} style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px' }} />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Bitiş tarihi</label>
+                <input type="date" required value={newEventEndDate} onChange={(e) => setNewEventEndDate(e.target.value)} style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px' }} />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Bitiş saati</label>
+                <input type="time" required value={newEventEndTime} onChange={(e) => setNewEventEndTime(e.target.value)} style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px' }} />
+              </div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
               <div>
-                <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Etkinlik Konumu</label>
-                <input type="text" placeholder="Örn: Şehitkamil Gençlik Merkezi" value={newEventLocation} onChange={(e) => setNewEventLocation(e.target.value)} required style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', color: '#0f172a', outline: 'none' }} />
+                <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#1d5f60', display: 'block', marginBottom: '4px' }}>GölPuan Ödülü (GP)</label>
+                <input type="number" min={0} max={MAX_ACTIVITY_REWARD_GP} value={newEventPoints} onChange={(e) => setNewEventPoints(Number(e.target.value))} required style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '2px solid #1d5f60', borderRadius: '8px', color: '#0f172a', outline: 'none', fontWeight: 700 }} />
               </div>
               <div>
-                <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#1d5f60', display: 'block', marginBottom: '4px' }}>GölPuan Ödülü (GP)</label>
-                <input type="number" min={10} value={newEventPoints} onChange={(e) => setNewEventPoints(Number(e.target.value))} required style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '2px solid #1d5f60', borderRadius: '8px', color: '#0f172a', outline: 'none', fontWeight: 700 }} />
+                <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Kontenjan</label>
+                <input type="number" min={0} value={newEventQuota} onChange={(e) => setNewEventQuota(Number(e.target.value))} style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px' }} />
               </div>
-            </div>
-            <div>
-              <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Kontenjan (opsiyonel)</label>
-              <input type="number" min={0} value={newEventQuota} onChange={(e) => setNewEventQuota(Number(e.target.value))} style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px' }} />
             </div>
 
             <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
               <button type="button" onClick={() => setShowAddEventModal(false)} style={{ flex: 1, padding: '10px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '10px', color: '#0f172a', fontWeight: 600, cursor: 'pointer' }}>İptal</button>
-              <button type="submit" style={{ flex: 1, padding: '10px', background: '#1d5f60', border: 'none', borderRadius: '10px', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>Etkinliği Yayınla</button>
+              <button type="submit" disabled={savingKey === 'event'} style={{ flex: 1, padding: '10px', background: '#1d5f60', border: 'none', borderRadius: '10px', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>{savingKey === 'event' ? 'Kaydediliyor…' : 'Etkinliği Yayınla'}</button>
             </div>
           </form>
         </div>
@@ -2754,15 +3082,16 @@ export const Admin: React.FC = () => {
                 <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b' }}>GÖLPUAN BAKİYESİ</div>
                 <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#1d5f60' }}>{selectedUserDrawer.pointsBalance} GP</div>
               </div>
+              {isAdminUser && (
               <button onClick={() => setPointAdjustUserId(selectedUserDrawer.id)} style={{ padding: '8px 14px', background: '#1d5f60', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer' }}>
-                + Puan/İkram Yükle
+                Puan/İkram Tanımla
               </button>
+              )}
             </div>
 
             <div style={{ fontSize: '0.85rem', color: '#475569', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <div><strong>Öğrenim Durumu:</strong> {selectedUserDrawer.educationLevel || 'Üniversite'}</div>
-              <div><strong>Yaş:</strong> {selectedUserDrawer.age || 21}</div>
-              <div><strong>Hesap Durumu:</strong> Doğrulanmış Şehitkamil Üye</div>
+              <div><strong>Öğrenim Durumu:</strong> {educationLabel(selectedUserDrawer.educationLevel) || '—'}</div>
+              <div><strong>Yaş:</strong> {selectedUserDrawer.age ?? '—'}</div>
             </div>
 
             <button onClick={() => setSelectedUserDrawer(null)} style={{ marginTop: 'auto', padding: '10px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '10px', color: '#0f172a', fontWeight: 700, cursor: 'pointer' }}>
@@ -2771,6 +3100,109 @@ export const Admin: React.FC = () => {
           </div>
         </div>
       )}
+
+      {selectedCafeDetail && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }}>
+          <form onSubmit={handleSaveCafeEdit} style={{ width: 520, background: '#fff', borderRadius: 20, padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ margin: 0, fontWeight: 800 }}>Kafe düzenle</h3>
+              <button type="button" onClick={() => setSelectedCafeDetail(null)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={20} /></button>
+            </div>
+            <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>Fiziksel adres, konum ve çalışma saatleri Tesisler bölümünden yönetilir. Menü ve Ismarlıyor işlemleri bu bölümden yönetilir.</p>
+            <label style={{ fontSize: '0.775rem', fontWeight: 700 }}>Ad
+              <input required value={editCafeName} onChange={(e) => setEditCafeName(e.target.value)} style={{ width: '100%', marginTop: 4, padding: '0.65rem', border: '1px solid #cbd5e1', borderRadius: 8 }} />
+            </label>
+            <label style={{ fontSize: '0.775rem', fontWeight: 700 }}>Adres
+              <input required value={editCafeAddress} onChange={(e) => setEditCafeAddress(e.target.value)} style={{ width: '100%', marginTop: 4, padding: '0.65rem', border: '1px solid #cbd5e1', borderRadius: 8 }} />
+            </label>
+            <label style={{ fontSize: '0.775rem', fontWeight: 700 }}>Görsel
+              <input type="file" accept="image/*" onChange={(e) => handleFileUploadHelper(e, setEditCafeImageUrl)} />
+            </label>
+            {editCafeImageUrl && <SafeImg src={editCafeImageUrl} alt="" style={{ height: 80, objectFit: 'cover', borderRadius: 8 }} />}
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: '0.85rem' }}>
+              <input type="checkbox" checked={editCafeActive} onChange={(e) => setEditCafeActive(e.target.checked)} /> Aktif
+            </label>
+            <label style={{ fontSize: '0.775rem', fontWeight: 700 }}>Bağlı Belediye Tesisi
+              <select value={editCafePlaceId} disabled style={{ width: '100%', marginTop: 4, padding: '0.65rem', border: '1px solid #cbd5e1', borderRadius: 8, background: '#f8fafc' }}>
+                <option value="">{selectedCafeDetail.placeName || 'Atanmamış — Tesisler bölümünden yönetilir'}</option>
+                {cafePlacesList.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button type="button" onClick={() => setSelectedCafeDetail(null)} style={{ flex: 1, padding: 10, background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: 10, fontWeight: 700 }}>İptal</button>
+              <button type="submit" disabled={savingCafeEdit} style={{ flex: 1, padding: 10, background: '#1d5f60', color: '#fff', border: 'none', borderRadius: 10, fontWeight: 700 }}>{savingCafeEdit ? 'Kaydediliyor…' : 'Kaydet'}</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {pointAdjustUserId && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200 }}>
+          <form onSubmit={handleAdjustPointsSubmit} style={{ width: 480, background: '#fff', borderRadius: 20, padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ margin: 0, fontWeight: 800 }}>Manuel GölPuan</h3>
+              <button type="button" onClick={() => setPointAdjustUserId(null)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={20} /></button>
+            </div>
+            <label style={{ fontSize: '0.775rem', fontWeight: 700 }}>Vatandaş
+              <select required value={pointAdjustUserId} onChange={(e) => setPointAdjustUserId(e.target.value)} style={{ width: '100%', marginTop: 4, padding: '0.65rem', border: '1px solid #cbd5e1', borderRadius: 8 }}>
+                {citizenUsers().map((u: any) => (
+                  <option key={u.id} value={u.id}>{`${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email}</option>
+                ))}
+              </select>
+            </label>
+            <label style={{ fontSize: '0.775rem', fontWeight: 700 }}>İşlem türü
+              <select value={pointActionType} onChange={(e) => setPointActionType(e.target.value as 'Add' | 'Deduct')} style={{ width: '100%', marginTop: 4, padding: '0.65rem', border: '1px solid #cbd5e1', borderRadius: 8 }}>
+                <option value="Add">Puan ekle</option>
+                <option value="Deduct">Puan düş</option>
+              </select>
+            </label>
+            <label style={{ fontSize: '0.775rem', fontWeight: 700 }}>Miktar
+              <input type="number" min={1} max={MAX_MANUAL_GP} required value={pointAmount} onChange={(e) => setPointAmount(Number(e.target.value))} style={{ width: '100%', marginTop: 4, padding: '0.65rem', border: '1px solid #cbd5e1', borderRadius: 8 }} />
+            </label>
+            <label style={{ fontSize: '0.775rem', fontWeight: 700 }}>Sebep
+              <input required minLength={MIN_MANUAL_REASON} value={pointReason} onChange={(e) => setPointReason(e.target.value)} placeholder="En az 3 karakter" style={{ width: '100%', marginTop: 4, padding: '0.65rem', border: '1px solid #cbd5e1', borderRadius: 8 }} />
+            </label>
+            <label style={{ fontSize: '0.775rem', fontWeight: 700 }}>Açıklama (opsiyonel)
+              <textarea value={pointDescription} onChange={(e) => setPointDescription(e.target.value)} rows={2} style={{ width: '100%', marginTop: 4, padding: '0.65rem', border: '1px solid #cbd5e1', borderRadius: 8 }} />
+            </label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button type="button" onClick={() => setPointAdjustUserId(null)} style={{ flex: 1, padding: 10, background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: 10, fontWeight: 700 }}>İptal</button>
+              <button type="submit" disabled={savingKey === 'manual-gp'} style={{ flex: 1, padding: 10, background: pointActionType === 'Deduct' ? '#b91c1c' : '#1d5f60', color: '#fff', border: 'none', borderRadius: 10, fontWeight: 700 }}>{savingKey === 'manual-gp' ? 'Kaydediliyor…' : 'Devam'}</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {pushPreview && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1300 }}>
+          <div style={{ width: 480, background: '#fff', borderRadius: 16, padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <h3 style={{ margin: 0, fontWeight: 800 }}>Bildirim önizleme</h3>
+            <div><strong>Başlık:</strong> {pushPreview.title}</div>
+            <div><strong>Mesaj:</strong> {pushPreview.message}</div>
+            <div><strong>Hedef kitle:</strong> {notificationGroupLabel(pushPreview.targetUserGroup)}</div>
+            <div><strong>Tahmini alıcı:</strong> {pushPreview.recipientCount}</div>
+            {pushPreview.everyoneWarning && (
+              <p style={{ margin: 0, color: '#b91c1c', fontWeight: 700 }}>Bu bildirim tüm uygun kullanıcılara gönderilecek.</p>
+            )}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button type="button" onClick={() => setPushPreview(null)} style={{ flex: 1, padding: 10, background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: 10, fontWeight: 700 }}>Vazgeç</button>
+              <button type="button" disabled={savingKey === 'notification'} onClick={() => void confirmSendNotification()} style={{ flex: 1, padding: 10, background: '#1d5f60', color: '#fff', border: 'none', borderRadius: 10, fontWeight: 700 }}>{savingKey === 'notification' ? 'Kaydediliyor…' : 'Bildirimi Gönder'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={!!confirmState}
+        title={confirmState?.title}
+        message={confirmState?.message || ''}
+        confirmLabel={confirmState?.confirmLabel}
+        cancelLabel={confirmState?.cancelLabel}
+        danger={confirmState?.danger}
+        pending={confirmPending}
+        onCancel={() => { if (!confirmPending) setConfirmState(null); }}
+        onConfirm={() => { void runConfirm(); }}
+      />
 
       {/* Proof Image Large Preview Modal */}
       {previewProofImage && (

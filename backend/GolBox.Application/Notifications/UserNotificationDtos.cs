@@ -20,7 +20,7 @@ public class SendCitizenNotificationRequest
     public string Message { get; set; } = string.Empty;
     public string? ImageUrl { get; set; }
     public string NotificationType { get; set; } = "General";
-    public string TargetUserGroup { get; set; } = "All";
+    public string TargetUserGroup { get; set; } = string.Empty;
     public Guid? TargetUserId { get; set; }
     public int? MinAge { get; set; }
     public int? MaxAge { get; set; }

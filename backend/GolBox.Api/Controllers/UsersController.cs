@@ -30,9 +30,31 @@ public class UsersController : BaseApiController
 
     [HttpGet]
     [Authorize(Policy = AuthorizationPolicies.StaffOrAdmin)]
-    public async Task<IActionResult> GetAllUsers()
+    public async Task<IActionResult> GetAllUsers([FromQuery] string? role = null)
     {
-        var users = await _context.Users
+        var query = _context.Users.AsQueryable();
+        if (!string.IsNullOrWhiteSpace(role))
+        {
+            if (role.Equals("citizen", StringComparison.OrdinalIgnoreCase) ||
+                role.Equals("user", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(u => u.Role == "User" || u.Role == "Citizen");
+            }
+            else if (role.Equals("staff", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(u => u.Role == "Staff");
+            }
+            else if (role.Equals("admin", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(u => u.Role == "Admin");
+            }
+            else
+            {
+                query = query.Where(u => u.Role == role);
+            }
+        }
+
+        var users = await query
             .Select(u => new
             {
                 u.Id,
@@ -44,9 +66,7 @@ public class UsersController : BaseApiController
                 u.EducationLevel,
                 u.PhoneNumber,
                 u.CreatedDate,
-                u.Role,
-                VerificationStatus = "Doğrulanmış",
-                AccountStatus = "Aktif"
+                u.Role
             })
             .ToListAsync();
         return Ok(Result<object>.Ok(users));
@@ -96,9 +116,7 @@ public class UsersController : BaseApiController
             user.Age,
             user.EducationLevel,
             user.CreatedDate,
-            user.Role,
-            VerificationStatus = "Doğrulanmış",
-            AccountStatus = "Aktif"
+            user.Role
         };
 
         return Ok(Result<object>.Ok(new
@@ -113,8 +131,6 @@ public class UsersController : BaseApiController
             profile.EducationLevel,
             profile.CreatedDate,
             profile.Role,
-            profile.VerificationStatus,
-            profile.AccountStatus,
             profile,
             pointHistory,
             ordersHistory,
@@ -130,17 +146,22 @@ public class UsersController : BaseApiController
         var user = await _context.Users.FindAsync(id);
         if (user == null) return NotFound(Result<object>.Fail("Vatandaş bulunamadı."));
 
-        if (string.IsNullOrWhiteSpace(request.Reason) || request.Reason.Length < 3)
-        {
-            return BadRequest(Result<object>.Fail("İşlem nedeni ve açıklama girilmesi zorunludur."));
-        }
+        var reasonCheck = AdminSafetyRules.ValidateManualGpReason(request.Reason);
+        if (!reasonCheck.Success)
+            return BadRequest(Result<object>.Fail(reasonCheck.Message));
 
-        var actionType = string.IsNullOrWhiteSpace(request.ActionType) ? "Add" : request.ActionType;
-        if (actionType is "Reward" or "Coupon" or "Reverse")
-            actionType = "Add";
+        var amountCheck = AdminSafetyRules.ValidateManualGpAmount(request.Amount);
+        if (!amountCheck.Success)
+            return BadRequest(Result<object>.Fail(amountCheck.Message));
+
+        var actionCheck = AdminSafetyRules.ValidateManualGpAction(request.ActionType);
+        if (!actionCheck.Success)
+            return BadRequest(Result<object>.Fail(actionCheck.Message));
+
+        var actionType = AdminSafetyRules.CanonicalManualGpAction(request.ActionType);
 
         int previousBalance = user.PointsBalance;
-        int deltaAmount = actionType == "Deduct" ? -Math.Abs(request.Amount) : Math.Abs(request.Amount);
+        int deltaAmount = actionType == "Deduct" ? -request.Amount : request.Amount;
 
         if (actionType == "Deduct" && user.PointsBalance + deltaAmount < 0)
         {

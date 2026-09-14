@@ -28,6 +28,7 @@ public class CafesController : BaseApiController
     {
         var cafes = await _context.Cafes
             .Include(c => c.Category)
+            .Include(c => c.Place)
             .OrderBy(c => c.Name)
             .ToListAsync();
 
@@ -43,7 +44,9 @@ public class CafesController : BaseApiController
             CategoryId = c.CategoryId,
             CategoryName = c.Category?.Name ?? "Genel",
             c.OrganizationId,
-            c.PlaceId
+            c.PlaceId,
+            PlaceName = c.Place != null ? c.Place.Name : null,
+            PlaceAddress = c.Place != null ? c.Place.Address : null
         }).ToList();
 
         return Ok(Result<object>.Ok(dtoList));

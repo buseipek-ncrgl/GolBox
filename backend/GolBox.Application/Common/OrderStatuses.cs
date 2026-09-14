@@ -29,4 +29,32 @@ public static class OrderStatuses
         var value = Canonicalize(status);
         return value == Pending || value == Preparing;
     }
+
+    public static bool IsFinal(string? status)
+    {
+        var value = Canonicalize(status);
+        return value == Completed || value == Cancelled;
+    }
+
+    public static bool CanTransition(string? fromStatus, string? toStatus)
+    {
+        var from = Canonicalize(fromStatus);
+        var to = Canonicalize(toStatus);
+        if (from == to)
+            return true;
+
+        return (from, to) switch
+        {
+            (Pending, Preparing) => true,
+            (Pending, Cancelled) => true,
+            (Preparing, Ready) => true,
+            (Preparing, Cancelled) => true,
+            (Ready, Completed) => true,
+            (Ready, Cancelled) => true,
+            _ => false
+        };
+    }
+
+    public static string TransitionError(string from, string to) =>
+        $"'{from}' durumundan '{to}' durumuna geçiş yapılamaz.";
 }

@@ -112,6 +112,23 @@ public static class NotificationTargetTypes
     public const string Place = "Place";
     public const string Route = "Route";
     public const string ExternalUrl = "ExternalUrl";
+
+    public static readonly string[] All =
+    [
+        None, Content, Activity, Cafe, Place, Route, ExternalUrl
+    ];
+
+    public static bool IsKnown(string? value) =>
+        string.IsNullOrWhiteSpace(value) ||
+        All.Any(t => string.Equals(t, value, StringComparison.OrdinalIgnoreCase));
+
+    public static string Canonical(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return None;
+        var match = All.FirstOrDefault(t => string.Equals(t, value, StringComparison.OrdinalIgnoreCase));
+        return match ?? None;
+    }
 }
 
 public static class AdminContentStatuses

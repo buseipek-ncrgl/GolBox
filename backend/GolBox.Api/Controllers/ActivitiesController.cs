@@ -192,28 +192,45 @@ public class ActivitiesController : BaseApiController
     [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
     public async Task<IActionResult> CreateActivity([FromBody] CreateActivityRequest request)
     {
-        if (request.PlaceId is Guid placeId)
+        if (string.IsNullOrWhiteSpace(request.Title))
+            return BadRequest(Result<object>.Fail("Etkinlik başlığı zorunludur."));
+
+        var scheduleCheck = AdminSafetyRules.ValidateActivitySchedule(request.StartDate, request.EndDate);
+        if (!scheduleCheck.Success)
+            return BadRequest(Result<object>.Fail(scheduleCheck.Message));
+        var rewardCheck = AdminSafetyRules.ValidateActivityReward(request.PointsReward);
+        if (!rewardCheck.Success)
+            return BadRequest(Result<object>.Fail(rewardCheck.Message));
+        var capacityCheck = AdminSafetyRules.ValidateActivityCapacity(request.Capacity);
+        if (!capacityCheck.Success)
+            return BadRequest(Result<object>.Fail(capacityCheck.Message));
+
+        string location = request.Location?.Trim() ?? string.Empty;
+        Guid? placeId = request.PlaceId;
+        if (placeId is Guid selectedPlaceId)
         {
             var org = request.OrganizationId == Guid.Empty ? KnownOrganizations.Sehitkamil : request.OrganizationId;
-            var placeOk = await _context.Places.AnyAsync(p => p.Id == placeId && p.OrganizationId == org);
-            if (!placeOk)
+            var place = await _context.Places.AsNoTracking()
+                .FirstOrDefaultAsync(p => p.Id == selectedPlaceId && p.OrganizationId == org);
+            if (place == null)
                 return BadRequest(Result<object>.Fail("Seçilen tesis bulunamadı."));
+            location = string.IsNullOrWhiteSpace(place.Address) ? place.Name : place.Address!;
         }
 
         var activity = new Activity
         {
             Id = Guid.NewGuid(),
             OrganizationId = request.OrganizationId == Guid.Empty ? KnownOrganizations.Sehitkamil : request.OrganizationId,
-            Title = request.Title,
-            Description = request.Description,
+            Title = request.Title.Trim(),
+            Description = request.Description?.Trim() ?? string.Empty,
             PointsReward = request.PointsReward,
-            Location = request.Location,
+            Location = location,
             ImageUrl = MediaUrlNormalizer.Normalize(request.ImageUrl),
-            Capacity = request.Capacity is > 0 ? request.Capacity : null,
+            Capacity = request.Capacity is > 0 ? request.Capacity : request.Capacity == 0 ? 0 : null,
             StartDate = request.StartDate,
             EndDate = request.EndDate,
             Status = "Active",
-            PlaceId = request.PlaceId
+            PlaceId = placeId
         };
 
         _context.Activities.Add(activity);

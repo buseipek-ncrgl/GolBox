@@ -26,7 +26,7 @@ async function request<T>(
     headers,
   });
 
-  if (response.status === 401) {
+    if (response.status === 401) {
     localStorage.removeItem('token');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
@@ -34,9 +34,11 @@ async function request<T>(
     throw new Error('Oturum süresi doldu. Lütfen tekrar giriş yapın.');
   }
 
+  const forbiddenMessage = 'Bu işlem için yetkiniz bulunmuyor.';
   const raw = await response.text();
   if (!raw) {
     if (!response.ok) {
+      if (response.status === 403) throw new Error(forbiddenMessage);
       throw new Error('Bir hata oluştu.');
     }
     return undefined as T;
@@ -45,6 +47,9 @@ async function request<T>(
   const result: ApiResponse<T> = JSON.parse(raw);
 
   if (!result.success || !response.ok) {
+    if (response.status === 403) {
+      throw new Error(result.message || forbiddenMessage);
+    }
     let errorMsg = result.message || 'Bir hata oluştu.';
     if (result.errors) {
       if (Array.isArray(result.errors)) {
@@ -77,7 +82,8 @@ export const api = {
     }),
 
   // Profile
-  getUsers: () => request<any>('/users'),
+  getUsers: (role?: string) =>
+    request<any>(role ? `/users?role=${encodeURIComponent(role)}` : '/users'),
   getProfile: () => request<any>('/users/me'),
   updateProfile: (data: any) =>
     request<any>('/users/me', {
@@ -104,6 +110,7 @@ export const api = {
   // Rewards
   getRewards: (page = 1, pageSize = 10, search = '') =>
     request<any>(`/rewards?page=${page}&pageSize=${pageSize}&search=${encodeURIComponent(search)}`),
+  getAdminRewards: () => request<any>('/rewards/admin'),
   getMyClaimedRewards: () => request<any>('/rewards/my-claimed'),
   claimReward: (id: string) =>
     request<any>(`/rewards/${id}/claim`, {
@@ -118,6 +125,19 @@ export const api = {
     request<any>('/rewards', {
       method: 'POST',
       body: JSON.stringify(data),
+    }),
+  updateReward: (id: string, data: any) =>
+    request<any>(`/rewards/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  deactivateReward: (id: string) =>
+    request<any>(`/rewards/${id}/deactivate`, {
+      method: 'POST',
+    }),
+  activateReward: (id: string) =>
+    request<any>(`/rewards/${id}/activate`, {
+      method: 'POST',
     }),
   deleteReward: (id: string) =>
     request<any>(`/rewards/${id}`, {
@@ -267,6 +287,11 @@ export const api = {
       body: JSON.stringify(data),
     }),
   getNotifications: () => request<any>('/notifications'),
+  previewNotification: (data: any) =>
+    request<any>('/notifications/preview', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
   sendNotification: (data: any) =>
     request<any>('/notifications/send', {
       method: 'POST',

@@ -52,6 +52,14 @@ public class MenuItemsController : BaseApiController
     [Authorize(Policy = AuthorizationPolicies.StaffOrAdmin)]
     public async Task<IActionResult> CreateMenuItem(Guid cafeId, [FromBody] CreateMenuItemRequest request)
     {
+        if (cafeId == Guid.Empty)
+            return BadRequest(Result<object>.Fail("Ürün eklemek için kafe seçilmelidir."));
+        if (string.IsNullOrWhiteSpace(request.Name))
+            return BadRequest(Result<object>.Fail("Ürün adı zorunludur."));
+        var priceCheck = AdminSafetyRules.ValidateMenuPrice(request.Price);
+        if (!priceCheck.Success)
+            return BadRequest(Result<object>.Fail(priceCheck.Message));
+
         var cafeExists = await _context.Cafes.AnyAsync(c => c.Id == cafeId);
         if (!cafeExists)
             return NotFound(Result<object>.Fail("Belirtilen kafe bulunamadı."));

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Plus, Save, Trash2, Eye, Upload } from 'lucide-react';
 import { api } from '../services/api';
+import { ConfirmDialog } from '../components/admin/ConfirmDialog';
 
 const TYPES = [
   { id: 'Hero', label: 'Hero' },
@@ -105,6 +106,7 @@ export const HomeContentPanel: React.FC<{
   const [uploading, setUploading] = useState(false);
   const [activities, setActivities] = useState<any[]>([]);
   const [places, setPlaces] = useState<any[]>([]);
+  const [archiveTarget, setArchiveTarget] = useState<any>(null);
 
   const load = async () => {
     setLoading(true);
@@ -212,16 +214,7 @@ export const HomeContentPanel: React.FC<{
     }
   };
 
-  const remove = async (item: any) => {
-    if (!window.confirm('Bu içerik arşivlensin mi?')) return;
-    try {
-      await api.deleteCityContent(item.id);
-      onSuccess('İçerik arşivlendi.');
-      await load();
-    } catch (err: any) {
-      onError(err.message || 'Silinemedi.');
-    }
-  };
+  const remove = (item: any) => setArchiveTarget(item);
 
   const upload = async (file: File, field: 'imageUrl' | 'authorImageUrl') => {
     setUploading(true);
@@ -421,6 +414,24 @@ export const HomeContentPanel: React.FC<{
           </form>
         </div>
       )}
+      <ConfirmDialog
+        open={!!archiveTarget}
+        title="İçeriği arşivle"
+        message="Bu içerik arşivlensin mi?"
+        confirmLabel="Arşivle"
+        danger
+        onCancel={() => setArchiveTarget(null)}
+        onConfirm={async () => {
+          try {
+            await api.deleteCityContent(archiveTarget.id);
+            onSuccess('İçerik arşivlendi.');
+            setArchiveTarget(null);
+            await load();
+          } catch (err: any) {
+            onError(err.message || 'Silinemedi.');
+          }
+        }}
+      />
     </div>
   );
 };

@@ -35,18 +35,23 @@ public class CampaignsController : BaseApiController
     [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
     public async Task<IActionResult> CreateCampaign([FromBody] CreateCampaignRequest request)
     {
+        if (string.IsNullOrWhiteSpace(request.Title))
+            return BadRequest(Result<object>.Fail("Kampanya başlığı zorunludur."));
+        if (request.EndDate <= request.StartDate)
+            return BadRequest(Result<object>.Fail("Bitiş tarihi başlangıç tarihinden sonra olmalıdır."));
+
         var org = await _context.Organizations.FirstOrDefaultAsync();
         var campaign = new Campaign
         {
             Id = Guid.NewGuid(),
             OrganizationId = org?.Id ?? KnownOrganizations.Sehitkamil,
-            Title = request.Title,
-            Description = request.Description,
+            Title = request.Title.Trim(),
+            Description = request.Description?.Trim() ?? string.Empty,
             ImageUrl = request.ImageUrl,
-            CampaignType = request.CampaignType,
+            CampaignType = "Announcement",
             StartDate = request.StartDate,
             EndDate = request.EndDate,
-            TargetUserGroup = request.TargetUserGroup,
+            TargetUserGroup = string.IsNullOrWhiteSpace(request.TargetUserGroup) ? "All" : request.TargetUserGroup,
             CafeId = request.CafeId,
             MenuItemId = request.MenuItemId,
             TotalUsageLimit = request.TotalUsageLimit,

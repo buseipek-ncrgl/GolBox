@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Plus, Save, Trash2, Upload, Search } from 'lucide-react';
 import { api } from '../services/api';
 import { AdminMapPicker } from '../components/admin/AdminMapPicker';
+import { ConfirmDialog } from '../components/admin/ConfirmDialog';
 
 const CATEGORIES = [
   { id: 'Cafe', label: 'Göl Kafeler' },
@@ -79,6 +80,7 @@ export const PlacesPanel: React.FC<{
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(emptyForm());
   const [uploading, setUploading] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -347,7 +349,7 @@ export const PlacesPanel: React.FC<{
             </button>
             <button type="button" onClick={() => setEditing(false)} style={{ background: '#fff', border: '1px solid #d7e3e0', padding: '0.7rem 1.2rem', borderRadius: 10, fontWeight: 700, cursor: 'pointer' }}>Vazgeç</button>
             {form.id ? (
-              <button type="button" onClick={() => void api.deleteAdminPlace(form.id).then(() => { onSuccess('Tesis silindi.'); setEditing(false); return load(); })} style={{ marginLeft: 'auto', background: '#fff', color: '#b91c1c', border: '1px solid #fecaca', padding: '0.7rem 1.2rem', borderRadius: 10, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button type="button" onClick={() => setDeleteConfirm(true)} style={{ marginLeft: 'auto', background: '#fff', color: '#b91c1c', border: '1px solid #fecaca', padding: '0.7rem 1.2rem', borderRadius: 10, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Trash2 size={16} /> Sil
               </button>
             ) : null}
@@ -374,6 +376,21 @@ export const PlacesPanel: React.FC<{
           ))}
         </div>
       )}
+      <ConfirmDialog
+        open={deleteConfirm}
+        title="Tesisi kaldır"
+        message="Bu tesis kaydı kaldırılacak. Devam edilsin mi?"
+        confirmLabel="Kaldır"
+        danger
+        onCancel={() => setDeleteConfirm(false)}
+        onConfirm={async () => {
+          await api.deleteAdminPlace(form.id);
+          onSuccess('Tesis silindi.');
+          setDeleteConfirm(false);
+          setEditing(false);
+          await load();
+        }}
+      />
     </div>
   );
 };

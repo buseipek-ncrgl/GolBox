@@ -83,14 +83,15 @@ public class OrdersController : BaseApiController
         if (order == null)
             return NotFound(Result<object>.Fail("Sipariş bulunamadı."));
 
+        var currentStatus = OrderStatuses.Canonicalize(order.Status);
         var newStatus = OrderStatuses.Canonicalize(request.Status);
+        if (!OrderStatuses.CanTransition(currentStatus, newStatus))
+            return BadRequest(Result<object>.Fail(OrderStatuses.TransitionError(currentStatus, newStatus)));
+
         if (newStatus == OrderStatuses.Cancelled)
         {
-            if (order.Status == OrderStatuses.Completed)
-                return BadRequest(Result<object>.Fail("Tamamlanmış sipariş iptal edilemez."));
-
-            if (order.Status == OrderStatuses.Cancelled)
-                return Ok(Result<object>.Ok(new { id = order.Id, status = order.Status }, "Sipariş zaten iptal."));
+            if (currentStatus == OrderStatuses.Cancelled)
+                return Ok(Result<object>.Ok(new { id = order.Id, status = currentStatus }, "Sipariş zaten iptal."));
 
             if (order.PaidWithPoints && order.PointsUsed > 0)
             {
@@ -102,6 +103,7 @@ public class OrdersController : BaseApiController
             }
         }
 
+        var previousStatus = order.Status;
         order.Status = newStatus;
         order.UpdatedDate = DateTime.UtcNow;
 
@@ -124,7 +126,19 @@ public class OrdersController : BaseApiController
         await _hubContext.Clients.User(order.UserId.ToString()).SendAsync("OrderStatusUpdated", payload);
         await _hubContext.Clients.Group(OrderHub.StaffGroup).SendAsync("OrderStatusUpdated", payload);
 
-        return Ok(Result<object>.Ok(new { id = order.Id, status = order.Status }, $"Sipariş durumu '{order.Status}' olarak güncellendi."));
+        await AuditLogsController.LogAsync(
+            _context,
+            _currentUserService.Email ?? "staff",
+            _currentUserService.Role ?? "Staff",
+            "Order_Status",
+            "Orders",
+            "Order",
+            order.Id.ToString(),
+            previousStatus,
+            order.Status,
+            order.CollectionCode);
+
+        return Ok(Result<object>.Ok(new { id = order.Id, status = order.Status }, "Sipariş durumu güncellendi."));
     }
 
     [HttpPost]

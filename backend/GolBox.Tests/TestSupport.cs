@@ -2,9 +2,11 @@ using GolBox.Application.Common;
 using GolBox.Application.Interfaces;
 using GolBox.Domain.Entities;
 using GolBox.Persistence.Context;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Xunit;
 using Task = System.Threading.Tasks.Task;
 
 namespace GolBox.Tests;
@@ -107,4 +109,75 @@ internal static class TestData
         CreatedDate = DateTime.UtcNow,
         CategoryId = Guid.NewGuid()
     };
+
+    public static Place Place(Guid? id = null, string name = "Test Tesis", string address = "Tesis Adresi") => new()
+    {
+        Id = id ?? Guid.NewGuid(),
+        OrganizationId = OrgId,
+        Name = name,
+        Slug = name.ToLowerInvariant().Replace(' ', '-'),
+        Category = "Park",
+        Address = address,
+        SearchNormalized = name.ToLowerInvariant(),
+        IsActive = true,
+        IsPublished = true,
+        CreatedDate = DateTime.UtcNow
+    };
+
+    public static CafeCategory Category() => new()
+    {
+        Id = Guid.NewGuid(),
+        OrganizationId = OrgId,
+        Name = "Kafe"
+    };
+}
+
+internal static class ActionResultAssert
+{
+    public static int Status(IActionResult result) =>
+        result switch
+        {
+            ObjectResult o => o.StatusCode ?? 200,
+            StatusCodeResult s => s.StatusCode,
+            _ => 200
+        };
+
+    public static Result<object> Body(IActionResult result)
+    {
+        var value = Assert.IsType<Result<object>>((result as ObjectResult)?.Value);
+        return value;
+    }
+}
+
+internal sealed class FakeClientProxy : Microsoft.AspNetCore.SignalR.IClientProxy
+{
+    public Task SendCoreAsync(string method, object?[] args, CancellationToken cancellationToken = default) =>
+        Task.CompletedTask;
+}
+
+internal sealed class FakeHubClients : Microsoft.AspNetCore.SignalR.IHubClients
+{
+    private readonly FakeClientProxy _proxy = new();
+    public Microsoft.AspNetCore.SignalR.IClientProxy All => _proxy;
+    public Microsoft.AspNetCore.SignalR.IClientProxy AllExcept(IReadOnlyList<string> excludedConnectionIds) => _proxy;
+    public Microsoft.AspNetCore.SignalR.IClientProxy Client(string connectionId) => _proxy;
+    public Microsoft.AspNetCore.SignalR.IClientProxy Clients(IReadOnlyList<string> connectionIds) => _proxy;
+    public Microsoft.AspNetCore.SignalR.IClientProxy Group(string groupName) => _proxy;
+    public Microsoft.AspNetCore.SignalR.IClientProxy GroupExcept(string groupName, IReadOnlyList<string> excludedConnectionIds) => _proxy;
+    public Microsoft.AspNetCore.SignalR.IClientProxy Groups(IReadOnlyList<string> groupNames) => _proxy;
+    public Microsoft.AspNetCore.SignalR.IClientProxy User(string userId) => _proxy;
+    public Microsoft.AspNetCore.SignalR.IClientProxy Users(IReadOnlyList<string> userIds) => _proxy;
+}
+
+internal sealed class FakeGroupManager : Microsoft.AspNetCore.SignalR.IGroupManager
+{
+    public Task AddToGroupAsync(string connectionId, string groupName, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    public Task RemoveFromGroupAsync(string connectionId, string groupName, CancellationToken cancellationToken = default) => Task.CompletedTask;
+}
+
+internal sealed class FakeHubContext<THub> : Microsoft.AspNetCore.SignalR.IHubContext<THub>
+    where THub : Microsoft.AspNetCore.SignalR.Hub
+{
+    public Microsoft.AspNetCore.SignalR.IHubClients Clients { get; } = new FakeHubClients();
+    public Microsoft.AspNetCore.SignalR.IGroupManager Groups { get; } = new FakeGroupManager();
 }
