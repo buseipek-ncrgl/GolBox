@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using GolBox.Api.Hubs;
@@ -49,17 +50,19 @@ builder.Services.AddCors(options =>
     });
 });
 
-var connStr = builder.Configuration.GetConnectionString("DefaultConnection");
+var connStr = DatabaseProvider.ResolveConnectionString(builder.Configuration, optional: !builder.Environment.IsProduction());
+if (builder.Environment.IsProduction())
+{
+    if (string.IsNullOrWhiteSpace(connStr) || DatabaseProvider.IsSqlite(connStr))
+        throw new InvalidOperationException("Production requires ConnectionStrings:Default as SQL Server.");
+}
+
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
-    if (string.IsNullOrEmpty(connStr) || connStr.Contains("golbox.db") || connStr.Contains("Data Source="))
-    {
-        options.UseSqlite(connStr ?? "Data Source=golbox.db");
-    }
+    if (!builder.Environment.IsProduction() && (string.IsNullOrWhiteSpace(connStr) || DatabaseProvider.IsSqlite(connStr!)))
+        options.UseSqlite(string.IsNullOrWhiteSpace(connStr) ? "Data Source=golbox.db" : connStr);
     else
-    {
         options.UseSqlServer(connStr);
-    }
 });
 
 builder.Services.AddScoped<IAppDbContext>(provider => provider.GetRequiredService<AppDbContext>());
@@ -194,17 +197,18 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
-    try
-    {
-        var context = services.GetRequiredService<AppDbContext>();
-        var passwordHasher = services.GetRequiredService<IPasswordHasher>();
-        await DbInitializer.SeedAsync(context, passwordHasher, app.Environment.IsDevelopment());
-    }
-    catch (Exception ex)
-    {
-        var logger = services.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "Veritabanı seed edilirken bir hata oluştu.");
-    }
+    var context = services.GetRequiredService<AppDbContext>();
+    var logger = services.GetRequiredService<ILoggerFactory>().CreateLogger("Startup");
+    await context.Database.MigrateAsync();
+    logger.LogInformation("Database migrations applied.");
+
+    var passwordHasher = services.GetRequiredService<IPasswordHasher>();
+    await DbInitializer.SeedAsync(
+        context,
+        passwordHasher,
+        app.Environment.IsDevelopment(),
+        app.Configuration["BootstrapAdmin:Email"],
+        app.Configuration["BootstrapAdmin:Password"]);
 }
 
 app.UseMiddleware<GlobalExceptionMiddleware>();
@@ -219,9 +223,20 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseStaticFiles();
+var uploadsPath = app.Configuration["Storage:UploadsPath"];
+if (!string.IsNullOrWhiteSpace(uploadsPath))
+{
+    Directory.CreateDirectory(uploadsPath);
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = new PhysicalFileProvider(Path.GetFullPath(uploadsPath)),
+        RequestPath = "/uploads"
+    });
+}
 app.UseCors("AppCors");
 app.UseRateLimiter();
 app.UseAuthentication();
+app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseAuthorization();
 
 app.MapControllers();
@@ -229,3 +244,5 @@ app.MapHub<OrderHub>("/hubs/orders").RequireAuthorization();
 app.MapHub<NotificationHub>("/hubs/notifications").RequireAuthorization();
 
 app.Run();
+
+public partial class Program;

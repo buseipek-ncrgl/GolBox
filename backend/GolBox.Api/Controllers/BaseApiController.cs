@@ -16,6 +16,12 @@ public abstract class BaseApiController : ControllerBase
             return Ok(result);
         }
 
+        if (result.IsForbidden)
+            return StatusCode(StatusCodes.Status403Forbidden, result);
+
+        if (result.IsConflict)
+            return Conflict(result);
+
         return BadRequest(result);
     }
 
@@ -27,6 +33,12 @@ public abstract class BaseApiController : ControllerBase
         {
             return Ok(result);
         }
+
+        if (result.IsForbidden)
+            return StatusCode(StatusCodes.Status403Forbidden, result);
+
+        if (result.IsConflict)
+            return Conflict(result);
 
         return BadRequest(result);
     }

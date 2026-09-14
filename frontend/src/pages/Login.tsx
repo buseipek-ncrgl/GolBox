@@ -115,6 +115,7 @@ export const Login: React.FC = () => {
           </p>
         </div>
 
+        {import.meta.env.DEV ? (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '1.25rem' }}>
           <button
             type="button"
@@ -130,7 +131,7 @@ export const Login: React.FC = () => {
               cursor: 'pointer',
             }}
           >
-            Yönetici
+            Yönetici (dev)
           </button>
           <button
             type="button"
@@ -146,9 +147,10 @@ export const Login: React.FC = () => {
               cursor: 'pointer',
             }}
           >
-            Personel
+            Personel (dev)
           </button>
         </div>
+        ) : null}
 
         {error && (
           <div
@@ -176,7 +178,7 @@ export const Login: React.FC = () => {
             </label>
             <div style={{ position: 'relative' }}>
               <Mail size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#5b6f6e' }} />
-              <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="admin@golbox.gov.tr" style={inputStyle} />
+              <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="personel@sehitkamil.bel.tr" style={inputStyle} />
             </div>
           </div>
           <div>

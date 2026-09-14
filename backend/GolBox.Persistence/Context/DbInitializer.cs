@@ -10,162 +10,14 @@ namespace GolBox.Persistence.Context;
 
 public static class DbInitializer
 {
-    public static async System.Threading.Tasks.Task SeedAsync(AppDbContext context, IPasswordHasher passwordHasher, bool isDevelopment = false)
+    public static async System.Threading.Tasks.Task SeedAsync(
+        AppDbContext context,
+        IPasswordHasher passwordHasher,
+        bool isDevelopment = false,
+        string? bootstrapAdminEmail = null,
+        string? bootstrapAdminPassword = null)
     {
-        await context.Database.EnsureCreatedAsync();
-        await EnsureProviderSchemaAsync(context);
-        await EnsureCityPlatformSchemaAsync(context);
-        await EnsurePlacesSchemaAsync(context);
-
-        if (context.Database.IsSqlServer())
-        {
-            await context.Database.ExecuteSqlRawAsync(@"
-            IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'ApprovalRequests')
-            BEGIN
-                CREATE TABLE [ApprovalRequests] (
-                    [Id] uniqueidentifier NOT NULL PRIMARY KEY,
-                    [RequestType] nvarchar(max) NOT NULL,
-                    [RequesterUserId] uniqueidentifier NOT NULL,
-                    [RequesterEmail] nvarchar(max) NOT NULL,
-                    [BranchId] uniqueidentifier NULL,
-                    [TargetEntityId] nvarchar(max) NULL,
-                    [OldValue] nvarchar(max) NULL,
-                    [NewValue] nvarchar(max) NULL,
-                    [Reason] nvarchar(max) NOT NULL,
-                    [Status] nvarchar(max) NOT NULL,
-                    [ApproverUserId] uniqueidentifier NULL,
-                    [ApproverEmail] nvarchar(max) NULL,
-                    [ApprovalNote] nvarchar(max) NULL,
-                    [CreatedDate] datetime2 NOT NULL,
-                    [CreatedBy] uniqueidentifier NULL,
-                    [UpdatedDate] datetime2 NULL,
-                    [UpdatedBy] uniqueidentifier NULL,
-                    [DeletedDate] datetime2 NULL,
-                    [DeletedBy] uniqueidentifier NULL,
-                    [IsDeleted] bit NOT NULL
-                );
-            END;
-
-            IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'AuditLogs')
-            BEGIN
-                CREATE TABLE [AuditLogs] (
-                    [Id] uniqueidentifier NOT NULL PRIMARY KEY,
-                    [UserId] uniqueidentifier NULL,
-                    [UserEmail] nvarchar(max) NOT NULL,
-                    [UserRole] nvarchar(max) NOT NULL,
-                    [ActionType] nvarchar(max) NOT NULL,
-                    [ModuleName] nvarchar(max) NOT NULL,
-                    [EntityName] nvarchar(max) NOT NULL,
-                    [EntityId] nvarchar(max) NULL,
-                    [OldValues] nvarchar(max) NULL,
-                    [NewValues] nvarchar(max) NULL,
-                    [Reason] nvarchar(max) NULL,
-                    [IpAddress] nvarchar(max) NULL,
-                    [CreatedDate] datetime2 NOT NULL,
-                    [CreatedBy] uniqueidentifier NULL,
-                    [UpdatedDate] datetime2 NULL,
-                    [UpdatedBy] uniqueidentifier NULL,
-                    [DeletedDate] datetime2 NULL,
-                    [DeletedBy] uniqueidentifier NULL,
-                    [IsDeleted] bit NOT NULL
-                );
-            END;
-
-            IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Campaigns')
-            BEGIN
-                CREATE TABLE [Campaigns] (
-                    [Id] uniqueidentifier NOT NULL PRIMARY KEY,
-                    [OrganizationId] uniqueidentifier NOT NULL,
-                    [Title] nvarchar(max) NOT NULL,
-                    [Description] nvarchar(max) NOT NULL,
-                    [ImageUrl] nvarchar(max) NULL,
-                    [CampaignType] nvarchar(max) NOT NULL,
-                    [StartDate] datetime2 NOT NULL,
-                    [EndDate] datetime2 NOT NULL,
-                    [TargetUserGroup] nvarchar(max) NOT NULL,
-                    [CafeId] uniqueidentifier NULL,
-                    [MenuItemId] uniqueidentifier NULL,
-                    [TotalUsageLimit] int NULL,
-                    [PerUserLimit] int NULL,
-                    [CurrentUsageCount] int NOT NULL,
-                    [IsActive] bit NOT NULL,
-                    [CreatedDate] datetime2 NOT NULL,
-                    [CreatedBy] uniqueidentifier NULL,
-                    [UpdatedDate] datetime2 NULL,
-                    [UpdatedBy] uniqueidentifier NULL,
-                    [DeletedDate] datetime2 NULL,
-                    [DeletedBy] uniqueidentifier NULL,
-                    [IsDeleted] bit NOT NULL
-                );
-            END;
-
-            IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Notifications')
-            BEGIN
-                CREATE TABLE [Notifications] (
-                    [Id] uniqueidentifier NOT NULL PRIMARY KEY,
-                    [OrganizationId] uniqueidentifier NOT NULL,
-                    [Title] nvarchar(max) NOT NULL,
-                    [Message] nvarchar(max) NOT NULL,
-                    [ImageUrl] nvarchar(max) NULL,
-                    [NotificationType] nvarchar(max) NOT NULL,
-                    [TargetUserGroup] nvarchar(max) NOT NULL,
-                    [TargetUserId] uniqueidentifier NULL,
-                    [ScheduledDate] datetime2 NULL,
-                    [SentDate] datetime2 NULL,
-                    [Status] nvarchar(max) NOT NULL,
-                    [SentCount] int NOT NULL,
-                    [CreatedDate] datetime2 NOT NULL,
-                    [CreatedBy] uniqueidentifier NULL,
-                    [UpdatedDate] datetime2 NULL,
-                    [UpdatedBy] uniqueidentifier NULL,
-                    [DeletedDate] datetime2 NULL,
-                    [DeletedBy] uniqueidentifier NULL,
-                    [IsDeleted] bit NOT NULL
-                );
-            END;
-
-            IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Coupons')
-            BEGIN
-                CREATE TABLE [Coupons] (
-                    [Id] uniqueidentifier NOT NULL PRIMARY KEY,
-                    [CouponCode] nvarchar(max) NOT NULL,
-                    [UserId] uniqueidentifier NOT NULL,
-                    [RewardId] uniqueidentifier NOT NULL,
-                    [Status] nvarchar(max) NOT NULL,
-                    [ExpiryDate] datetime2 NOT NULL,
-                    [UsedCafeId] uniqueidentifier NULL,
-                    [UsedDate] datetime2 NULL,
-                    [CreatedDate] datetime2 NOT NULL,
-                    [CreatedBy] uniqueidentifier NULL,
-                    [UpdatedDate] datetime2 NULL,
-                    [UpdatedBy] uniqueidentifier NULL,
-                    [DeletedDate] datetime2 NULL,
-                    [DeletedBy] uniqueidentifier NULL,
-                    [IsDeleted] bit NOT NULL
-                );
-            END;
-
-            IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'StaffUsers')
-            BEGIN
-                CREATE TABLE [StaffUsers] (
-                    [Id] uniqueidentifier NOT NULL PRIMARY KEY,
-                    [UserId] uniqueidentifier NOT NULL,
-                    [RegistrationNumber] nvarchar(max) NOT NULL,
-                    [Role] nvarchar(max) NOT NULL,
-                    [BranchId] uniqueidentifier NULL,
-                    [IsActive] bit NOT NULL,
-                    [LastLoginDate] datetime2 NULL,
-                    [CreatedDate] datetime2 NOT NULL,
-                    [CreatedBy] uniqueidentifier NULL,
-                    [UpdatedDate] datetime2 NULL,
-                    [UpdatedBy] uniqueidentifier NULL,
-                    [DeletedDate] datetime2 NULL,
-                    [DeletedBy] uniqueidentifier NULL,
-                    [IsDeleted] bit NOT NULL
-                );
-            END;
-        ");
-        }
+        // Schema is applied exclusively via EF Core migrations (Database.Migrate).
 
         // 1. Seed Organization
         if (!await context.Organizations.AnyAsync())
@@ -213,6 +65,11 @@ public static class DbInitializer
             await context.SaveChangesAsync();
         }
 
+        await EnsureMissingSettingsAsync(context, orgId);
+        await TryBootstrapAdminAsync(context, passwordHasher, orgId, bootstrapAdminEmail, bootstrapAdminPassword);
+
+        if (isDevelopment)
+        {
         // 3. Seed Cafe Categories and Cafes
         if (!await context.CafeCategories.AnyAsync(cc => cc.OrganizationId == orgId))
         {
@@ -611,399 +468,68 @@ public static class DbInitializer
             await context.SaveChangesAsync();
         }
 
-        await EnsurePersonalCouponPolicyAsync(context, orgId);
-
-        if (isDevelopment)
-            await SeedDevelopmentCityContentAsync(context);
+        await SeedDevelopmentCityContentAsync(context);
+        }
 
         await LinkExistingCafesToPlacesAsync(context);
     }
 
-    private static async System.Threading.Tasks.Task EnsurePersonalCouponPolicyAsync(AppDbContext context, Guid orgId)
+    private static async System.Threading.Tasks.Task EnsureMissingSettingsAsync(AppDbContext context, Guid orgId)
     {
-        var expireSetting = await context.Settings.FirstOrDefaultAsync(s => s.OrganizationId == orgId && s.Key == "rewardExpireDays");
-        if (expireSetting == null)
+        var defaults = new (string Key, string Value, string Description)[]
         {
-            context.Settings.Add(new Setting
-            {
-                OrganizationId = orgId,
-                Key = "rewardExpireDays",
-                Value = "365",
-                Description = "Kişiye özel ikram kuponlarının geçerlilik süresi (gün)"
-            });
-        }
-        else
-        {
-            expireSetting.Value = "365";
-            expireSetting.Description = "Kişiye özel ikram kuponlarının geçerlilik süresi (gün)";
-        }
+            ("rewardExpireDays", "365", "Kişiye özel ikram kuponlarının geçerlilik süresi (gün)"),
+            ("visitBonusPoints", "15", "QR okutma başına verilen ziyaret bonus puanı"),
+            ("pointsExchangeRate", "1", "1 TL ödeme için harcanacak puan oranı (1 TL = 1 Puan)"),
+            ("spendEarnRatePercent", "10", "Nakit harcamalarda geri kazanılan puan oranı (%)")
+        };
 
-        var claimed = await context.UserRewards.Where(ur => ur.Status == "Claimed").ToListAsync();
-        foreach (var ur in claimed)
+        foreach (var (key, value, description) in defaults)
         {
-            var year = ur.ClaimedAt.AddDays(365);
-            if (ur.ExpiresAt < year)
-                ur.ExpiresAt = year;
+            var exists = await context.Settings.AnyAsync(s => s.OrganizationId == orgId && s.Key == key);
+            if (!exists)
+            {
+                context.Settings.Add(new Setting
+                {
+                    OrganizationId = orgId,
+                    Key = key,
+                    Value = value,
+                    Description = description
+                });
+            }
         }
 
         await context.SaveChangesAsync();
     }
 
-    private static async System.Threading.Tasks.Task EnsureCityPlatformSchemaAsync(AppDbContext context)
+    private static async System.Threading.Tasks.Task TryBootstrapAdminAsync(
+        AppDbContext context,
+        IPasswordHasher passwordHasher,
+        Guid orgId,
+        string? email,
+        string? password)
     {
-        if (context.Database.IsSqlServer())
+        if (await context.Users.AnyAsync(u => u.Role == "Admin"))
+            return;
+
+        if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
+            return;
+
+        if (password.Length < 12)
+            throw new InvalidOperationException("BootstrapAdmin:Password must be at least 12 characters.");
+
+        context.Users.Add(new User
         {
-            await context.Database.ExecuteSqlRawAsync(@"
-            IF COL_LENGTH('dbo.Activities', 'ImageUrl') IS NULL
-                ALTER TABLE [Activities] ADD [ImageUrl] nvarchar(1000) NULL;
-            IF COL_LENGTH('dbo.Activities', 'Capacity') IS NULL
-                ALTER TABLE [Activities] ADD [Capacity] int NULL;
-            IF COL_LENGTH('dbo.Notifications', 'MinAge') IS NULL
-                ALTER TABLE [Notifications] ADD [MinAge] int NULL;
-            IF COL_LENGTH('dbo.Notifications', 'MaxAge') IS NULL
-                ALTER TABLE [Notifications] ADD [MaxAge] int NULL;
-            IF COL_LENGTH('dbo.Notifications', 'EducationLevel') IS NULL
-                ALTER TABLE [Notifications] ADD [EducationLevel] nvarchar(80) NULL;
-            IF COL_LENGTH('dbo.Notifications', 'TargetType') IS NULL
-                ALTER TABLE [Notifications] ADD [TargetType] nvarchar(40) NULL;
-            IF COL_LENGTH('dbo.Notifications', 'TargetId') IS NULL
-                ALTER TABLE [Notifications] ADD [TargetId] nvarchar(256) NULL;
-
-            IF OBJECT_ID(N'dbo.CityContents', N'U') IS NULL
-            BEGIN
-                CREATE TABLE [CityContents] (
-                    [Id] uniqueidentifier NOT NULL PRIMARY KEY,
-                    [OrganizationId] uniqueidentifier NOT NULL,
-                    [Type] nvarchar(40) NOT NULL,
-                    [Title] nvarchar(256) NOT NULL,
-                    [Subtitle] nvarchar(512) NULL,
-                    [Body] nvarchar(max) NULL,
-                    [ImageUrl] nvarchar(1000) NULL,
-                    [ImageFocus] nvarchar(64) NULL,
-                    [CtaLabel] nvarchar(80) NULL,
-                    [CtaType] nvarchar(40) NOT NULL,
-                    [CtaTarget] nvarchar(1000) NULL,
-                    [Priority] int NOT NULL,
-                    [StartAt] datetime2 NOT NULL,
-                    [EndAt] datetime2 NULL,
-                    [IsPublished] bit NOT NULL,
-                    [AudienceType] nvarchar(40) NOT NULL,
-                    [AudienceMinAge] int NULL,
-                    [AudienceMaxAge] int NULL,
-                    [AudienceEducationLevel] nvarchar(80) NULL,
-                    [AuthorName] nvarchar(160) NULL,
-                    [AuthorTitle] nvarchar(160) NULL,
-                    [AuthorImageUrl] nvarchar(1000) NULL,
-                    [ActivityId] uniqueidentifier NULL,
-                    [CreatedDate] datetime2 NOT NULL,
-                    [CreatedBy] uniqueidentifier NULL,
-                    [UpdatedDate] datetime2 NULL,
-                    [UpdatedBy] uniqueidentifier NULL,
-                    [DeletedDate] datetime2 NULL,
-                    [DeletedBy] uniqueidentifier NULL,
-                    [IsDeleted] bit NOT NULL
-                );
-                CREATE INDEX [IX_CityContents_Org_Published_Type] ON [CityContents] ([OrganizationId], [IsPublished], [Type]);
-                CREATE INDEX [IX_CityContents_Org_Window_Priority] ON [CityContents] ([OrganizationId], [StartAt], [EndAt], [Priority]);
-            END;
-
-            IF OBJECT_ID(N'dbo.UserNotifications', N'U') IS NULL
-            BEGIN
-                CREATE TABLE [UserNotifications] (
-                    [Id] uniqueidentifier NOT NULL PRIMARY KEY,
-                    [OrganizationId] uniqueidentifier NOT NULL,
-                    [UserId] uniqueidentifier NOT NULL,
-                    [BroadcastId] uniqueidentifier NULL,
-                    [Title] nvarchar(256) NOT NULL,
-                    [Body] nvarchar(2000) NOT NULL,
-                    [Type] nvarchar(40) NOT NULL,
-                    [TargetType] nvarchar(40) NULL,
-                    [TargetId] nvarchar(256) NULL,
-                    [IsRead] bit NOT NULL,
-                    [ReadAt] datetime2 NULL,
-                    [CreatedDate] datetime2 NOT NULL,
-                    [CreatedBy] uniqueidentifier NULL,
-                    [UpdatedDate] datetime2 NULL,
-                    [UpdatedBy] uniqueidentifier NULL,
-                    [DeletedDate] datetime2 NULL,
-                    [DeletedBy] uniqueidentifier NULL,
-                    [IsDeleted] bit NOT NULL
-                );
-                CREATE INDEX [IX_UserNotifications_User_Read_Created] ON [UserNotifications] ([UserId], [IsRead], [CreatedDate]);
-                CREATE INDEX [IX_UserNotifications_Org_Created] ON [UserNotifications] ([OrganizationId], [CreatedDate]);
-            END;
-            ");
-            return;
-        }
-
-        if (!context.Database.IsSqlite())
-            return;
-
-        await AddSqliteColumnIfMissingAsync(context, "Activities", "ImageUrl", "TEXT NULL");
-        await AddSqliteColumnIfMissingAsync(context, "Activities", "Capacity", "INTEGER NULL");
-        await AddSqliteColumnIfMissingAsync(context, "Notifications", "MinAge", "INTEGER NULL");
-        await AddSqliteColumnIfMissingAsync(context, "Notifications", "MaxAge", "INTEGER NULL");
-        await AddSqliteColumnIfMissingAsync(context, "Notifications", "EducationLevel", "TEXT NULL");
-        await AddSqliteColumnIfMissingAsync(context, "Notifications", "TargetType", "TEXT NULL");
-        await AddSqliteColumnIfMissingAsync(context, "Notifications", "TargetId", "TEXT NULL");
-
-        await context.Database.ExecuteSqlRawAsync(@"
-            CREATE TABLE IF NOT EXISTS CityContents (
-                Id TEXT NOT NULL PRIMARY KEY,
-                OrganizationId TEXT NOT NULL,
-                Type TEXT NOT NULL,
-                Title TEXT NOT NULL,
-                Subtitle TEXT NULL,
-                Body TEXT NULL,
-                ImageUrl TEXT NULL,
-                ImageFocus TEXT NULL,
-                CtaLabel TEXT NULL,
-                CtaType TEXT NOT NULL,
-                CtaTarget TEXT NULL,
-                Priority INTEGER NOT NULL,
-                StartAt TEXT NOT NULL,
-                EndAt TEXT NULL,
-                IsPublished INTEGER NOT NULL,
-                AudienceType TEXT NOT NULL,
-                AudienceMinAge INTEGER NULL,
-                AudienceMaxAge INTEGER NULL,
-                AudienceEducationLevel TEXT NULL,
-                AuthorName TEXT NULL,
-                AuthorTitle TEXT NULL,
-                AuthorImageUrl TEXT NULL,
-                ActivityId TEXT NULL,
-                CreatedDate TEXT NOT NULL,
-                CreatedBy TEXT NULL,
-                UpdatedDate TEXT NULL,
-                UpdatedBy TEXT NULL,
-                DeletedDate TEXT NULL,
-                DeletedBy TEXT NULL,
-                IsDeleted INTEGER NOT NULL
-            );
-            CREATE INDEX IF NOT EXISTS IX_CityContents_Org_Published_Type ON CityContents (OrganizationId, IsPublished, Type);
-            CREATE INDEX IF NOT EXISTS IX_CityContents_Org_Window_Priority ON CityContents (OrganizationId, StartAt, EndAt, Priority);
-            CREATE TABLE IF NOT EXISTS UserNotifications (
-                Id TEXT NOT NULL PRIMARY KEY,
-                OrganizationId TEXT NOT NULL,
-                UserId TEXT NOT NULL,
-                BroadcastId TEXT NULL,
-                Title TEXT NOT NULL,
-                Body TEXT NOT NULL,
-                Type TEXT NOT NULL,
-                TargetType TEXT NULL,
-                TargetId TEXT NULL,
-                IsRead INTEGER NOT NULL,
-                ReadAt TEXT NULL,
-                CreatedDate TEXT NOT NULL,
-                CreatedBy TEXT NULL,
-                UpdatedDate TEXT NULL,
-                UpdatedBy TEXT NULL,
-                DeletedDate TEXT NULL,
-                DeletedBy TEXT NULL,
-                IsDeleted INTEGER NOT NULL
-            );
-            CREATE INDEX IF NOT EXISTS IX_UserNotifications_User_Read_Created ON UserNotifications (UserId, IsRead, CreatedDate);
-            CREATE INDEX IF NOT EXISTS IX_UserNotifications_Org_Created ON UserNotifications (OrganizationId, CreatedDate);
-        ");
-    }
-
-    private static async System.Threading.Tasks.Task EnsurePlacesSchemaAsync(AppDbContext context)
-    {
-        if (context.Database.IsSqlServer())
-        {
-            await context.Database.ExecuteSqlRawAsync(@"
-            IF OBJECT_ID(N'dbo.Places', N'U') IS NULL
-            BEGIN
-                CREATE TABLE [Places] (
-                    [Id] uniqueidentifier NOT NULL PRIMARY KEY,
-                    [OrganizationId] uniqueidentifier NOT NULL,
-                    [Name] nvarchar(256) NOT NULL,
-                    [Slug] nvarchar(160) NOT NULL,
-                    [Category] nvarchar(40) NOT NULL,
-                    [ShortDescription] nvarchar(512) NULL,
-                    [Description] nvarchar(max) NULL,
-                    [Address] nvarchar(500) NULL,
-                    [District] nvarchar(120) NULL,
-                    [Neighborhood] nvarchar(120) NULL,
-                    [Latitude] decimal(18,10) NULL,
-                    [Longitude] decimal(18,10) NULL,
-                    [Phone] nvarchar(40) NULL,
-                    [Email] nvarchar(256) NULL,
-                    [WebsiteUrl] nvarchar(500) NULL,
-                    [CoverImageUrl] nvarchar(1000) NULL,
-                    [IsActive] bit NOT NULL,
-                    [IsPublished] bit NOT NULL,
-                    [SortOrder] int NOT NULL,
-                    [WheelchairAccessible] bit NULL,
-                    [AccessibleToilet] bit NULL,
-                    [SearchNormalized] nvarchar(1000) NOT NULL,
-                    [CreatedDate] datetime2 NOT NULL,
-                    [CreatedBy] uniqueidentifier NULL,
-                    [UpdatedDate] datetime2 NULL,
-                    [UpdatedBy] uniqueidentifier NULL,
-                    [DeletedDate] datetime2 NULL,
-                    [DeletedBy] uniqueidentifier NULL,
-                    [IsDeleted] bit NOT NULL
-                );
-                CREATE UNIQUE INDEX [IX_Places_OrganizationId_Slug] ON [Places] ([OrganizationId], [Slug]);
-                CREATE INDEX [IX_Places_OrganizationId_IsPublished_IsActive] ON [Places] ([OrganizationId], [IsPublished], [IsActive]);
-                CREATE INDEX [IX_Places_OrganizationId_Category] ON [Places] ([OrganizationId], [Category]);
-                CREATE INDEX [IX_Places_OrganizationId_District] ON [Places] ([OrganizationId], [District]);
-                CREATE INDEX [IX_Places_OrganizationId_Neighborhood] ON [Places] ([OrganizationId], [Neighborhood]);
-                CREATE INDEX [IX_Places_Latitude_Longitude] ON [Places] ([Latitude], [Longitude]);
-                CREATE INDEX [IX_Places_SearchNormalized] ON [Places] ([SearchNormalized]);
-            END;
-
-            IF OBJECT_ID(N'dbo.PlaceImages', N'U') IS NULL
-            BEGIN
-                CREATE TABLE [PlaceImages] (
-                    [Id] uniqueidentifier NOT NULL PRIMARY KEY,
-                    [PlaceId] uniqueidentifier NOT NULL,
-                    [ImageUrl] nvarchar(1000) NOT NULL,
-                    [AltText] nvarchar(200) NULL,
-                    [SortOrder] int NOT NULL,
-                    [IsCover] bit NOT NULL,
-                    [CreatedDate] datetime2 NOT NULL,
-                    [CreatedBy] uniqueidentifier NULL,
-                    [UpdatedDate] datetime2 NULL,
-                    [UpdatedBy] uniqueidentifier NULL,
-                    [DeletedDate] datetime2 NULL,
-                    [DeletedBy] uniqueidentifier NULL,
-                    [IsDeleted] bit NOT NULL,
-                    CONSTRAINT [FK_PlaceImages_Places] FOREIGN KEY ([PlaceId]) REFERENCES [Places]([Id]) ON DELETE CASCADE
-                );
-                CREATE INDEX [IX_PlaceImages_PlaceId_SortOrder] ON [PlaceImages] ([PlaceId], [SortOrder]);
-            END;
-
-            IF OBJECT_ID(N'dbo.PlaceOpeningHours', N'U') IS NULL
-            BEGIN
-                CREATE TABLE [PlaceOpeningHours] (
-                    [Id] uniqueidentifier NOT NULL PRIMARY KEY,
-                    [PlaceId] uniqueidentifier NOT NULL,
-                    [DayOfWeek] int NOT NULL,
-                    [OpenTime] nvarchar(8) NULL,
-                    [CloseTime] nvarchar(8) NULL,
-                    [IsClosed] bit NOT NULL,
-                    [CreatedDate] datetime2 NOT NULL,
-                    [CreatedBy] uniqueidentifier NULL,
-                    [UpdatedDate] datetime2 NULL,
-                    [UpdatedBy] uniqueidentifier NULL,
-                    [DeletedDate] datetime2 NULL,
-                    [DeletedBy] uniqueidentifier NULL,
-                    [IsDeleted] bit NOT NULL,
-                    CONSTRAINT [FK_PlaceOpeningHours_Places] FOREIGN KEY ([PlaceId]) REFERENCES [Places]([Id]) ON DELETE CASCADE
-                );
-                CREATE UNIQUE INDEX [IX_PlaceOpeningHours_PlaceId_DayOfWeek] ON [PlaceOpeningHours] ([PlaceId], [DayOfWeek]) WHERE [IsDeleted] = 0;
-            END;
-
-            IF OBJECT_ID(N'dbo.PlaceAmenities', N'U') IS NULL
-            BEGIN
-                CREATE TABLE [PlaceAmenities] (
-                    [PlaceId] uniqueidentifier NOT NULL,
-                    [AmenityId] nvarchar(40) NOT NULL,
-                    CONSTRAINT [PK_PlaceAmenities] PRIMARY KEY ([PlaceId], [AmenityId]),
-                    CONSTRAINT [FK_PlaceAmenities_Places] FOREIGN KEY ([PlaceId]) REFERENCES [Places]([Id]) ON DELETE CASCADE
-                );
-            END;
-
-            IF COL_LENGTH('dbo.Cafes', 'PlaceId') IS NULL
-                ALTER TABLE [Cafes] ADD [PlaceId] uniqueidentifier NULL;
-            IF COL_LENGTH('dbo.Activities', 'PlaceId') IS NULL
-                ALTER TABLE [Activities] ADD [PlaceId] uniqueidentifier NULL;
-            IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Cafes_PlaceId' AND object_id = OBJECT_ID('dbo.Cafes'))
-                CREATE INDEX [IX_Cafes_PlaceId] ON [Cafes] ([PlaceId]);
-            IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Activities_PlaceId' AND object_id = OBJECT_ID('dbo.Activities'))
-                CREATE INDEX [IX_Activities_PlaceId] ON [Activities] ([PlaceId]);
-            ");
-            return;
-        }
-
-        if (!context.Database.IsSqlite())
-            return;
-
-        await context.Database.ExecuteSqlRawAsync(@"
-            CREATE TABLE IF NOT EXISTS Places (
-                Id TEXT NOT NULL PRIMARY KEY,
-                OrganizationId TEXT NOT NULL,
-                Name TEXT NOT NULL,
-                Slug TEXT NOT NULL,
-                Category TEXT NOT NULL,
-                ShortDescription TEXT NULL,
-                Description TEXT NULL,
-                Address TEXT NULL,
-                District TEXT NULL,
-                Neighborhood TEXT NULL,
-                Latitude TEXT NULL,
-                Longitude TEXT NULL,
-                Phone TEXT NULL,
-                Email TEXT NULL,
-                WebsiteUrl TEXT NULL,
-                CoverImageUrl TEXT NULL,
-                IsActive INTEGER NOT NULL,
-                IsPublished INTEGER NOT NULL,
-                SortOrder INTEGER NOT NULL,
-                WheelchairAccessible INTEGER NULL,
-                AccessibleToilet INTEGER NULL,
-                SearchNormalized TEXT NOT NULL,
-                CreatedDate TEXT NOT NULL,
-                CreatedBy TEXT NULL,
-                UpdatedDate TEXT NULL,
-                UpdatedBy TEXT NULL,
-                DeletedDate TEXT NULL,
-                DeletedBy TEXT NULL,
-                IsDeleted INTEGER NOT NULL
-            );
-            CREATE UNIQUE INDEX IF NOT EXISTS IX_Places_OrganizationId_Slug ON Places (OrganizationId, Slug);
-            CREATE INDEX IF NOT EXISTS IX_Places_OrganizationId_IsPublished_IsActive ON Places (OrganizationId, IsPublished, IsActive);
-            CREATE INDEX IF NOT EXISTS IX_Places_OrganizationId_Category ON Places (OrganizationId, Category);
-            CREATE INDEX IF NOT EXISTS IX_Places_OrganizationId_District ON Places (OrganizationId, District);
-            CREATE INDEX IF NOT EXISTS IX_Places_OrganizationId_Neighborhood ON Places (OrganizationId, Neighborhood);
-            CREATE INDEX IF NOT EXISTS IX_Places_Latitude_Longitude ON Places (Latitude, Longitude);
-            CREATE INDEX IF NOT EXISTS IX_Places_SearchNormalized ON Places (SearchNormalized);
-            CREATE TABLE IF NOT EXISTS PlaceImages (
-                Id TEXT NOT NULL PRIMARY KEY,
-                PlaceId TEXT NOT NULL,
-                ImageUrl TEXT NOT NULL,
-                AltText TEXT NULL,
-                SortOrder INTEGER NOT NULL,
-                IsCover INTEGER NOT NULL,
-                CreatedDate TEXT NOT NULL,
-                CreatedBy TEXT NULL,
-                UpdatedDate TEXT NULL,
-                UpdatedBy TEXT NULL,
-                DeletedDate TEXT NULL,
-                DeletedBy TEXT NULL,
-                IsDeleted INTEGER NOT NULL
-            );
-            CREATE INDEX IF NOT EXISTS IX_PlaceImages_PlaceId_SortOrder ON PlaceImages (PlaceId, SortOrder);
-            CREATE TABLE IF NOT EXISTS PlaceOpeningHours (
-                Id TEXT NOT NULL PRIMARY KEY,
-                PlaceId TEXT NOT NULL,
-                DayOfWeek INTEGER NOT NULL,
-                OpenTime TEXT NULL,
-                CloseTime TEXT NULL,
-                IsClosed INTEGER NOT NULL,
-                CreatedDate TEXT NOT NULL,
-                CreatedBy TEXT NULL,
-                UpdatedDate TEXT NULL,
-                UpdatedBy TEXT NULL,
-                DeletedDate TEXT NULL,
-                DeletedBy TEXT NULL,
-                IsDeleted INTEGER NOT NULL
-            );
-            CREATE UNIQUE INDEX IF NOT EXISTS IX_PlaceOpeningHours_PlaceId_DayOfWeek ON PlaceOpeningHours (PlaceId, DayOfWeek) WHERE IsDeleted = 0;
-            CREATE TABLE IF NOT EXISTS PlaceAmenities (
-                PlaceId TEXT NOT NULL,
-                AmenityId TEXT NOT NULL,
-                PRIMARY KEY (PlaceId, AmenityId)
-            );
-        ");
-        await AddSqliteColumnIfMissingAsync(context, "Cafes", "PlaceId", "TEXT NULL");
-        await AddSqliteColumnIfMissingAsync(context, "Activities", "PlaceId", "TEXT NULL");
-        await context.Database.ExecuteSqlRawAsync(@"
-            CREATE INDEX IF NOT EXISTS IX_Cafes_PlaceId ON Cafes (PlaceId);
-            CREATE INDEX IF NOT EXISTS IX_Activities_PlaceId ON Activities (PlaceId);
-        ");
+            OrganizationId = orgId,
+            Email = email.Trim(),
+            NormalizedEmail = email.Trim().ToUpperInvariant(),
+            PasswordHash = passwordHasher.Hash(password),
+            FirstName = "Sistem",
+            LastName = "Yöneticisi",
+            PointsBalance = 0,
+            Role = "Admin"
+        });
+        await context.SaveChangesAsync();
     }
 
     private static async System.Threading.Tasks.Task LinkExistingCafesToPlacesAsync(AppDbContext context)
@@ -1063,240 +589,4 @@ public static class DbInitializer
         await context.SaveChangesAsync();
     }
 
-    private static async System.Threading.Tasks.Task EnsureProviderSchemaAsync(AppDbContext context)
-    {
-        if (context.Database.IsSqlServer())
-        {
-            await context.Database.ExecuteSqlRawAsync(@"
-            IF OBJECT_ID('dbo.FieldDrops', 'U') IS NOT NULL AND COL_LENGTH('dbo.FieldDrops', 'RowVersion') IS NULL
-            BEGIN
-                ALTER TABLE [FieldDrops] ADD [RowVersion] INT NOT NULL CONSTRAINT [DF_FieldDrops_RowVersion] DEFAULT (0);
-            END
-            ");
-            return;
-        }
-
-        if (!context.Database.IsSqlite())
-            return;
-
-        await AddSqliteColumnIfMissingAsync(context, "Cafes", "ImageUrl", "TEXT");
-        await AddSqliteColumnIfMissingAsync(context, "Users", "Role", "TEXT NOT NULL DEFAULT 'User'");
-        await AddSqliteColumnIfMissingAsync(context, "FieldDrops", "RowVersion", "INTEGER NOT NULL DEFAULT 0");
-
-        await context.Database.ExecuteSqlRawAsync(@"
-            CREATE TABLE IF NOT EXISTS ApprovalRequests (
-                Id TEXT NOT NULL PRIMARY KEY,
-                RequestType TEXT NOT NULL,
-                RequesterUserId TEXT NOT NULL,
-                RequesterEmail TEXT NOT NULL,
-                BranchId TEXT NULL,
-                TargetEntityId TEXT NULL,
-                OldValue TEXT NULL,
-                NewValue TEXT NULL,
-                Reason TEXT NOT NULL,
-                Status TEXT NOT NULL,
-                ApproverUserId TEXT NULL,
-                ApproverEmail TEXT NULL,
-                ApprovalNote TEXT NULL,
-                CreatedDate TEXT NOT NULL,
-                CreatedBy TEXT NULL,
-                UpdatedDate TEXT NULL,
-                UpdatedBy TEXT NULL,
-                DeletedDate TEXT NULL,
-                DeletedBy TEXT NULL,
-                IsDeleted INTEGER NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS AuditLogs (
-                Id TEXT NOT NULL PRIMARY KEY,
-                UserId TEXT NULL,
-                UserEmail TEXT NOT NULL,
-                UserRole TEXT NOT NULL,
-                ActionType TEXT NOT NULL,
-                ModuleName TEXT NOT NULL,
-                EntityName TEXT NOT NULL,
-                EntityId TEXT NULL,
-                OldValues TEXT NULL,
-                NewValues TEXT NULL,
-                Reason TEXT NULL,
-                IpAddress TEXT NULL,
-                CreatedDate TEXT NOT NULL,
-                CreatedBy TEXT NULL,
-                UpdatedDate TEXT NULL,
-                UpdatedBy TEXT NULL,
-                DeletedDate TEXT NULL,
-                DeletedBy TEXT NULL,
-                IsDeleted INTEGER NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS Campaigns (
-                Id TEXT NOT NULL PRIMARY KEY,
-                OrganizationId TEXT NOT NULL,
-                Title TEXT NOT NULL,
-                Description TEXT NOT NULL,
-                ImageUrl TEXT NULL,
-                CampaignType TEXT NOT NULL,
-                StartDate TEXT NOT NULL,
-                EndDate TEXT NOT NULL,
-                TargetUserGroup TEXT NOT NULL,
-                CafeId TEXT NULL,
-                MenuItemId TEXT NULL,
-                TotalUsageLimit INTEGER NULL,
-                PerUserLimit INTEGER NULL,
-                CurrentUsageCount INTEGER NOT NULL,
-                IsActive INTEGER NOT NULL,
-                CreatedDate TEXT NOT NULL,
-                CreatedBy TEXT NULL,
-                UpdatedDate TEXT NULL,
-                UpdatedBy TEXT NULL,
-                DeletedDate TEXT NULL,
-                DeletedBy TEXT NULL,
-                IsDeleted INTEGER NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS Notifications (
-                Id TEXT NOT NULL PRIMARY KEY,
-                OrganizationId TEXT NOT NULL,
-                Title TEXT NOT NULL,
-                Message TEXT NOT NULL,
-                ImageUrl TEXT NULL,
-                NotificationType TEXT NOT NULL,
-                TargetUserGroup TEXT NOT NULL,
-                TargetUserId TEXT NULL,
-                ScheduledDate TEXT NULL,
-                SentDate TEXT NULL,
-                Status TEXT NOT NULL,
-                SentCount INTEGER NOT NULL,
-                CreatedDate TEXT NOT NULL,
-                CreatedBy TEXT NULL,
-                UpdatedDate TEXT NULL,
-                UpdatedBy TEXT NULL,
-                DeletedDate TEXT NULL,
-                DeletedBy TEXT NULL,
-                IsDeleted INTEGER NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS Coupons (
-                Id TEXT NOT NULL PRIMARY KEY,
-                CouponCode TEXT NOT NULL,
-                UserId TEXT NOT NULL,
-                RewardId TEXT NOT NULL,
-                Status TEXT NOT NULL,
-                ExpiryDate TEXT NOT NULL,
-                UsedCafeId TEXT NULL,
-                UsedDate TEXT NULL,
-                CreatedDate TEXT NOT NULL,
-                CreatedBy TEXT NULL,
-                UpdatedDate TEXT NULL,
-                UpdatedBy TEXT NULL,
-                DeletedDate TEXT NULL,
-                DeletedBy TEXT NULL,
-                IsDeleted INTEGER NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS StaffUsers (
-                Id TEXT NOT NULL PRIMARY KEY,
-                UserId TEXT NOT NULL,
-                RegistrationNumber TEXT NOT NULL,
-                Role TEXT NOT NULL,
-                BranchId TEXT NULL,
-                IsActive INTEGER NOT NULL,
-                LastLoginDate TEXT NULL,
-                CreatedDate TEXT NOT NULL,
-                CreatedBy TEXT NULL,
-                UpdatedDate TEXT NULL,
-                UpdatedBy TEXT NULL,
-                DeletedDate TEXT NULL,
-                DeletedBy TEXT NULL,
-                IsDeleted INTEGER NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS FieldDrops (
-                Id TEXT NOT NULL PRIMARY KEY,
-                OrganizationId TEXT NOT NULL,
-                CafeId TEXT NULL,
-                CatalogRewardId TEXT NULL,
-                Title TEXT NOT NULL,
-                Description TEXT NOT NULL,
-                Latitude TEXT NOT NULL,
-                Longitude TEXT NOT NULL,
-                RadiusMeters INTEGER NOT NULL,
-                PointsGranted INTEGER NOT NULL,
-                TotalStock INTEGER NULL,
-                CapturedCount INTEGER NOT NULL,
-                PerUserLimit INTEGER NOT NULL,
-                StartsAt TEXT NOT NULL,
-                EndsAt TEXT NOT NULL,
-                ImageUrl TEXT NULL,
-                ModelGlbUrl TEXT NULL,
-                IsActive INTEGER NOT NULL,
-                RowVersion INTEGER NOT NULL DEFAULT 0,
-                CreatedDate TEXT NOT NULL,
-                CreatedBy TEXT NULL,
-                UpdatedDate TEXT NULL,
-                UpdatedBy TEXT NULL,
-                DeletedDate TEXT NULL,
-                DeletedBy TEXT NULL,
-                IsDeleted INTEGER NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS UserFieldCaptures (
-                Id TEXT NOT NULL PRIMARY KEY,
-                OrganizationId TEXT NOT NULL,
-                FieldDropId TEXT NOT NULL,
-                UserId TEXT NOT NULL,
-                CapturedLatitude TEXT NOT NULL,
-                CapturedLongitude TEXT NOT NULL,
-                AccuracyMeters REAL NULL,
-                PointsGranted INTEGER NOT NULL,
-                DistanceMeters REAL NOT NULL,
-                CreatedDate TEXT NOT NULL,
-                CreatedBy TEXT NULL,
-                UpdatedDate TEXT NULL,
-                UpdatedBy TEXT NULL,
-                DeletedDate TEXT NULL,
-                DeletedBy TEXT NULL,
-                IsDeleted INTEGER NOT NULL
-            );
-        ");
-
-        await context.Database.ExecuteSqlRawAsync(@"
-            UPDATE FieldDrops
-            SET ModelGlbUrl = '/models/golbox-rozet.glb'
-            WHERE lower(Id) = 'dddddddd-dddd-dddd-dddd-ddddddddddd2'
-              AND (ModelGlbUrl IS NULL OR ModelGlbUrl = '');
-        ");
-    }
-
-    private static async System.Threading.Tasks.Task AddSqliteColumnIfMissingAsync(
-        AppDbContext context,
-        string table,
-        string column,
-        string definition)
-    {
-        await context.Database.OpenConnectionAsync();
-        try
-        {
-            var connection = context.Database.GetDbConnection();
-            await using var command = connection.CreateCommand();
-            command.CommandText = $"PRAGMA table_info({table})";
-            var exists = false;
-            await using (var reader = await command.ExecuteReaderAsync())
-            {
-                while (await reader.ReadAsync())
-                {
-                    var name = reader["name"]?.ToString();
-                    if (string.Equals(name, column, StringComparison.OrdinalIgnoreCase))
-                    {
-                        exists = true;
-                        break;
-                    }
-                }
-            }
-
-            if (!exists)
-            {
-#pragma warning disable EF1002
-                await context.Database.ExecuteSqlRawAsync($"ALTER TABLE \"{table}\" ADD COLUMN \"{column}\" {definition}");
-#pragma warning restore EF1002
-            }
-        }
-        finally
-        {
-            await context.Database.CloseConnectionAsync();
-        }
-    }
 }

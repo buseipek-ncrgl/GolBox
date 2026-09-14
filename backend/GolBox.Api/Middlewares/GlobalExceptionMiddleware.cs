@@ -32,7 +32,12 @@ public class GlobalExceptionMiddleware
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Beklenmeyen bir hata oluştu: {Message}", ex.Message);
+            _logger.LogError(
+                ex,
+                "Unhandled exception correlation={CorrelationId} request={RequestId} path={Path}",
+                context.Items[CorrelationIdMiddleware.HeaderName],
+                context.TraceIdentifier,
+                context.Request.Path);
             await HandleExceptionAsync(context, ex);
         }
     }

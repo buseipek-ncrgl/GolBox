@@ -10,8 +10,11 @@ public class UserActivityConfiguration : IEntityTypeConfiguration<UserActivity>
     {
         builder.HasKey(ua => ua.Id);
 
-        // Soft delete index
         builder.HasIndex(ua => ua.IsDeleted)
+            .HasFilter("IsDeleted = 0");
+
+        builder.HasIndex(ua => new { ua.UserId, ua.ActivityId })
+            .IsUnique()
             .HasFilter("IsDeleted = 0");
 
         // Relationships

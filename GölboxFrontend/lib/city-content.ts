@@ -58,7 +58,7 @@ const CATEGORY_LABEL: Record<CityContentType, string> = {
   Announcement: "Duyuru",
   EventPromo: "Etkinlik",
   MayorMessage: "Başkan’dan",
-  Campaign: "Kampanya",
+  Campaign: "Kampanya içeriği",
   Institutional: "Kurumsal",
 }
 

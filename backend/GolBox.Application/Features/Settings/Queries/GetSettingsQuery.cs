@@ -7,6 +7,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using GolBox.Application.Common;
 using GolBox.Application.Interfaces;
+using GolBox.Application.Settings;
 
 namespace GolBox.Application.Features.Settings.Queries;
 
@@ -46,7 +47,7 @@ public class GetSettingsQueryHandler : IRequestHandler<GetSettingsQuery, Result<
         }
 
         var settings = await _context.Settings
-            .Where(s => s.OrganizationId == user.OrganizationId)
+            .Where(s => s.OrganizationId == user.OrganizationId && SettingRules.ManagedKeys.Contains(s.Key))
             .Select(s => new SettingDto(s.Key, s.Value, s.Description))
             .ToListAsync(cancellationToken);
 

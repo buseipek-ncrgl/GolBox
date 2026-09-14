@@ -3,6 +3,7 @@ import { api } from '../services/api';
 import { useAuth } from '../store/AuthContext';
 import { HomeContentPanel } from './HomeContentPanel';
 import { PlacesPanel } from './PlacesPanel';
+import { SettingsPanel } from '../components/admin/SettingsPanel';
 import { 
   LayoutDashboard, Users, Building2, Coffee, ShoppingBag, 
   History, Award, Sparkles, CheckSquare, Calendar, Bell, 
@@ -75,7 +76,7 @@ export const Admin: React.FC = () => {
   const [activeMenu, setActiveMenu] = useState<
     'overview' | 'users' | 'cafes' | 'products' | 'points' | 
     'qr' | 'rewards' | 'fieldDrops' | 'ismarliyor' | 'homeContent' | 'places' | 'campaigns' | 'events' | 
-    'notifications' | 'reports' | 'roles' | 'audit'
+    'notifications' | 'reports' | 'roles' | 'audit' | 'settings'
   >('overview');
 
   useEffect(() => {
@@ -194,9 +195,10 @@ export const Admin: React.FC = () => {
 
   // ISMARLIYOR CREATION & TARGET CRITERIA STATE
   const [showAddIsmarliyorModal, setShowAddIsmarliyorModal] = useState(false);
-  const [newIsmUserFullName, setNewIsmUserFullName] = useState('');
+  const [newIsmUserId, setNewIsmUserId] = useState('');
   const [newIsmCafeId, setNewIsmCafeId] = useState('');
-  const [newIsmItemName, setNewIsmItemName] = useState('Filtre Kahve');
+  const [newIsmMenuItemId, setNewIsmMenuItemId] = useState('');
+  const [newIsmItemName, setNewIsmItemName] = useState('');
   const [newIsmQuantity, setNewIsmQuantity] = useState<number>(1);
   const [newIsmAmount, setNewIsmAmount] = useState<number>(45);
   const [newIsmTargetCriteria, setNewIsmTargetCriteria] = useState('Gençler'); // Gençler, Öğrenciler, Emekliler, Herkese Açık
@@ -544,30 +546,26 @@ export const Admin: React.FC = () => {
   // ADMIN ISMARLIYOR CREATION WITH TARGET CRITERIA
   const handleCreateIsmarliyor = async (e: React.FormEvent) => {
     e.preventDefault();
-    const selectedCafeObj = cafesList.find(c => c.id === newIsmCafeId) || cafesList[0];
-    const targetCafeId = selectedCafeObj?.id || '33333333-3333-3333-3333-333333333333';
-    const donatorName = newIsmUserFullName && newIsmUserFullName.trim() ? newIsmUserFullName.trim() : 'Enes Çıkçık (Hayırsever Vatandaş)';
+    const selectedCafeObj = cafesList.find(c => c.id === newIsmCafeId);
+    const citizen = usersList.find((u: any) => u.id === newIsmUserId);
+    const menuMatch = menuItemsList.find((m: any) => m.id === newIsmMenuItemId);
+    if (!citizen?.id) {
+      setError('İkram eden vatandaşı listeden seçin.');
+      return;
+    }
+    if (!selectedCafeObj?.id) {
+      setError('İkram şubesini seçin.');
+      return;
+    }
+    if (!menuMatch?.id) {
+      setError('İkram ürününü menüden seçin. Boş menü için önce ürün ekleyin.');
+      return;
+    }
 
     try {
-      const citizen = usersList.find((u: any) => {
-        const full = `${u.firstName || ''} ${u.lastName || ''}`.trim().toLowerCase();
-        return full && donatorName.toLowerCase().includes(full);
-      }) || usersList[0];
-
-      const menuMatch = menuItemsList.find((m: any) =>
-        String(m.name || '').toLowerCase().includes(String(newIsmItemName || '').toLowerCase())
-      ) || menuItemsList[0];
-
-      if (!citizen?.id) {
-        throw new Error('Ismarlıyor için kayıtlı bir vatandaş bulunamadı.');
-      }
-      if (!menuMatch?.id) {
-        throw new Error('Ismarlıyor için menü ürünü bulunamadı. Önce ürün ekleyin.');
-      }
-
       const created = await api.createOrder({
         userId: citizen.id,
-        cafeId: targetCafeId,
+        cafeId: selectedCafeObj.id,
         paidWithPoints: false,
         imageUrl: newIsmProofUrl || uploadedImageUrl || undefined,
         items: [
@@ -584,7 +582,10 @@ export const Admin: React.FC = () => {
 
       setSuccess(`Ismarlıyor yayınlandı (${created.collectionCode || createdId(created)}).`);
       setShowAddIsmarliyorModal(false);
-      setNewIsmUserFullName('');
+      setNewIsmUserId('');
+      setNewIsmCafeId('');
+      setNewIsmMenuItemId('');
+      setNewIsmItemName('');
       setNewIsmProofUrl('');
       setUploadedImageUrl('');
       fetchData();
@@ -912,12 +913,13 @@ export const Admin: React.FC = () => {
       fieldDrops: 'Saha Hediyeleri',
       ismarliyor: 'Ismarlıyor',
       homeContent: 'Ana Sayfa İçerikleri',
-      campaigns: 'Kampanyalar',
+      campaigns: 'Kampanya İçerikleri',
       events: 'Etkinlikler',
       notifications: 'Duyurular / Bildirimler',
       reports: 'Raporlar',
       roles: 'Yetkilendirme',
-      audit: 'Denetim'
+      audit: 'Denetim',
+      settings: 'Ayarlar'
     };
     return labels[key] || 'Yönetim';
   };
@@ -999,7 +1001,7 @@ export const Admin: React.FC = () => {
               section: 'İletişim',
               items: [
                 { id: 'homeContent', label: 'Ana Sayfa İçerikleri', icon: FileText },
-                { id: 'campaigns', label: 'Kampanyalar', icon: Megaphone },
+                { id: 'campaigns', label: 'Kampanya İçerikleri', icon: Megaphone },
                 { id: 'events', label: 'Etkinlikler', icon: Calendar },
                 { id: 'notifications', label: 'Duyurular / Bildirimler', icon: Bell }
               ]
@@ -1009,7 +1011,8 @@ export const Admin: React.FC = () => {
               items: [
                 { id: 'reports', label: 'Raporlar', icon: BarChart3 },
                 { id: 'roles', label: 'Yetkilendirme', icon: Shield },
-                { id: 'audit', label: 'Denetim', icon: FileCheck }
+                { id: 'audit', label: 'Denetim', icon: FileCheck },
+                { id: 'settings', label: 'Ayarlar', icon: Settings }
               ]
             }
           ].map((grp, idx) => {
@@ -1316,7 +1319,7 @@ export const Admin: React.FC = () => {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                   <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Gaziantep Şehitkamil Göl Kafeler</h1>
-                  <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '4px' }}>Belediye gençlik ve kitap kafe tesisleri kapak görselleri.</p>
+                  <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '4px' }}>Kafe silindiğinde operasyon kaydı pasife alınır. Bağlı tesis (Place) silinmez, vatandaş görünümünden taslağa çekilir.</p>
                 </div>
                 <button onClick={() => setShowAddCafeModal(true)} style={{ background: '#1d5f60', color: '#fff', border: 'none', padding: '0.65rem 1.25rem', borderRadius: '10px', fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <Plus size={18} />
@@ -1715,6 +1718,10 @@ export const Admin: React.FC = () => {
             <PlacesPanel onError={setError} onSuccess={setSuccess} />
           )}
 
+          {activeMenu === 'settings' && isAdminUser && (
+            <SettingsPanel onError={setError} onSuccess={setSuccess} />
+          )}
+
           {activeMenu === 'homeContent' && isAdminUser && (
             <HomeContentPanel onError={setError} onSuccess={setSuccess} />
           )}
@@ -1726,8 +1733,8 @@ export const Admin: React.FC = () => {
             <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
                 <div>
-                  <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Kampanyalar & İndirim Yönetimi</h1>
-                  <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '4px' }}>Şehitkamil Kitap Kafeler için tarihli, hedef kitle şartlı ve süreli indirim kampanyaları.</p>
+                  <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Kampanya İçerikleri</h1>
+                  <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '4px' }}>CMS kampanya içerikleri. Bu ekran bir ödül/bonus motoru değildir.</p>
                 </div>
 
                 <button
@@ -1748,7 +1755,7 @@ export const Admin: React.FC = () => {
                   }}
                 >
                   <Tag size={18} />
-                  <span>+ Yeni Kampanya / İndirim Tanımla</span>
+                  <span>+ Yeni kampanya içeriği</span>
                 </button>
               </div>
 
@@ -2054,15 +2061,21 @@ export const Admin: React.FC = () => {
             </div>
 
             <div>
-              <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>İkram Eden Vatandaş / Kurum Adı</label>
-              <input
-                type="text"
-                placeholder="Vatandaş veya kurum adı"
-                value={newIsmUserFullName}
-                onChange={(e) => setNewIsmUserFullName(e.target.value)}
+              <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>İkram Eden Vatandaş</label>
+              <select
+                value={newIsmUserId}
+                onChange={(e) => setNewIsmUserId(e.target.value)}
                 required
                 style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', color: '#0f172a', outline: 'none' }}
-              />
+              >
+                <option value="">Vatandaş seçin</option>
+                {extractArray(usersList).map((u: any) => (
+                  <option key={u.id} value={u.id}>{`${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email}</option>
+                ))}
+              </select>
+              {extractArray(usersList).length === 0 ? (
+                <p style={{ margin: '6px 0 0', fontSize: '0.75rem', color: '#64748b' }}>Kayıtlı vatandaş yok. Önce vatandaş ekleyin.</p>
+              ) : null}
             </div>
 
             {/* TARGET CRITERIA SELECTION */}
@@ -2089,22 +2102,42 @@ export const Admin: React.FC = () => {
                   onChange={(e) => setNewIsmCafeId(e.target.value)}
                   style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', color: '#0f172a', outline: 'none' }}
                 >
-                  {extractArray(cafesList).map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
+                  {extractArray(cafesList).length === 0 ? (
+                    <option value="">Kayıtlı şube yok</option>
+                  ) : (
+                    <>
+                      <option value="">Şube seçin</option>
+                      {extractArray(cafesList).map((c) => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </>
+                  )}
                 </select>
               </div>
 
               <div>
                 <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>İkram Edilecek Ürün</label>
-                <input
-                  type="text"
-                  placeholder="Örn: Filtre Kahve / Çay"
-                  value={newIsmItemName}
-                  onChange={(e) => setNewIsmItemName(e.target.value)}
+                <select
+                  value={newIsmMenuItemId}
+                  onChange={(e) => {
+                    setNewIsmMenuItemId(e.target.value);
+                    const match = menuItemsList.find((m: any) => m.id === e.target.value);
+                    setNewIsmItemName(match?.name || '');
+                  }}
                   required
                   style={{ width: '100%', padding: '0.65rem 0.85rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', color: '#0f172a', outline: 'none' }}
-                />
+                >
+                  {extractArray(menuItemsList).length === 0 ? (
+                    <option value="">Menü boş — önce ürün ekleyin</option>
+                  ) : (
+                    <>
+                      <option value="">Ürün seçin</option>
+                      {extractArray(menuItemsList).map((m: any) => (
+                        <option key={m.id} value={m.id}>{m.name}</option>
+                      ))}
+                    </>
+                  )}
+                </select>
               </div>
             </div>
 
@@ -2163,8 +2196,8 @@ export const Admin: React.FC = () => {
                   <Tag size={20} />
                 </div>
                 <div>
-                  <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' }}>Yeni Kampanya & İndirim Tanımla</h3>
-                  <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>Tarihli, kitle şartlı ve şube özel indirim kurguları.</p>
+                  <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' }}>Yeni kampanya içeriği</h3>
+                  <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>CMS duyurusu. GölPuan bonus motoru yoktur.</p>
                 </div>
               </div>
               <button type="button" onClick={() => setShowAddCampaignModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}>
@@ -2438,13 +2471,9 @@ export const Admin: React.FC = () => {
             <div>
               <label style={{ fontSize: '0.775rem', fontWeight: 700, color: '#1d5f60', display: 'block', marginBottom: '6px' }}>Bu Şubede Satılacak Menü Ürünlerini Seçin (Her Kafeye Özel Menü):</label>
               <div style={{ background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '10px', padding: '0.75rem', maxHeight: '140px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                {(menuItemsList.length > 0 ? menuItemsList : [
-                  { id: 'm-1', name: 'Sıcak Filtre Kahve', price: 25 },
-                  { id: 'm-2', name: 'Türk Kahvesi & Lokum', price: 20 },
-                  { id: 'm-3', name: 'Soğuk Brew Latte', price: 35 },
-                  { id: 'm-4', name: 'Demli Çay & Simit', price: 15 },
-                  { id: 'm-5', name: 'Günün Dilim Pastası', price: 45 }
-                ]).map((item) => {
+                {menuItemsList.length === 0 ? (
+                  <div style={{ fontSize: '0.825rem', color: '#64748b' }}>Menü ürünü yok. Önce Menü ve Ürünler’den ekleyin.</div>
+                ) : menuItemsList.map((item) => {
                   const isChecked = selectedProductIdsForCafe.includes(item.id);
                   return (
                     <label key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.825rem', cursor: 'pointer', fontWeight: isChecked ? 700 : 500, color: isChecked ? '#1d5f60' : '#334155' }}>

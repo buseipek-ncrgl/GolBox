@@ -82,67 +82,85 @@ public class CheckoutCartCommandHandler : IRequestHandler<CheckoutCartCommand, R
         if (user.PointsBalance < totalPoints)
             return Result<CheckoutCartResultDto>.Fail($"Yetersiz bakiye. Sepet {totalPoints} GP, bakiyen {user.PointsBalance} GP.");
 
-        var expireDays = await RewardIssue.ExpireDaysAsync(_context, user.OrganizationId, cancellationToken);
-        var now = DateTime.UtcNow;
-        var coupons = new List<CheckoutCartCouponDto>();
-        var holderName = $"{user.FirstName} {user.LastName}".Trim();
-        var personalized = RewardIssue.PersonalizedFor(user.FirstName, user.LastName);
-        var usedCodes = (await _context.UserRewards.Select(ur => ur.RedeemCode).ToListAsync(cancellationToken))
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var line in lines)
+        await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+        try
         {
-            var reward = rewards.First(r => r.Id == line.RewardId);
-            for (var i = 0; i < line.Quantity; i++)
-            {
-                string redeemCode;
-                do
-                {
-                    redeemCode = RewardIssue.NewRedeemCode();
-                } while (!usedCodes.Add(redeemCode));
+            var expireDays = await RewardIssue.ExpireDaysAsync(_context, user.OrganizationId, cancellationToken);
+            var now = DateTime.UtcNow;
+            var coupons = new List<CheckoutCartCouponDto>();
+            var holderName = $"{user.FirstName} {user.LastName}".Trim();
+            var personalized = RewardIssue.PersonalizedFor(user.FirstName, user.LastName);
+            var usedCodes = (await _context.UserRewards.Select(ur => ur.RedeemCode).ToListAsync(cancellationToken))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-                var userReward = new UserReward
+            foreach (var line in lines)
+            {
+                var reward = rewards.First(r => r.Id == line.RewardId);
+                for (var i = 0; i < line.Quantity; i++)
                 {
-                    Id = Guid.NewGuid(),
+                    string redeemCode;
+                    do
+                    {
+                        redeemCode = RewardIssue.NewRedeemCode();
+                    } while (!usedCodes.Add(redeemCode));
+
+                    var userReward = new UserReward
+                    {
+                        Id = Guid.NewGuid(),
+                        UserId = user.Id,
+                        RewardId = reward.Id,
+                        ClaimedAt = now,
+                        ExpiresAt = now.AddDays(expireDays),
+                        Status = "Claimed",
+                        RedeemCode = redeemCode,
+                        OrganizationId = user.OrganizationId
+                    };
+                    _context.UserRewards.Add(userReward);
+                    coupons.Add(new CheckoutCartCouponDto(
+                        userReward.Id,
+                        reward.Id,
+                        reward.Title,
+                        userReward.RedeemCode,
+                        userReward.ExpiresAt,
+                        holderName,
+                        personalized
+                    ));
+                }
+
+                _context.PointTransactions.Add(new PointTransaction
+                {
                     UserId = user.Id,
-                    RewardId = reward.Id,
-                    ClaimedAt = now,
-                    ExpiresAt = now.AddDays(expireDays),
-                    Status = "Claimed",
-                    RedeemCode = redeemCode,
-                    OrganizationId = user.OrganizationId
-                };
-                _context.UserRewards.Add(userReward);
-                coupons.Add(new CheckoutCartCouponDto(
-                    userReward.Id,
-                    reward.Id,
-                    reward.Title,
-                    userReward.RedeemCode,
-                    userReward.ExpiresAt,
-                    holderName,
-                    personalized
-                ));
+                    OrganizationId = user.OrganizationId,
+                    Amount = -(reward.RequiredPoints * line.Quantity),
+                    Type = "Spend",
+                    Description = line.Quantity > 1
+                        ? $"{reward.Title} ×{line.Quantity} sepetten alındı"
+                        : $"{reward.Title} sepetten alındı",
+                    ReferenceType = "RewardCheckout"
+                });
             }
 
-            _context.PointTransactions.Add(new PointTransaction
-            {
-                UserId = user.Id,
-                OrganizationId = user.OrganizationId,
-                Amount = -(reward.RequiredPoints * line.Quantity),
-                Type = "Spend",
-                Description = line.Quantity > 1
-                    ? $"{reward.Title} ×{line.Quantity} sepetten alındı"
-                    : $"{reward.Title} sepetten alındı",
-                ReferenceType = "RewardCheckout"
-            });
+            user.PointsBalance -= totalPoints;
+            if (user.PointsBalance < 0)
+                return Result<CheckoutCartResultDto>.FailConflict("Bakiye yetersiz. İşlem çakışması nedeniyle iptal edildi.");
+
+            await _context.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+
+            return Result<CheckoutCartResultDto>.Ok(
+                new CheckoutCartResultDto(user.PointsBalance, coupons),
+                $"{coupons.Count} kişiye özel kupon 1 yıl geçerli olarak sepetine işlendi."
+            );
         }
-
-        user.PointsBalance -= totalPoints;
-        await _context.SaveChangesAsync(cancellationToken);
-
-        return Result<CheckoutCartResultDto>.Ok(
-            new CheckoutCartResultDto(user.PointsBalance, coupons),
-            $"{coupons.Count} kişiye özel kupon 1 yıl geçerli olarak sepetine işlendi."
-        );
+        catch (DbUpdateConcurrencyException)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return Result<CheckoutCartResultDto>.FailConflict("Bakiye başka bir işlemle değişti. Lütfen tekrar deneyin.");
+        }
+        catch (DbUpdateException ex) when (DbExceptions.IsUniqueViolation(ex))
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return Result<CheckoutCartResultDto>.FailConflict("İşlem çakışması. Lütfen tekrar deneyin.");
+        }
     }
 }

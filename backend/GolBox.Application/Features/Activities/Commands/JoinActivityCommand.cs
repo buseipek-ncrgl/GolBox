@@ -70,7 +70,6 @@ public class JoinActivityCommandHandler : IRequestHandler<JoinActivityCommand, R
                 return Result.Fail("Etkinlik kontenjanı dolmuştur.");
         }
 
-        // 1. Join Activity
         var userActivity = new UserActivity
         {
             UserId = user.Id,
@@ -81,10 +80,9 @@ public class JoinActivityCommandHandler : IRequestHandler<JoinActivityCommand, R
         };
         _context.UserActivities.Add(userActivity);
 
-        // 2. Award Points
         user.PointsBalance += activity.PointsReward;
 
-        var transaction = new PointTransaction
+        var ledger = new PointTransaction
         {
             UserId = user.Id,
             OrganizationId = user.OrganizationId,
@@ -94,9 +92,20 @@ public class JoinActivityCommandHandler : IRequestHandler<JoinActivityCommand, R
             ReferenceType = "Activity",
             ReferenceId = activity.Id
         };
-        _context.PointTransactions.Add(transaction);
+        _context.PointTransactions.Add(ledger);
 
-        await _context.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return Result.FailConflict("Bakiye başka bir işlemle değişti. Lütfen tekrar deneyin.");
+        }
+        catch (DbUpdateException ex) when (DbExceptions.IsUniqueViolation(ex))
+        {
+            return Result.FailConflict("Bu etkinliğe zaten katıldınız.");
+        }
 
         return Result.Ok("Etkinliğe başarıyla katıldınız ve puanınız eklendi.");
     }

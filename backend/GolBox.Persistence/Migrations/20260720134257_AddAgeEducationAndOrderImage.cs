@@ -22,7 +22,7 @@ namespace GolBox.Persistence.Migrations
             migrationBuilder.AlterColumn<string>(
                 name: "EducationLevel",
                 table: "Users",
-                type: "nvarchar(max)",
+                type: "TEXT",
                 nullable: true,
                 oldClrType: typeof(string),
                 oldType: "nvarchar(50)",
@@ -38,13 +38,13 @@ namespace GolBox.Persistence.Migrations
             migrationBuilder.AddColumn<string>(
                 name: "ImageUrl",
                 table: "Orders",
-                type: "nvarchar(max)",
+                type: "TEXT",
                 nullable: true);
 
             migrationBuilder.AddColumn<string>(
                 name: "RequiredEducation",
                 table: "MenuItems",
-                type: "nvarchar(max)",
+                type: "TEXT",
                 nullable: true);
         }
 

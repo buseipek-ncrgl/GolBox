@@ -1,7 +1,7 @@
 "use client"
 
 import { X } from "lucide-react"
-import { CafesScreen } from "@/components/golbox/screens/cafes-screen"
+import { CafesScreen } from "@/components/golbox/deprecated/cafes-screen"
 
 export function CafesOverlay({
   onOpenCafe,

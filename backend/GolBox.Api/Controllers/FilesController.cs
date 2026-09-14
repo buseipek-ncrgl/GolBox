@@ -3,8 +3,10 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using GolBox.Application.Common;
 
 namespace GolBox.Api.Controllers;
@@ -16,6 +18,15 @@ public class FilesController : BaseApiController
     private static readonly string[] AllowedExtensions = [".jpg", ".jpeg", ".png", ".webp", ".gif"];
     private static readonly string[] BlockedExtensions =
         [".exe", ".dll", ".bat", ".cmd", ".com", ".js", ".mjs", ".html", ".htm", ".svg", ".xml", ".php", ".sh", ".ps1"];
+
+    private readonly IConfiguration _configuration;
+    private readonly IWebHostEnvironment _environment;
+
+    public FilesController(IConfiguration configuration, IWebHostEnvironment environment)
+    {
+        _configuration = configuration;
+        _environment = environment;
+    }
 
     [HttpPost("upload")]
     [RequestSizeLimit(MaxBytes + 512_000)]
@@ -41,7 +52,7 @@ public class FilesController : BaseApiController
         if (!IsAllowedImage(bytes, ext, file.ContentType))
             return BadRequest(Result<object>.Fail("Dosya içeriği izin verilen resim türleriyle eşleşmiyor."));
 
-        var uploadsFolder = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads"));
+        var uploadsFolder = ResolveUploadsPath(_configuration, _environment);
         Directory.CreateDirectory(uploadsFolder);
 
         var uniqueFileName = $"{Guid.NewGuid():N}{ext}";
@@ -51,13 +62,31 @@ public class FilesController : BaseApiController
 
         await System.IO.File.WriteAllBytesAsync(filePath, bytes);
 
-        var fileUrl = $"{Request.Scheme}://{Request.Host}/uploads/{uniqueFileName}";
+        var fileUrl = BuildPublicUrl(_configuration, Request, uniqueFileName);
         return Ok(Result<object>.Ok(new
         {
             url = fileUrl,
             fileName = uniqueFileName,
             originalFileName = originalName
         }));
+    }
+
+    internal static string ResolveUploadsPath(IConfiguration configuration, IWebHostEnvironment environment)
+    {
+        var configured = configuration["Storage:UploadsPath"];
+        if (!string.IsNullOrWhiteSpace(configured))
+            return Path.GetFullPath(configured);
+
+        return Path.GetFullPath(Path.Combine(environment.ContentRootPath, "wwwroot", "uploads"));
+    }
+
+    internal static string BuildPublicUrl(IConfiguration configuration, HttpRequest request, string fileName)
+    {
+        var publicBase = configuration["Storage:PublicBaseUrl"]?.TrimEnd('/');
+        if (!string.IsNullOrWhiteSpace(publicBase))
+            return $"{publicBase}/uploads/{fileName}";
+
+        return $"{request.Scheme}://{request.Host}/uploads/{fileName}";
     }
 
     private static bool IsAllowedImage(byte[] bytes, string ext, string? contentType)

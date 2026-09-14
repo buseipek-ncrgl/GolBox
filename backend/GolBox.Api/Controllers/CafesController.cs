@@ -132,11 +132,12 @@ public class CafesController : BaseApiController
             return NotFound(Result<object>.Fail("Kafe bulunamadı."));
 
         cafe.IsDeleted = true;
+        cafe.IsActive = false;
         cafe.DeletedDate = DateTime.UtcNow;
-
+        await PlaceCafeSync.UnpublishLinkedCafePlaceAsync(_context, cafe);
         await _context.SaveChangesAsync();
-        await AuditLogsController.LogAsync(_context, "staff", "Staff", "Cafe_Delete", "Cafes", "Cafe", id.ToString(), cafe.Name, null, null);
-        return Ok(Result<object>.Ok(new { id }, "Kafe başarıyla silindi."));
+        await AuditLogsController.LogAsync(_context, "staff", "Staff", "Cafe_Delete", "Cafes", "Cafe", id.ToString(), cafe.Name, null, "Kafe operasyon kaydı pasife alındı; bağlı tesis taslağa alındı.");
+        return Ok(Result<object>.Ok(new { id, placeId = cafe.PlaceId, placeUnpublished = cafe.PlaceId.HasValue }, "Kafe operasyon kaydı pasife alındı. Tesis kaydı silinmedi, vatandaş görünümünden kaldırıldı."));
     }
 }
 

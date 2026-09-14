@@ -376,6 +376,11 @@ public class FieldDropsController : BaseApiController
                 if (attempt == maxAttempts)
                     return Conflict(Result<object>.Fail("Stok aynı anda tükendi veya işlem çakıştı. Lütfen tekrar deneyin."));
             }
+            catch (DbUpdateException ex) when (DbExceptions.IsUniqueViolation(ex))
+            {
+                await tx.RollbackAsync();
+                return Conflict(Result<object>.Fail("Bu hediyeyi daha önce topladınız."));
+            }
         }
 
         return Conflict(Result<object>.Fail("Stok aynı anda tükendi veya işlem çakıştı. Lütfen tekrar deneyin."));

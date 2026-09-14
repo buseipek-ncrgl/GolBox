@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import 'leaflet/dist/leaflet.css';
+import { adminMapTiles } from '../../lib/mapTiles';
 
 export function AdminMapPicker({
   latitude,
@@ -23,8 +24,9 @@ export function AdminMapPicker({
       if (cancelled || !host.current || mapRef.current) return;
       const start: [number, number] = [37.0662, 37.3781];
       const map = L.map(host.current, { zoomControl: true }).setView(start, 12);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap',
+      const tiles = adminMapTiles();
+      L.tileLayer(tiles.url, {
+        attribution: tiles.attribution,
         maxZoom: 19
       }).addTo(map);
       const icon = L.divIcon({

@@ -83,10 +83,36 @@ public class OrdersController : BaseApiController
         if (order == null)
             return NotFound(Result<object>.Fail("Sipariş bulunamadı."));
 
-        order.Status = OrderStatuses.Canonicalize(request.Status);
+        var newStatus = OrderStatuses.Canonicalize(request.Status);
+        if (newStatus == OrderStatuses.Cancelled)
+        {
+            if (order.Status == OrderStatuses.Completed)
+                return BadRequest(Result<object>.Fail("Tamamlanmış sipariş iptal edilemez."));
+
+            if (order.Status == OrderStatuses.Cancelled)
+                return Ok(Result<object>.Ok(new { id = order.Id, status = order.Status }, "Sipariş zaten iptal."));
+
+            if (order.PaidWithPoints && order.PointsUsed > 0)
+            {
+                var payer = await _context.Users.FirstOrDefaultAsync(u => u.Id == order.UserId);
+                if (payer == null)
+                    return NotFound(Result<object>.Fail("Sipariş sahibi bulunamadı."));
+
+                OrderPointRefund.TryRefundOnCancel(order, payer, _context);
+            }
+        }
+
+        order.Status = newStatus;
         order.UpdatedDate = DateTime.UtcNow;
 
-        await _context.SaveChangesAsync();
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return Conflict(Result<object>.Fail("Bakiye başka bir işlemle değişti. Lütfen tekrar deneyin."));
+        }
 
         var payload = new
         {
@@ -196,7 +222,14 @@ public class OrdersController : BaseApiController
         };
 
         _context.Orders.Add(order);
-        await _context.SaveChangesAsync();
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return Conflict(Result<object>.Fail("Bakiye başka bir işlemle değişti. Lütfen tekrar deneyin."));
+        }
 
         return Ok(Result<object>.Ok(new
         {

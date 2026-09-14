@@ -5,6 +5,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using GolBox.Application.Common;
 using GolBox.Application.Interfaces;
+using GolBox.Application.Settings;
 using GolBox.Domain.Entities;
 
 namespace GolBox.Application.Features.Settings.Commands;
@@ -41,24 +42,28 @@ public class UpdateSettingCommandHandler : IRequestHandler<UpdateSettingCommand,
             return Result.Fail("Kullanıcı bulunamadı.");
         }
 
+        var validation = SettingRules.Validate(request.Key, request.Value);
+        if (!validation.Success)
+            return validation;
+
+        var canonicalKey = SettingRules.CanonicalKey(request.Key);
         var setting = await _context.Settings
-            .FirstOrDefaultAsync(s => s.OrganizationId == user.OrganizationId && s.Key.ToLower() == request.Key.ToLower(), cancellationToken);
+            .FirstOrDefaultAsync(s => s.OrganizationId == user.OrganizationId && s.Key.ToLower() == canonicalKey.ToLower(), cancellationToken);
 
         if (setting == null)
         {
-            // If setting doesn't exist, create it dynamically
             setting = new Setting
             {
                 OrganizationId = user.OrganizationId,
-                Key = request.Key,
-                Value = request.Value,
+                Key = canonicalKey,
+                Value = request.Value.Trim(),
                 Description = "Sistem tarafından otomatik oluşturuldu."
             };
             _context.Settings.Add(setting);
         }
         else
         {
-            setting.Value = request.Value;
+            setting.Value = request.Value.Trim();
         }
 
         await _context.SaveChangesAsync(cancellationToken);

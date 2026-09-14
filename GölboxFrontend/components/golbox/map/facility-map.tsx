@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react"
 import "leaflet/dist/leaflet.css"
 import { SEHITKAMIL } from "@/lib/golbox-geo"
 import { categoryLabel } from "@/lib/places"
+import { citizenMapTiles } from "@/lib/map-tiles"
 
 type MapPlace = {
   id: string
@@ -53,8 +54,9 @@ export function FacilityMap({
         attributionControl: true,
       }).setView([center.lat, center.lng], focus ? 15 : 13)
 
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: "&copy; OpenStreetMap",
+      const tiles = citizenMapTiles()
+      L.tileLayer(tiles.url, {
+        attribution: tiles.attribution,
         maxZoom: 19,
       }).addTo(map)
 

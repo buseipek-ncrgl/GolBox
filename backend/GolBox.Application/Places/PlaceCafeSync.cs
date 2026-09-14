@@ -82,4 +82,23 @@ public static class PlaceCafeSync
             cafe.ImageUrl = place.CoverImageUrl;
         cafe.IsActive = place.IsActive && place.IsPublished;
     }
+
+    public static async System.Threading.Tasks.Task UnpublishLinkedCafePlaceAsync(
+        IAppDbContext context,
+        Cafe cafe,
+        CancellationToken cancellationToken = default)
+    {
+        if (!cafe.PlaceId.HasValue)
+            return;
+
+        var place = await context.Places.FirstOrDefaultAsync(p => p.Id == cafe.PlaceId.Value, cancellationToken);
+        if (place == null)
+            return;
+
+        if (!string.Equals(place.Category, PlaceCategories.Cafe, StringComparison.OrdinalIgnoreCase))
+            return;
+
+        place.IsPublished = false;
+        place.IsActive = false;
+    }
 }

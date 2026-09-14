@@ -4,6 +4,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using GolBox.Application.Common;
 using GolBox.Application.Interfaces;
 using GolBox.Application.Security;
@@ -38,20 +40,33 @@ public class ScanQrCommandHandler : IRequestHandler<ScanQrCommand, Result<ScanRe
     private readonly IAppDbContext _context;
     private readonly IDynamicQrService _dynamicQrService;
     private readonly ICurrentUserService _currentUser;
+    private readonly IConfiguration _configuration;
+    private readonly ILogger<ScanQrCommandHandler> _logger;
 
     public ScanQrCommandHandler(
         IAppDbContext context,
         IDynamicQrService dynamicQrService,
-        ICurrentUserService currentUser)
+        ICurrentUserService currentUser,
+        IConfiguration configuration,
+        ILogger<ScanQrCommandHandler> logger)
     {
         _context = context;
         _dynamicQrService = dynamicQrService;
         _currentUser = currentUser;
+        _configuration = configuration;
+        _logger = logger;
     }
 
     public async Task<Result<ScanResultDto>> Handle(ScanQrCommand request, CancellationToken cancellationToken)
     {
-        var identity = QrTokenParser.Resolve(request.QrToken, _dynamicQrService);
+        if (!_currentUser.IsStaffOrAdmin)
+            return Result<ScanResultDto>.FailForbidden("QR tarama yalnızca personel ve yöneticiler içindir.");
+
+        var allowLegacyGuid = string.Equals(
+            _configuration["Security:DynamicQr:AllowLegacyGuid"],
+            "true",
+            StringComparison.OrdinalIgnoreCase);
+        var identity = QrTokenParser.Resolve(request.QrToken, _dynamicQrService, allowLegacyGuid);
         if (!identity.IsValid || identity.UserId is null)
             return Result<ScanResultDto>.Fail(identity.ErrorMessage ?? "Geçersiz veya okunamayan QR kod.");
 
@@ -232,6 +247,15 @@ public class ScanQrCommandHandler : IRequestHandler<ScanQrCommand, Result<ScanRe
 
             await transaction.CommitAsync(cancellationToken);
 
+            _logger.LogInformation(
+                "QR action {Operation} actor={ActorId} citizen={CitizenId} cafe={CafeId} earned={Earned} deducted={Deducted}",
+                operation,
+                _currentUser.UserId,
+                user.Id,
+                cafe.Id,
+                pointsEarned,
+                pointsDeducted);
+
             return Result<ScanResultDto>.Ok(new ScanResultDto(
                 qrPayment.Id,
                 request.Amount,
@@ -249,12 +273,12 @@ public class ScanQrCommandHandler : IRequestHandler<ScanQrCommand, Result<ScanRe
         catch (DbUpdateConcurrencyException)
         {
             await transaction.RollbackAsync(cancellationToken);
-            return Result<ScanResultDto>.Fail("Bakiye başka bir kasa işlemiyle değişti. Lütfen tekrar deneyin.");
+            return Result<ScanResultDto>.FailConflict("Bakiye başka bir kasa işlemiyle değişti. Lütfen tekrar deneyin.");
         }
         catch (DbUpdateException)
         {
             await transaction.RollbackAsync(cancellationToken);
-            return Result<ScanResultDto>.Fail("Bu kasa kodu az önce kullanıldı veya işlem çakıştı.");
+            return Result<ScanResultDto>.FailConflict("Bu kasa kodu az önce kullanıldı veya işlem çakıştı.");
         }
     }
 }

@@ -1,6 +1,6 @@
 "use client"
 
-import { WaitingTreats } from "@/components/golbox/waiting-treats"
+import { WaitingTreats } from "@/components/golbox/deprecated/waiting-treats"
 import type { TabId } from "@/lib/golbox-data"
 
 export function IsmarliyorScreen({

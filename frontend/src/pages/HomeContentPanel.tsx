@@ -7,7 +7,7 @@ const TYPES = [
   { id: 'Announcement', label: 'Duyuru' },
   { id: 'EventPromo', label: 'Etkinlik tanıtımı' },
   { id: 'MayorMessage', label: 'Başkan mesajı' },
-  { id: 'Campaign', label: 'Kampanya' },
+  { id: 'Campaign', label: 'Kampanya içeriği' },
   { id: 'Institutional', label: 'Kurumsal' }
 ];
 

@@ -257,7 +257,7 @@ namespace GolBox.Persistence.Migrations
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("RequiredEducation")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(4000)");
 
                     b.Property<Guid?>("UpdatedBy")
                         .HasColumnType("uniqueidentifier");
@@ -302,7 +302,7 @@ namespace GolBox.Persistence.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<string>("ImageUrl")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(4000)");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
@@ -767,7 +767,7 @@ namespace GolBox.Persistence.Migrations
 
                     b.Property<string>("Value")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(4000)");
 
                     b.HasKey("Id");
 
@@ -869,7 +869,7 @@ namespace GolBox.Persistence.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<string>("EducationLevel")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(4000)");
 
                     b.Property<string>("Email")
                         .IsRequired()
@@ -902,7 +902,7 @@ namespace GolBox.Persistence.Migrations
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(4000)");
 
                     b.Property<string>("PhoneNumber")
                         .HasMaxLength(50)

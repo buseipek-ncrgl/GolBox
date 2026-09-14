@@ -46,7 +46,7 @@ public class DynamicQrServiceTests
     }
 
     [Fact]
-    public void Parser_Prefers_Hmac_And_Allows_Legacy_Guid()
+    public void Parser_Prefers_Hmac_And_Rejects_Legacy_Guid()
     {
         var service = CreateService();
         var userId = Guid.NewGuid();
@@ -56,9 +56,7 @@ public class DynamicQrServiceTests
         Assert.Equal("hmac", parsed.Kind);
         Assert.Equal(userId, parsed.UserId);
 
-        var legacy = QrTokenParser.TryLegacyUserGuid(userId.ToString());
-        Assert.True(legacy.IsValid);
-        Assert.Equal("legacy-guid", legacy.Kind);
+        Assert.False(QrTokenParser.Resolve(userId.ToString(), service).IsValid);
 
         var jwtLike = QrTokenParser.Resolve("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.aaa.bbb", service);
         Assert.False(jwtLike.IsValid);

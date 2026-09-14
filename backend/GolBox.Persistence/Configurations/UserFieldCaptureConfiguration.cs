@@ -19,7 +19,9 @@ public class UserFieldCaptureConfiguration : IEntityTypeConfiguration<UserFieldC
             .IsRequired();
 
         builder.HasIndex(x => x.IsDeleted).HasFilter("IsDeleted = 0");
-        builder.HasIndex(x => new { x.FieldDropId, x.UserId });
+        builder.HasIndex(x => new { x.FieldDropId, x.UserId })
+            .IsUnique()
+            .HasFilter("IsDeleted = 0");
 
         builder.HasOne(x => x.FieldDrop)
             .WithMany()

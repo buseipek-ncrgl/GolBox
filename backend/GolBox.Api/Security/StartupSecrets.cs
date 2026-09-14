@@ -26,22 +26,35 @@ public static class StartupSecrets
         var hmacKey = configuration["Security:DynamicQr:HmacKey"];
         RequireSecret(hmacKey, "Security:DynamicQr:HmacKey", 32);
 
-        if (environment.IsProduction())
+        if (!environment.IsProduction())
+            return;
+
+        RejectKnownPlaceholder(jwtKey!, "Jwt:Key", ForbiddenJwtKeys);
+        RejectKnownPlaceholder(hmacKey!, "Security:DynamicQr:HmacKey", ForbiddenHmacKeys);
+
+        var origins = configuration.GetSection("Security:Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
+        if (origins.Length == 0)
         {
-            RejectKnownPlaceholder(jwtKey!, "Jwt:Key", ForbiddenJwtKeys);
-            RejectKnownPlaceholder(hmacKey!, "Security:DynamicQr:HmacKey", ForbiddenHmacKeys);
+            throw new InvalidOperationException(
+                "Production requires Security:Cors:AllowedOrigins with explicit frontend/admin domains.");
+        }
 
-            var origins = configuration.GetSection("Security:Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
-            if (origins.Length == 0)
-            {
-                throw new InvalidOperationException(
-                    "Production requires Security:Cors:AllowedOrigins with explicit frontend/admin domains.");
-            }
+        if (origins.Any(o => o == "*" || string.Equals(o, "null", StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new InvalidOperationException("Production CORS cannot use wildcard origins.");
+        }
 
-            if (origins.Any(o => o == "*" || string.Equals(o, "null", StringComparison.OrdinalIgnoreCase)))
-            {
-                throw new InvalidOperationException("Production CORS cannot use wildcard origins.");
-            }
+        var connection = DatabaseProvider.ResolveConnectionString(configuration, optional: true);
+        if (string.IsNullOrWhiteSpace(connection))
+        {
+            throw new InvalidOperationException(
+                "Production requires ConnectionStrings:Default (or DefaultConnection) pointing at SQL Server.");
+        }
+
+        if (DatabaseProvider.IsSqlite(connection))
+        {
+            throw new InvalidOperationException(
+                "Production cannot use SQLite. Set ConnectionStrings:Default to SQL Server.");
         }
     }
 
@@ -60,5 +73,39 @@ public static class StartupSecrets
             throw new InvalidOperationException(
                 $"{key} is a development placeholder and cannot be used in production.");
         }
+    }
+}
+
+public static class DatabaseProvider
+{
+    public static string? ResolveConnectionString(IConfiguration configuration, bool optional = false)
+    {
+        var value = configuration.GetConnectionString("Default")
+                    ?? configuration.GetConnectionString("DefaultConnection");
+        if (!string.IsNullOrWhiteSpace(value))
+            return value;
+        return optional ? null : "Data Source=golbox.db";
+    }
+
+    public static bool IsSqlite(string connectionString)
+    {
+        if (string.IsNullOrWhiteSpace(connectionString))
+            return true;
+
+        if (connectionString.Contains("golbox.db", StringComparison.OrdinalIgnoreCase)
+            || connectionString.Contains("Mode=Memory", StringComparison.OrdinalIgnoreCase)
+            || connectionString.Contains("Filename=", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        var looksLikeSqlServer =
+            connectionString.Contains("Server=", StringComparison.OrdinalIgnoreCase)
+            || connectionString.Contains("Initial Catalog=", StringComparison.OrdinalIgnoreCase)
+            || (connectionString.Contains("Database=", StringComparison.OrdinalIgnoreCase)
+                && !connectionString.Contains(".db", StringComparison.OrdinalIgnoreCase));
+
+        if (looksLikeSqlServer)
+            return false;
+
+        return connectionString.Contains("Data Source=", StringComparison.OrdinalIgnoreCase);
     }
 }
