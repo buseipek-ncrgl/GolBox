@@ -1,0 +1,111 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: backend restore build test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+      - name: Restore
+        run: dotnet restore backend/GolBox.sln
+      - name: Build
+        run: dotnet build backend/GolBox.sln --no-restore --configuration Release
+      - name: Test
+        run: dotnet test backend/GolBox.sln --no-build --configuration Release --verbosity minimal
+
+  citizen:
+    name: citizen npm ci tsc next build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: GölboxFrontend
+    env:
+      NEXT_PUBLIC_API_BASE_URL: https://api.example.gov.tr/api/v1
+      NEXT_PUBLIC_HUB_URL: https://api.example.gov.tr/hubs/orders
+      NEXT_PUBLIC_NOTIFICATION_HUB_URL: https://api.example.gov.tr/hubs/notifications
+      NEXT_PUBLIC_MAP_TILE_URL: https://tiles.example.gov.tr/{z}/{x}/{y}.png
+      NEXT_PUBLIC_MAP_ATTRIBUTION: "© Example tile provider"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: GölboxFrontend/package-lock.json
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npm run build
+      - name: Reject localhost API targets in production artefact
+        working-directory: .
+        run: |
+          set -euo pipefail
+          if grep -R -E --include='*.js' --include='*.css' --include='*.html' --include='*.json' \
+            --exclude-dir=cache --binary-files=without-match \
+            'localhost:5155|127\.0\.0\.1:5155|127\.0\.0\.1:5160|localhost:5160' GölboxFrontend/.next; then
+            echo "Citizen production artefact still contains a lab/localhost API target."
+            exit 1
+          fi
+          if grep -R --include='*.js' --include='*.css' --include='*.html' --include='*.json' \
+            --exclude-dir=cache --binary-files=without-match \
+            'tile.openstreetmap.org' GölboxFrontend/.next; then
+            echo "Citizen production artefact still contains the development OSM tile default."
+            exit 1
+          fi
+          echo "Citizen artefact: no localhost API target, no OSM default."
+
+  admin:
+    name: admin npm ci tsc vite build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      VITE_API_BASE_URL: https://api.example.gov.tr/api/v1
+      VITE_MAP_TILE_URL: https://tiles.example.gov.tr/{z}/{x}/{y}.png
+      VITE_MAP_ATTRIBUTION: "© Example tile provider"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npx tsc -b
+      - run: npx vite build
+      - name: Reject localhost API targets in production artefact
+        working-directory: .
+        run: |
+          set -euo pipefail
+          if grep -R -E --include='*.js' --include='*.css' --include='*.html' --include='*.json' \
+            --binary-files=without-match \
+            'localhost:5155|127\.0\.0\.1:5155|127\.0\.0\.1:5160|localhost:5160' frontend/dist; then
+            echo "Admin production artefact still contains a lab/localhost API target."
+            exit 1
+          fi
+          if grep -R --include='*.js' --include='*.css' --include='*.html' --include='*.json' \
+            --binary-files=without-match \
+            'tile.openstreetmap.org' frontend/dist; then
+            echo "Admin production artefact still contains the development OSM tile default."
+            exit 1
+          fi
+          echo "Admin artefact: no localhost API target, no OSM default."

@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using GolBox.Application.Common;
 using GolBox.Application.Features.Qr.Commands;
 using GolBox.Application.Security;
 using GolBox.Domain.Entities;
@@ -134,6 +135,64 @@ public class QrAndSecurityTests
         Assert.Equal("coupon-redeem", redeem.Data!.Operation);
         var stored = await db.UserRewards.AsNoTracking().FirstAsync();
         Assert.Equal("Redeemed", stored.Status);
+    }
+
+    [Fact]
+    public async Task Scan_Expired_Coupon_Rejects_As_Expired_Not_Cancelled()
+    {
+        var (conn, db) = TestDb.OpenMigrated();
+        await using var _ = conn;
+        await using var __ = db;
+
+        var citizen = TestData.Citizen(points: 0);
+        var cafeCategory = new CafeCategory { Id = Guid.NewGuid(), OrganizationId = TestData.OrgId, Name = "Kafe" };
+        var cafe = TestData.Cafe();
+        cafe.CategoryId = cafeCategory.Id;
+        var reward = new Reward
+        {
+            Id = Guid.NewGuid(),
+            OrganizationId = TestData.OrgId,
+            Title = "Cay",
+            Description = "x",
+            RequiredPoints = 10,
+            Status = "Active"
+        };
+        db.Organizations.Add(TestData.Org());
+        db.CafeCategories.Add(cafeCategory);
+        db.Cafes.Add(cafe);
+        db.Users.Add(citizen);
+        db.Rewards.Add(reward);
+        db.UserRewards.Add(new UserReward
+        {
+            UserId = citizen.Id,
+            RewardId = reward.Id,
+            OrganizationId = TestData.OrgId,
+            Status = "Claimed",
+            RedeemCode = "EXPIRED1",
+            ClaimedAt = DateTime.UtcNow.AddDays(-40),
+            ExpiresAt = DateTime.UtcNow.AddMinutes(-1)
+        });
+        db.Settings.Add(new Setting { OrganizationId = TestData.OrgId, Key = "visitBonusPoints", Value = "5" });
+        await db.SaveChangesAsync();
+
+        var config = TestDb.QrConfig();
+        var qr = new DynamicQrService(config);
+        var token = qr.GenerateDynamicQrToken(citizen.Id);
+        var handler = new ScanQrCommandHandler(
+            db,
+            qr,
+            new FakeCurrentUser { UserId = Guid.NewGuid(), Role = "Staff" },
+            config,
+            NullLogger<ScanQrCommandHandler>.Instance);
+
+        var redeem = await handler.Handle(new ScanQrCommand(token, cafe.Id, 0, false, "EXPIRED1"), CancellationToken.None);
+        Assert.False(redeem.Success);
+        Assert.Contains("süresi dolmuş", redeem.Message, StringComparison.OrdinalIgnoreCase);
+
+        var stored = await db.UserRewards.AsNoTracking().FirstAsync();
+        Assert.Equal(UserRewardStatuses.Expired, stored.Status);
+        Assert.NotEqual(UserRewardStatuses.Cancelled, stored.Status);
+        Assert.Null(stored.RedeemedAt);
     }
 
     [Fact]
