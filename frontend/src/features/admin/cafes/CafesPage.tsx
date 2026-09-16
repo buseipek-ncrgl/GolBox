@@ -58,9 +58,9 @@ export function CafesPage() {
               <div style={{ padding: 16, display: 'grid', gap: 8 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <strong>{c.name}</strong>
-                  <span>{c.isActive === false ? 'Pasif' : 'Aktif'}</span>
+                  <span className={`admin-badge ${c.isActive === false ? 'admin-badge-neutral' : 'admin-badge-success'}`}>{c.isActive === false ? 'Pasif' : 'Aktif'}</span>
                 </div>
-                <div style={{ fontSize: 13, color: '#64748b' }}>Bağlı Belediye Tesisi: {c.placeName || 'Atanmamış'}</div>
+                <div style={{ fontSize: 13, color: '#64748b' }}>Bağlı tesis: {c.placeName || 'Atanmamış'}</div>
                 <div style={{ fontSize: 13 }}>Menü: {c.menuCount ?? 0} · Bekleyen Ismarlıyor: {c.pendingOrders ?? 0}</div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button type="button" style={btnPrimary} onClick={() => setEditing(c)}>Düzenle</button>

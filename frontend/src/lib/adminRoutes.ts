@@ -28,25 +28,25 @@ export const STAFF_MENU_IDS: AdminMenuId[] = [
   'ismarliyor'
 ];
 
-export const ADMIN_PATHS: { id: AdminMenuId; path: string; label: string; section: string }[] = [
-  { id: 'overview', path: '/admin', label: 'Genel Bakış', section: 'İşlem' },
-  { id: 'users', path: '/admin/vatandaslar', label: 'Vatandaşlar', section: 'İşlem' },
-  { id: 'places', path: '/admin/tesisler', label: 'Tesisler', section: 'İşlem' },
-  { id: 'cafes', path: '/admin/gol-kafeler', label: 'Göl Kafeler', section: 'İşlem' },
-  { id: 'products', path: '/admin/menu', label: 'Menü ve Ürünler', section: 'İşlem' },
-  { id: 'points', path: '/admin/golpuan', label: 'GölPuan Defteri', section: 'Sadakat' },
-  { id: 'qr', path: '/admin/qr', label: 'QR İşlemleri', section: 'Sadakat' },
-  { id: 'rewards', path: '/admin/oduller', label: 'Ödüller', section: 'Sadakat' },
-  { id: 'fieldDrops', path: '/admin/saha-hediyeleri', label: 'Saha Hediyeleri', section: 'Sadakat' },
-  { id: 'ismarliyor', path: '/admin/ismarliyor', label: 'Ismarlıyor', section: 'Sadakat' },
-  { id: 'homeContent', path: '/admin/icerikler', label: 'Ana Sayfa İçerikleri', section: 'İletişim' },
-  { id: 'campaigns', path: '/admin/kampanyalar', label: 'Kampanya İçerikleri', section: 'İletişim' },
-  { id: 'events', path: '/admin/etkinlikler', label: 'Etkinlikler', section: 'İletişim' },
-  { id: 'notifications', path: '/admin/bildirimler', label: 'Duyurular / Bildirimler', section: 'İletişim' },
-  { id: 'reports', path: '/admin/raporlar', label: 'Raporlar', section: 'Yönetim' },
-  { id: 'roles', path: '/admin/yetkilendirme', label: 'Yetkilendirme', section: 'Yönetim' },
-  { id: 'audit', path: '/admin/denetim', label: 'Denetim', section: 'Yönetim' },
-  { id: 'settings', path: '/admin/ayarlar', label: 'Ayarlar', section: 'Yönetim' }
+export const ADMIN_PATHS: { id: AdminMenuId; path: string; label: string; section: string; description: string }[] = [
+  { id: 'overview', path: '/admin', label: 'Genel Bakış', section: 'İşlem', description: 'Günlük özet, kritik kuyruk ve hızlı işlemler.' },
+  { id: 'users', path: '/admin/vatandaslar', label: 'Vatandaşlar', section: 'İşlem', description: 'Arama, filtre ve GölPuan işlemleri.' },
+  { id: 'places', path: '/admin/tesisler', label: 'Tesisler', section: 'İşlem', description: 'Belediye yerleri, konum ve çalışma saatleri.' },
+  { id: 'cafes', path: '/admin/gol-kafeler', label: 'Göl Kafeler', section: 'İşlem', description: 'Menü ve Ismarlıyor operasyonu.' },
+  { id: 'products', path: '/admin/menu', label: 'Menü ve Ürünler', section: 'İşlem', description: 'Kafe ürünleri, fiyat ve görünürlük.' },
+  { id: 'points', path: '/admin/golpuan', label: 'GölPuan Defteri', section: 'Sadakat', description: 'Kazanç, harcama ve manuel işlem kayıtları.' },
+  { id: 'qr', path: '/admin/qr', label: 'QR İşlemleri', section: 'Sadakat', description: 'Kasa: ziyaret, kupon ve GölPuan tahsilatı.' },
+  { id: 'rewards', path: '/admin/oduller', label: 'Ödüller', section: 'Sadakat', description: 'Katalog fiyatı ve yayına alma.' },
+  { id: 'fieldDrops', path: '/admin/saha-hediyeleri', label: 'Saha Hediyeleri', section: 'Sadakat', description: 'Konuma bırakılan GölPuan kutuları.' },
+  { id: 'ismarliyor', path: '/admin/ismarliyor', label: 'Ismarlıyor', section: 'Sadakat', description: 'Bekliyor → Teslim akışı.' },
+  { id: 'homeContent', path: '/admin/icerikler', label: 'Ana Sayfa İçerikleri', section: 'İletişim', description: 'Hero, duyuru ve başkan mesajı.' },
+  { id: 'campaigns', path: '/admin/kampanyalar', label: 'Kampanya İçerikleri', section: 'İletişim', description: 'Uygulamada görünen duyurular. Otomatik indirim uygulamaz.' },
+  { id: 'events', path: '/admin/etkinlikler', label: 'Etkinlikler', section: 'İletişim', description: 'Tarih, tesis ve katılım.' },
+  { id: 'notifications', path: '/admin/bildirimler', label: 'Duyurular / Bildirimler', section: 'İletişim', description: 'Hedef kitle ve gönderim önizlemesi.' },
+  { id: 'reports', path: '/admin/raporlar', label: 'Raporlar', section: 'Yönetim', description: 'Dönem özeti ve CSV indirme.' },
+  { id: 'roles', path: '/admin/yetkilendirme', label: 'Yetkilendirme', section: 'Yönetim', description: 'Personel rolü ve hesap durumu.' },
+  { id: 'audit', path: '/admin/denetim', label: 'Denetim', section: 'Yönetim', description: 'Kim, ne zaman, hangi işlemi yaptı.' },
+  { id: 'settings', path: '/admin/ayarlar', label: 'Ayarlar', section: 'Yönetim', description: 'GölPuan ve kupon süreleri.' }
 ];
 
 export const pathForMenu = (id: AdminMenuId) =>

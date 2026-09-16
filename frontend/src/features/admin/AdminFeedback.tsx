@@ -1,5 +1,6 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { ConfirmDialog } from '../../components/admin/ConfirmDialog';
+import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import { ConfirmDialog } from '../../admin/components/ConfirmDialog';
+import { ToastProvider, useToast } from '../../admin/components/Toast';
 
 type ConfirmOpts = {
   title?: string;
@@ -22,33 +23,32 @@ type Feedback = {
 
 const Ctx = createContext<Feedback | null>(null);
 
-export function AdminFeedbackProvider({ isAdmin, children }: { isAdmin: boolean; children: React.ReactNode }) {
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+function FeedbackInner({ isAdmin, children }: { isAdmin: boolean; children: React.ReactNode }) {
+  const toast = useToast();
+  const [error, setErrorState] = useState<string | null>(null);
+  const [success, setSuccessState] = useState<string | null>(null);
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [confirmState, setConfirmState] = useState<ConfirmOpts | null>(null);
   const [pending, setPending] = useState(false);
 
-  useEffect(() => {
-    if (!success) return;
-    const t = window.setTimeout(() => setSuccess(null), 4000);
-    return () => window.clearTimeout(t);
-  }, [success]);
+  const setError = useCallback((value: string | null) => {
+    setErrorState(value);
+    if (value) toast.push('error', value);
+  }, [toast]);
+
+  const setSuccess = useCallback((value: string | null) => {
+    setSuccessState(value);
+    if (value) toast.push('success', value);
+  }, [toast]);
 
   const confirm = useCallback((opts: ConfirmOpts) => setConfirmState(opts), []);
 
   const value = useMemo(() => ({
     isAdmin, error, success, setError, setSuccess, savingKey, setSavingKey, confirm
-  }), [isAdmin, error, success, savingKey, confirm]);
+  }), [isAdmin, error, success, savingKey, confirm, setError, setSuccess]);
 
   return (
     <Ctx.Provider value={value}>
-      {error && (
-        <div style={{ background: '#fef2f2', borderBottom: '1px solid #fecaca', color: '#991b1b', padding: '0.75rem 2rem', fontSize: '0.85rem' }}>{error}</div>
-      )}
-      {success && (
-        <div style={{ background: '#f0fdf4', borderBottom: '1px solid #bbf7d0', color: '#166534', padding: '0.75rem 2rem', fontSize: '0.85rem' }}>{success}</div>
-      )}
       {children}
       <ConfirmDialog
         open={!!confirmState}
@@ -70,6 +70,14 @@ export function AdminFeedbackProvider({ isAdmin, children }: { isAdmin: boolean;
         }}
       />
     </Ctx.Provider>
+  );
+}
+
+export function AdminFeedbackProvider({ isAdmin, children }: { isAdmin: boolean; children: React.ReactNode }) {
+  return (
+    <ToastProvider>
+      <FeedbackInner isAdmin={isAdmin}>{children}</FeedbackInner>
+    </ToastProvider>
   );
 }
 

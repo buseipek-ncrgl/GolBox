@@ -6,6 +6,7 @@ import { AdminMapPicker } from '../components/admin/AdminMapPicker';
 import { ConfirmDialog } from '../components/admin/ConfirmDialog';
 import { EmptyState, FilterBar, ListError, PaginationBar } from '../components/admin/FilterBar';
 import { AdminSkeletonCard } from '../components/admin/AdminSkeleton';
+import { UnsavedGuard } from '../admin/components';
 
 const CATEGORIES = [
   { id: 'Cafe', label: 'Göl Kafeler' },
@@ -220,11 +221,8 @@ export const PlacesPanel: React.FC<{
 
   return (
     <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+      <UnsavedGuard dirty={editing} message="Tesis formundaki değişiklikler kaydedilmedi. Ayrılmak istiyor musunuz?" />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Tesisler</h1>
-          <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: 4 }}>Belediye yerleri ve tesis yönetimi. Göl Kafe menüsü ayrı kalır.</p>
-        </div>
         <button onClick={openNew} style={{ background: '#1d5f60', color: '#fff', border: 'none', padding: '0.65rem 1.25rem', borderRadius: 10, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
           <Plus size={18} /> Yeni tesis
         </button>
@@ -397,7 +395,7 @@ export const PlacesPanel: React.FC<{
             </div>
           </details>
 
-          <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+          <div className="admin-sticky-save">
             <button type="submit" style={{ background: '#1d5f60', color: '#fff', border: 'none', padding: '0.7rem 1.2rem', borderRadius: 10, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
               <Save size={16} /> Kaydet
             </button>

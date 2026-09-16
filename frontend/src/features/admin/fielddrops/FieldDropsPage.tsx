@@ -97,7 +97,9 @@ export function FieldDropsPage() {
             <h3>{form.id ? 'Saha hediyesi düzenle' : 'Konuma hediye bırak'}</h3>
             <input required placeholder="Başlık" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} style={inputStyle} />
             <textarea placeholder="Açıklama" value={form.description || ''} onChange={(e) => setForm({ ...form, description: e.target.value })} style={inputStyle} />
+            <div style={{ minHeight: 280 }}>
             <AdminMapPicker latitude={Number(form.latitude)} longitude={Number(form.longitude)} radiusMeters={Number(form.radiusMeters)} onChange={(lat, lng) => setForm({ ...form, latitude: lat, longitude: lng })} />
+            </div>
             <label>Yarıçap (m)<input type="number" value={form.radiusMeters} onChange={(e) => setForm({ ...form, radiusMeters: e.target.value })} style={inputStyle} /></label>
             <label>GP<input type="number" value={form.pointsGranted} onChange={(e) => setForm({ ...form, pointsGranted: e.target.value })} style={inputStyle} /></label>
             <label>Stok<input type="number" value={form.totalStock ?? ''} onChange={(e) => setForm({ ...form, totalStock: e.target.value })} style={inputStyle} /></label>

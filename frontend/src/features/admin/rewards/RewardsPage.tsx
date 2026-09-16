@@ -47,10 +47,11 @@ export function RewardsPage() {
         <div key={r.id} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 16, padding: 16, display: 'flex', gap: 16, justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', gap: 12 }}>
             {r.imageUrl && <SafeImg src={r.imageUrl} alt={r.title} style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 12 }} />}
-            <div>
+              <div>
               <strong>{r.title}</strong>
-              <div>{r.requiredPoints} GP · {rewardStatusLabel(r.status)}</div>
-              <div style={{ fontSize: 12, color: '#64748b' }}>Stok alanı bu katalogda tanımlı değil.</div>
+              <div className="admin-gp" style={{ fontSize: 22 }}>{r.requiredPoints} GP</div>
+              <div style={{ fontSize: 13 }}>{rewardStatusLabel(r.status)}</div>
+              <div style={{ fontSize: 12, color: '#64748b' }}>Kimler kullanabilir: tüm uygun vatandaşlar. Stok bu katalogda tanımlı değil.</div>
             </div>
           </div>
           {isAdmin && (

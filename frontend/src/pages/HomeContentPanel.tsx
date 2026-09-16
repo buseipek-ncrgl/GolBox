@@ -237,7 +237,7 @@ export const HomeContentPanel: React.FC<{
     <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Ana Sayfa İçerikleri</h1>
+          <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Kayıtlar</h2>
           <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: 4 }}>Vatandaş uygulamasındaki hero, gündem ve başkan mesajı kayıtları.</p>
         </div>
         <button onClick={openNew} style={{ background: '#1d5f60', color: '#fff', border: 'none', padding: '0.7rem 1.35rem', borderRadius: 12, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -276,9 +276,9 @@ export const HomeContentPanel: React.FC<{
                 </div>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                   <span style={{ background: chip.bg, color: chip.color, padding: '4px 10px', borderRadius: 999, fontSize: 12, fontWeight: 800 }}>{chip.text}</span>
-                  <button onClick={() => openEdit(item)} style={{ border: 'none', background: '#f1f5f9', borderRadius: 8, padding: '8px 10px', cursor: 'pointer' }}><Eye size={16} /></button>
+                  <button onClick={() => openEdit(item)} aria-label="Görüntüle" style={{ border: 'none', background: '#f1f5f9', borderRadius: 8, padding: '8px 10px', cursor: 'pointer' }}><Eye size={16} /></button>
                   <button onClick={() => void setPublished(item, !item.isPublished)} style={{ border: 'none', background: item.isPublished ? '#fee2e2' : '#dcfce7', color: item.isPublished ? '#b91c1c' : '#15803d', borderRadius: 8, padding: '8px 10px', cursor: 'pointer', fontWeight: 700, fontSize: 12 }}>{item.isPublished ? 'Kaldır' : 'Yayınla'}</button>
-                  <button onClick={() => void remove(item)} style={{ border: 'none', background: '#fff1f2', color: '#be123c', borderRadius: 8, padding: '8px 10px', cursor: 'pointer' }}><Trash2 size={16} /></button>
+                  <button onClick={() => void remove(item)} aria-label="Sil" style={{ border: 'none', background: '#fff1f2', color: '#be123c', borderRadius: 8, padding: '8px 10px', cursor: 'pointer' }}><Trash2 size={16} /></button>
                 </div>
               </div>
             );
@@ -288,7 +288,7 @@ export const HomeContentPanel: React.FC<{
 
       {editing && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
-          <form onSubmit={save} style={{ width: 920, maxHeight: '92vh', overflowY: 'auto', background: '#fff', borderRadius: 20, padding: 24, display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: 20 }}>
+          <form onSubmit={save} className="admin-cms-grid" style={{ width: 920, maxWidth: '100%', maxHeight: '92vh', overflowY: 'auto', background: '#fff', borderRadius: 20, padding: 24 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <h3 style={{ margin: 0, fontSize: 22, fontWeight: 800 }}>İçerik {form.id ? 'düzenle' : 'oluştur'}</h3>
               <label style={labelStyle}>İçerik tipi

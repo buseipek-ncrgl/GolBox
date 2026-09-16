@@ -45,7 +45,7 @@ export function ActivitiesPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {isAdmin && <div style={{ display: 'flex', justifyContent: 'flex-end' }}><button type="button" style={btnPrimary} onClick={() => setForm({ title: '', description: '', pointsReward: 50, capacity: 50, startDate: '', startTime: '10:00', endDate: '', endTime: '12:00', placeId: '', location: '' })}>+ Yeni etkinlik</button></div>}
+      {isAdmin && <div style={{ display: 'flex', justifyContent: 'flex-end' }}><button type="button" data-testid="activity-create" style={btnPrimary} onClick={() => setForm({ title: '', description: '', pointsReward: 50, capacity: 50, startDate: '', startTime: '10:00', endDate: '', endTime: '12:00', placeId: '', location: '' })}>+ Yeni etkinlik</button></div>}
       <FilterBar search={search} onSearch={setSearch} activeCount={[search, filter].filter(Boolean).length} onClear={() => { setSearch(''); setFilter(''); }} filters={
         <>
           <select value={filter} onChange={(e) => setFilter(e.target.value)} style={inputStyle}>
@@ -128,18 +128,28 @@ export function ActivitiesPage() {
               setSavingKey(null);
             }
           }}>
-            <input required placeholder="Başlık" value={form.title || ''} onChange={(e) => setForm({ ...form, title: e.target.value })} style={inputStyle} />
+            <input required placeholder="Başlık" data-testid="activity-title" value={form.title || ''} onChange={(e) => setForm({ ...form, title: e.target.value })} style={inputStyle} />
             <label>Belediye tesisi (opsiyonel)
               <select value={form.placeId || ''} onChange={(e) => setForm({ ...form, placeId: e.target.value })} style={inputStyle}>
-                <option value="">Tesis seçilmedi</option>
+                <option value="">Tesis seçilmedi — serbest konum yazın</option>
                 {places.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </label>
-            {form.placeId ? <div style={{ fontSize: 12, color: '#1d5f60' }}>Tesis adresi kullanılacak.</div> : <input placeholder="Serbest konum" value={form.location || ''} onChange={(e) => setForm({ ...form, location: e.target.value })} style={inputStyle} />}
-            <input required type="date" value={form.startDate || ''} onChange={(e) => setForm({ ...form, startDate: e.target.value })} style={inputStyle} />
-            <input required type="time" value={form.startTime || '10:00'} onChange={(e) => setForm({ ...form, startTime: e.target.value })} style={inputStyle} />
-            <input required type="date" value={form.endDate || ''} onChange={(e) => setForm({ ...form, endDate: e.target.value })} style={inputStyle} />
-            <input required type="time" value={form.endTime || '12:00'} onChange={(e) => setForm({ ...form, endTime: e.target.value })} style={inputStyle} />
+            {form.placeId ? <div style={{ fontSize: 12, color: '#1d5f60' }}>Tesis adresi ve konum bilgisi kullanılacak.</div> : <input placeholder="Serbest konum" value={form.location || ''} onChange={(e) => setForm({ ...form, location: e.target.value })} style={inputStyle} />}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <label className="admin-label">Başlangıç tarihi
+                <input required type="date" value={form.startDate || ''} onChange={(e) => setForm({ ...form, startDate: e.target.value })} style={inputStyle} />
+              </label>
+              <label className="admin-label">Başlangıç saati
+                <input required type="time" value={form.startTime || '10:00'} onChange={(e) => setForm({ ...form, startTime: e.target.value })} style={inputStyle} />
+              </label>
+              <label className="admin-label">Bitiş tarihi
+                <input required type="date" value={form.endDate || ''} onChange={(e) => setForm({ ...form, endDate: e.target.value })} style={inputStyle} />
+              </label>
+              <label className="admin-label">Bitiş saati
+                <input required type="time" value={form.endTime || '12:00'} onChange={(e) => setForm({ ...form, endTime: e.target.value })} style={inputStyle} />
+              </label>
+            </div>
             <input type="number" min={0} placeholder="Kontenjan" value={form.capacity ?? 0} onChange={(e) => setForm({ ...form, capacity: e.target.value })} style={inputStyle} />
             <input type="number" min={0} placeholder="GP" value={form.pointsReward ?? 0} onChange={(e) => setForm({ ...form, pointsReward: e.target.value })} style={inputStyle} />
             <button type="submit" disabled={!!savingKey} style={btnPrimary}>{savingKey ? 'Kaydediliyor…' : 'Kaydet'}</button>
