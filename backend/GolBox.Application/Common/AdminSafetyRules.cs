@@ -12,6 +12,8 @@ public static class AdminSafetyRules
     public const int MinRewardGp = 1;
     public const int MaxActivityRewardGp = 10000;
     public const int MaxCampaignTitleLength = 200;
+    public const int CriticalOrderMinutes = 20;
+    public const int ExpiringFieldDropHours = 24;
 
     public static readonly string[] CitizenRoles = ["User", "Citizen"];
     public static readonly string[] StaffRoles = ["Staff", "Admin"];
@@ -70,6 +72,26 @@ public static class AdminSafetyRules
             return Result.Fail("Ödül fiyatı en az 1 GP olmalıdır.");
         if (requiredPoints > MaxRewardGp)
             return Result.Fail($"Ödül fiyatı en fazla {MaxRewardGp} GP olabilir.");
+        return Result.Ok();
+    }
+
+    public static Result ValidateFieldDropSchedule(DateTime? startsAt, DateTime? endsAt, bool isCreate)
+    {
+        if (!startsAt.HasValue || !endsAt.HasValue)
+            return Result.Fail("Başlangıç ve bitiş tarihi zorunludur.");
+        if (endsAt.Value <= startsAt.Value)
+            return Result.Fail("Bitiş tarihi başlangıçtan sonra olmalıdır.");
+        if (isCreate && startsAt.Value < DateTime.UtcNow.AddMinutes(-5))
+            return Result.Fail("Başlangıç tarihi geçmiş bir tarih olamaz.");
+        return Result.Ok();
+    }
+
+    public static Result ValidatePerUserLimit(int limit)
+    {
+        if (limit < 1)
+            return Result.Fail("Kişi başı toplama limiti en az 1 olmalıdır.");
+        if (limit > 100)
+            return Result.Fail("Kişi başı toplama limiti en fazla 100 olabilir.");
         return Result.Ok();
     }
 

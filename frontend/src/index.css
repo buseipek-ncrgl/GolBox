@@ -374,6 +374,28 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--primary);
   font-weight: 700;
 }
+.admin-nav-link:focus {
+  outline: none;
+}
+.admin-nav-link:focus-visible {
+  outline: 3px solid #fbbf24;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 2px #0b3d3e, 0 0 0 5px #fde68a;
+  color: #fff;
+  background: rgba(255,255,255,0.12);
+}
+.admin-nav-link.is-active:focus-visible {
+  outline: 3px solid #0f766e;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 2px #fff, 0 0 0 5px #0f766e;
+  color: var(--primary);
+  background: #fff;
+}
+.admin-icon-btn-on-dark:focus-visible {
+  outline: 3px solid #fbbf24;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 2px #0b3d3e, 0 0 0 5px #fde68a;
+}
 .admin-avatar {
   width: 38px;
   height: 38px;
@@ -620,7 +642,10 @@ h1, h2, h3, h4, h5, h6 {
 .admin-skel-line.mid { width: 55%; }
 .admin-skel-row { height: 40px; margin-top: 8px; }
 .admin-skel-block { height: 88px; margin-top: 12px; }
-.admin-skel-card { min-height: 110px; }
+.admin-dl { display: grid; gap: 8px; margin: 0; }
+.admin-dl > div { display: grid; grid-template-columns: 140px 1fr; gap: 8px; font-size: 14px; }
+.admin-dl dt { color: #5b6f6e; font-weight: 700; }
+.admin-dl dd { margin: 0; }
 @keyframes adminShimmer { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
 
 .admin-overlay {
@@ -632,14 +657,15 @@ h1, h2, h3, h4, h5, h6 {
   justify-content: center;
   z-index: 1200;
   padding: 16px;
+  overflow: auto;
 }
 .admin-drawer-overlay { justify-content: flex-end; padding: 0; }
 .admin-modal {
   background: #fff;
   border-radius: 16px;
-  max-height: 92vh;
-  overflow: auto;
-  width: 100%;
+  max-height: min(92vh, 100%);
+  overflow: hidden;
+  width: min(100%, calc(100vw - 32px));
   display: flex;
   flex-direction: column;
   box-shadow: var(--shadow-md);
@@ -656,9 +682,9 @@ h1, h2, h3, h4, h5, h6 {
   padding: 16px 20px;
 }
 .admin-modal-head { border-bottom: 1px solid var(--border-light); }
-.admin-modal-foot { border-top: 1px solid var(--border-light); justify-content: flex-end; }
+.admin-modal-foot { border-top: 1px solid var(--border-light); justify-content: flex-end; flex-shrink: 0; }
 .admin-modal-head h2, .admin-confirm h2 { margin: 0; font-size: 1.15rem; }
-.admin-modal-body { padding: 16px 20px; display: grid; gap: 12px; }
+.admin-modal-body { padding: 16px 20px; display: grid; gap: 12px; overflow-y: auto; flex: 1; }
 .admin-confirm { padding: 20px; display: grid; gap: 12px; }
 .admin-confirm p { margin: 0; color: var(--text-muted); white-space: pre-wrap; }
 .admin-drawer {

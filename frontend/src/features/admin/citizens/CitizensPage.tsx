@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { fetchCitizens } from '../../../admin/hooks/adminApi';
-import { educationLabel, MAX_MANUAL_GP, MIN_MANUAL_REASON, orderStatusLabel, pointTypeLabel } from '../../../lib/adminLabels';
+import { educationLabel, MAX_MANUAL_GP, MIN_MANUAL_REASON, pointTypeLabel } from '../../../lib/adminLabels';
 import { formatDateTime, formatGp } from '../../../lib/adminDate';
-import { Button, DataTable, Drawer, EmptyState, ErrorState, Input, Modal, NumberInput, Pagination, Select } from '../../../admin/components';
+import { Button, DataTable, Drawer, EmptyState, ErrorState, Input, Modal, NumberInput, Pagination, Select, StatusBadge } from '../../../admin/components';
 import { useAdminFeedback } from '../AdminFeedback';
 import { api } from '../../../services/api';
 
@@ -23,10 +23,11 @@ export function CitizensPage() {
   const [maxPoints, setMaxPoints] = useState('');
   const [applied, setApplied] = useState({ search: '', minAge: '', maxAge: '', education: '', minPoints: '', maxPoints: '' });
   const [loading, setLoading] = useState(true);
-  const [fail, setFail] = useState<string | null>(null);
+  const [fail, setFail] = useState<unknown>(null);
   const [detail, setDetail] = useState<any>(null);
   const [gpOpen, setGpOpen] = useState(false);
   const [gp, setGp] = useState({ amount: 50, action: 'Add' as 'Add' | 'Deduct', reason: '', description: '' });
+  const [gpErrors, setGpErrors] = useState<{ amount?: string; reason?: string }>({});
 
   const load = async () => {
     setLoading(true);
@@ -45,7 +46,7 @@ export function CitizensPage() {
       setItems(meta.items);
       setTotal(meta.totalCount);
     } catch (err: any) {
-      setFail(err.message || 'Vatandaşlar yüklenemedi.');
+      setFail(err);
     } finally {
       setLoading(false);
     }
@@ -72,14 +73,15 @@ export function CitizensPage() {
 
   const submitGp = () => {
     if (!detail?.id) return;
+    const nextErrors: { amount?: string; reason?: string } = {};
     if (gp.amount < 1 || gp.amount > MAX_MANUAL_GP) {
-      setError(`Miktar 1 ile ${MAX_MANUAL_GP} GP arasında olmalıdır.`);
-      return;
+      nextErrors.amount = `Miktar 1 ile ${MAX_MANUAL_GP} GP arasında olmalıdır.`;
     }
     if (gp.reason.trim().length < MIN_MANUAL_REASON) {
-      setError('Sebep en az 3 karakter olmalıdır.');
-      return;
+      nextErrors.reason = 'Sebep en az 3 karakter olmalıdır.';
     }
+    setGpErrors(nextErrors);
+    if (nextErrors.amount || nextErrors.reason) return;
     const name = `${detail.firstName || ''} ${detail.lastName || ''}`.trim();
     const verb = gp.action === 'Deduct' ? 'hesabından' : 'hesabına';
     const action = gp.action === 'Deduct' ? 'düşülecek' : 'eklenecek';
@@ -127,7 +129,7 @@ export function CitizensPage() {
         <NumberInput label="Max GP" value={maxPoints} onChange={(e) => setMaxPoints(e.target.value)} />
         <Button type="submit">Filtrele</Button>
       </form>
-      {fail && <ErrorState description={fail} retry={load} />}
+      {fail ? <ErrorState error={fail} retry={load} /> : null}
       <DataTable
         caption="Vatandaş listesi"
         loading={loading}
@@ -156,25 +158,35 @@ export function CitizensPage() {
           <>
             <section className="admin-section">
               <h3>Profil</h3>
-              <p className="admin-muted">{detail.email} · {detail.phoneNumber || '—'}</p>
-              <p>Yaş: {detail.age ?? '—'} · Öğrenim: {educationLabel(detail.educationLevel) || '—'}</p>
+              <dl className="admin-dl">
+                <div><dt>E-posta</dt><dd>{detail.email || 'Belirtilmemiş'}</dd></div>
+                <div><dt>Telefon</dt><dd>{detail.phoneNumber || 'Belirtilmemiş'}</dd></div>
+                <div><dt>Yaş</dt><dd>{detail.age ?? 'Belirtilmemiş'}</dd></div>
+                <div><dt>Öğrenim Durumu</dt><dd>{educationLabel(detail.educationLevel) || 'Belirtilmemiş'}</dd></div>
+              </dl>
             </section>
             <section className="admin-section">
               <h3>GölPuan</h3>
               <p className="admin-gp">{formatGp(detail.pointsBalance)}</p>
               {isAdmin && (
-                <Button data-testid="manual-gp-action" onClick={() => setGpOpen(true)}>GölPuan İşlemi</Button>
+                <Button data-testid="manual-gp-action" onClick={() => { setGpErrors({}); setGpOpen(true); }}>GölPuan İşlemi</Button>
               )}
               <RowList title="Son hareketler" rows={(detail.pointHistory || []).map((p: any) => `${formatDateTime(p.createdDate)} · ${pointTypeLabel(p.type)} · ${formatGp(p.amount)}`)} empty="Hareket yok." />
             </section>
             <section className="admin-section">
               <h3>Kuponlar</h3>
-              <RowList title="Aktif" rows={(detail.activeCoupons || []).map((c: any) => `${c.title} · ${c.redeemCode}`)} empty="Aktif kupon yok." />
+              <RowList title="Aktif" rows={(detail.activeCoupons || []).map((c: any) => ({
+                text: c.title,
+                extra: c.redeemCode ? `Kupon Kodu: ${String(c.redeemCode).slice(0, 4)}••••` : undefined
+              }))} empty="Aktif kupon yok." />
               <RowList title="Geçmiş" rows={(detail.pastCoupons || []).map((c: any) => `${c.title} · ${c.status}`)} empty="Geçmiş kupon yok." />
             </section>
             <section className="admin-section">
               <h3>Ismarlıyor</h3>
-              <RowList rows={(detail.ordersHistory || []).map((o: any) => `${o.collectionCode} · ${orderStatusLabel(o.status)} · ${o.cafeName}`)} empty="Sipariş yok." />
+              <RowList rows={(detail.ordersHistory || []).map((o: any) => ({
+                text: `${o.collectionCode || '—'} · ${o.cafeName || 'Kafe belirtilmemiş'} · ${formatDateTime(o.createdDate)}`,
+                badge: o.status
+              }))} empty="Sipariş yok." />
             </section>
             <section className="admin-section">
               <h3>GölBox</h3>
@@ -204,21 +216,32 @@ export function CitizensPage() {
           <option value="Add">Puan ekle</option>
           <option value="Deduct">Puan düş</option>
         </Select>
-        <NumberInput label="Miktar (GP)" min={1} max={MAX_MANUAL_GP} value={gp.amount} onChange={(e) => setGp({ ...gp, amount: Number(e.target.value) })} />
-        <Input label="Sebep" required value={gp.reason} onChange={(e) => setGp({ ...gp, reason: e.target.value })} />
+        <NumberInput label="Miktar (GP)" min={1} max={MAX_MANUAL_GP} value={gp.amount} error={gpErrors.amount} onChange={(e) => { setGpErrors((p) => ({ ...p, amount: undefined })); setGp({ ...gp, amount: Number(e.target.value) }); }} />
+        <Input label="Sebep" required value={gp.reason} error={gpErrors.reason} onChange={(e) => { setGpErrors((p) => ({ ...p, reason: undefined })); setGp({ ...gp, reason: e.target.value }); }} />
         <Input label="Açıklama" helper="İsteğe bağlı" value={gp.description} onChange={(e) => setGp({ ...gp, description: e.target.value })} />
       </Modal>
     </div>
   );
 }
 
-function RowList({ title, rows, empty }: { title?: string; rows: string[]; empty: string }) {
+function RowList({ title, rows, empty }: { title?: string; rows: Array<string | { text: string; extra?: string; badge?: string }>; empty: string }) {
   return (
     <div style={{ marginTop: title ? 8 : 0 }}>
       {title ? <div className="admin-label">{title}</div> : null}
       {rows.length === 0
         ? <div className="admin-muted">{empty}</div>
-        : rows.map((row, i) => <div key={i} style={{ fontSize: 13, padding: '4px 0', borderBottom: '1px solid #f8fafc' }}>{row}</div>)}
+        : rows.map((row, i) => {
+            const item = typeof row === 'string' ? { text: row } : row;
+            return (
+              <div key={i} style={{ fontSize: 13, padding: '4px 0', borderBottom: '1px solid #f8fafc', display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'space-between' }}>
+                <span>
+                  {item.text}
+                  {item.extra ? <span className="admin-muted" style={{ display: 'block' }}>{item.extra}</span> : null}
+                </span>
+                {item.badge ? <StatusBadge status={item.badge} /> : null}
+              </div>
+            );
+          })}
     </div>
   );
 }

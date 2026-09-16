@@ -1,4 +1,7 @@
 const ISTANBUL = 'Europe/Istanbul';
+export const ISTANBUL_TZ = ISTANBUL;
+export const ISTANBUL_OFFSET = '+03:00';
+export const CRITICAL_ORDER_MINUTES = 20;
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
@@ -56,6 +59,29 @@ export function toLocalInput(value?: string) {
   }).formatToParts(d);
   const get = (type: string) => parts.find((p) => p.type === type)?.value || '';
   return `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}`;
+}
+
+export function splitIstanbulDateTime(value?: string | Date | null): { date: string; time: string } {
+  const iso = !value ? '' : value instanceof Date ? value.toISOString() : value;
+  const local = toLocalInput(iso);
+  if (!local) return { date: '', time: '' };
+  const [date, time] = local.split('T');
+  return { date: date || '', time: (time || '').slice(0, 5) };
+}
+
+export function istanbulDateTimeToIso(date: string, time?: string): string {
+  if (!date) return '';
+  const hhmm = (time && time.length >= 5 ? time.slice(0, 5) : '00:00');
+  return `${date}T${hhmm}:00${ISTANBUL_OFFSET}`;
+}
+
+export function istanbulDateToIsoStart(date: string): string {
+  return istanbulDateTimeToIso(date, '00:00');
+}
+
+export function istanbulDateToIsoEnd(date: string): string {
+  if (!date) return '';
+  return `${date}T23:59:59${ISTANBUL_OFFSET}`;
 }
 
 export function rangePreset(preset: 'today' | '7d' | '30d' | 'custom') {

@@ -1,4 +1,4 @@
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useId, useRef } from 'react';
 import { X } from 'lucide-react';
 import { useFocusTrap } from '../a11y';
 
@@ -18,6 +18,7 @@ export function Modal({
   onClose: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const titleId = useId();
   const close = useCallback(() => onClose(), [onClose]);
   useFocusTrap(open, ref, close);
   if (!open) return null;
@@ -28,13 +29,13 @@ export function Modal({
         ref={ref}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="admin-modal-title"
+        aria-labelledby={titleId}
         className={`admin-modal admin-modal-${size}`}
         tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="admin-modal-head">
-          <h2 id="admin-modal-title">{title}</h2>
+          <h2 id={titleId}>{title}</h2>
           <button type="button" className="admin-icon-btn" onClick={close} aria-label="Kapat">
             <X size={18} />
           </button>

@@ -80,7 +80,7 @@ export function RolesPage() {
           <option value="Staff">Personel</option>
           <option value="Admin">Yönetici</option>
         </Select>
-        <Button type="submit" loading={savingKey === 'add'}>Personel ekle</Button>
+        <Button type="submit" loading={savingKey === 'add'} data-testid="staff-add">Personel ekle</Button>
       </form>
       {fail && <ErrorState description={fail} retry={load} />}
       <DataTable

@@ -228,65 +228,37 @@ public class UsersController : BaseApiController
     [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
     public async Task<IActionResult> AdjustPoints(Guid id, [FromBody] AdjustPointsRequest request)
     {
-        var user = await _context.Users.FindAsync(id);
-        if (user == null) return NotFound(Result<object>.Fail("Vatandaş bulunamadı."));
+        var applied = await ManualPointAdjustment.ApplyAsync(
+            _context,
+            id,
+            request.Amount,
+            request.ActionType,
+            request.Reason,
+            request.Description,
+            _currentUserService.UserId);
 
-        var reasonCheck = AdminSafetyRules.ValidateManualGpReason(request.Reason);
-        if (!reasonCheck.Success)
-            return BadRequest(Result<object>.Fail(reasonCheck.Message));
-
-        var amountCheck = AdminSafetyRules.ValidateManualGpAmount(request.Amount);
-        if (!amountCheck.Success)
-            return BadRequest(Result<object>.Fail(amountCheck.Message));
-
-        var actionCheck = AdminSafetyRules.ValidateManualGpAction(request.ActionType);
-        if (!actionCheck.Success)
-            return BadRequest(Result<object>.Fail(actionCheck.Message));
-
-        var actionType = AdminSafetyRules.CanonicalManualGpAction(request.ActionType);
-
-        int previousBalance = user.PointsBalance;
-        int deltaAmount = actionType == "Deduct" ? -request.Amount : request.Amount;
-
-        if (actionType == "Deduct" && user.PointsBalance + deltaAmount < 0)
+        if (!applied.Success)
         {
-            return BadRequest(Result<object>.Fail($"Yetersiz bakiye. Kullanıcının mevcut bakiyesi: {user.PointsBalance} GP."));
+            if (applied.Message.Contains("bulunamadı", StringComparison.OrdinalIgnoreCase))
+                return NotFound(Result<object>.Fail(applied.Message));
+            return BadRequest(Result<object>.Fail(applied.Message));
         }
 
-        user.PointsBalance += deltaAmount;
-
-        var transaction = new PointTransaction
-        {
-            Id = Guid.NewGuid(),
-            OrganizationId = user.OrganizationId,
-            UserId = user.Id,
-            Amount = deltaAmount,
-            Type = actionType == "Add" ? "ManualAddition" : actionType == "Deduct" ? "ManualDeduction" : "Reversal",
-            Description = $"[Manuel İşlem: {actionType}] Nedeni: {request.Reason}. Açıklama: {request.Description}",
-            ReferenceType = "Admin",
-            CreatedBy = _currentUserService.UserId,
-            CreatedDate = DateTime.UtcNow
-        };
-
-        _context.PointTransactions.Add(transaction);
-        await _context.SaveChangesAsync();
-
         var adminUser = await _context.Users.FindAsync(_currentUserService.UserId);
-
         await AuditLogsController.LogAsync(
             _context,
             adminUser?.Email ?? "admin@golbox.gov.tr",
             adminUser?.Role ?? "Admin",
-            $"Point_{actionType}",
+            $"Point_{applied.Data!.Action}",
             "Users",
             "User",
-            user.Id.ToString(),
-            $"{previousBalance} GP",
-            $"{user.PointsBalance} GP",
-            $"Neden: {request.Reason} | Açıklama: {request.Description}"
+            id.ToString(),
+            $"{applied.Data.PreviousBalance} GP",
+            $"{applied.Data.NewBalance} GP",
+            $"Neden: {applied.Data.Reason} | Açıklama: {applied.Data.Description}"
         );
 
-        return Ok(Result<object>.Ok(new { user.PointsBalance }, $"Puan işlemi başarıyla uygulandı. Yeni Bakiye: {user.PointsBalance} GP."));
+        return Ok(Result<object>.Ok(new { PointsBalance = applied.Data.NewBalance }, $"Puan işlemi başarıyla uygulandı. Yeni Bakiye: {applied.Data.NewBalance} GP."));
     }
 
     [HttpGet("me")]

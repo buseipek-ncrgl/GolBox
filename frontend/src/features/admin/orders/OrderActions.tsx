@@ -54,6 +54,6 @@ export function OrderActions({ order, onChanged }: { order: any; onChanged: () =
 
   if (status === 'Pending') return <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>{next('Hazırlamaya Başla', 'Preparing')}{cancel}</div>;
   if (status === 'Preparing') return <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>{next('Teslime Hazır', 'Ready')}{cancel}</div>;
-  if (status === 'Ready') return <div style={{ display: 'flex', justifyContent: 'flex-end' }}>{next('Teslim Edildi', 'Completed')}</div>;
+  if (status === 'Ready') return <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>{next('Teslim Edildi', 'Completed')}{cancel}</div>;
   return null;
 }
