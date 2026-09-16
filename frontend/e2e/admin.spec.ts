@@ -182,7 +182,7 @@ test('16. FieldDrop collectors', async ({ page }) => {
 test('17. Cafe edit', async ({ page }) => {
   await page.goto('/admin/gol-kafeler');
   await page.getByTestId('cafe-edit').first().click();
-  await expect(page.getByRole('dialog').getByLabel('Ad')).toBeVisible();
+  await expect(page.getByRole('dialog').getByRole('textbox', { name: 'Ad', exact: true })).toBeVisible();
   await expect(page.getByRole('dialog').getByLabel('Bağlı Belediye Tesisi')).toBeVisible();
   await page.getByRole('dialog').getByRole('button', { name: 'Vazgeç' }).click();
 });
