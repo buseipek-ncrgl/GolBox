@@ -30,6 +30,12 @@ public static class OrderStatuses
         return value == Pending || value == Preparing;
     }
 
+    public static bool IsActiveQueue(string? status)
+    {
+        var value = Canonicalize(status);
+        return value == Pending || value == Preparing || value == Ready;
+    }
+
     public static bool IsFinal(string? status)
     {
         var value = Canonicalize(status);

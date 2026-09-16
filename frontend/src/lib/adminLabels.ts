@@ -135,6 +135,52 @@ export const qrOperationLabel = (op?: string): string => {
   return op || 'Kasa işlemi';
 };
 
+export const cmsTypeLabel = (type?: string): string => {
+  const map: Record<string, string> = {
+    Hero: 'Hero / Ana Manşet',
+    EventPromo: 'Etkinlik Tanıtımı',
+    MayorMessage: 'Başkan Mesajı',
+    Institutional: 'Kurumsal',
+    Announcement: 'Duyuru',
+    Campaign: 'Kampanya'
+  };
+  return (type && map[type]) || type || '—';
+};
+
+export const auditModuleLabel = (module?: string): string => {
+  const map: Record<string, string> = {
+    Users: 'Kullanıcılar',
+    Qr: 'QR',
+    Orders: 'Ismarlıyor',
+    Rewards: 'Ödüller',
+    Places: 'Tesisler',
+    Campaigns: 'Kampanyalar',
+    Cafes: 'Göl Kafeler',
+    Activities: 'Etkinlikler',
+    Staff: 'Personel',
+    MenuItems: 'Menü',
+    FieldDrops: 'Saha hediyeleri',
+    Points: 'GölPuan',
+    Notifications: 'Bildirimler',
+    Content: 'İçerikler',
+    Settings: 'Ayarlar'
+  };
+  return (module && map[module]) || module || '—';
+};
+
+export const auditHumanSummary = (row: any): string => {
+  const action = String(row?.actionType || '');
+  if (action === 'Order_Status') {
+    const raw = String(row?.newValues || '').replace(/["{}]/g, '');
+    const status = raw.includes(':') ? raw.split(':').pop() : raw;
+    return `Sipariş durumu ${orderStatusLabel(status?.trim())} olarak değiştirildi.`;
+  }
+  const labeled = auditActionLabel(action);
+  if (labeled !== action) return labeled;
+  const entity = row?.entityName ? ` ${row.entityName}` : '';
+  return `${auditModuleLabel(row?.moduleName)} kaydı güncellendi.${entity}`;
+};
+
 export const auditActionLabel = (action?: string): string => {
   const map: Record<string, string> = {
     Point_Add: 'GölPuan eklendi',

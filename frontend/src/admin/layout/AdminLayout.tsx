@@ -50,13 +50,23 @@ export function AdminLayout() {
     let cancelled = false;
     void api.getDashboardOverview().then((data) => {
       if (cancelled) return;
+      const count = Number(data?.operationAlertCount ?? data?.metrics?.operationAlertCount);
+      if (Number.isFinite(count)) {
+        setAlertCount(count);
+        return;
+      }
       const alerts = data?.alerts || {};
-      const count =
+      const ops = extractArray(alerts.operationAlerts);
+      if (ops.length) {
+        setAlertCount(ops.length);
+        return;
+      }
+      setAlertCount(
         extractArray(alerts.longPendingOrders).length +
         extractArray(alerts.lowStockFieldDrops).length +
-        extractArray(alerts.criticalApprovals).length +
-        extractArray(alerts.highValuePointTransactions).length;
-      setAlertCount(count);
+        extractArray(alerts.expiringFieldDrops).length +
+        extractArray(alerts.todayActivities).length
+      );
     }).catch(() => undefined);
     return () => { cancelled = true; };
   }, [location.pathname]);
@@ -129,7 +139,7 @@ export function AdminLayout() {
       <div className="admin-main">
         <div className="admin-topbar">
           <div className="admin-crumbs">Şehitkamil Belediyesi</div>
-          <NavLink to="/admin" className="admin-icon-btn admin-bell" aria-label={alertCount ? `${alertCount} operasyon uyarısı` : 'Operasyon uyarıları'}>
+          <NavLink to="/admin#operation-alerts" data-testid="admin-bell" className="admin-icon-btn admin-bell" aria-label={alertCount ? `${alertCount} operasyon uyarısı` : 'Operasyon uyarıları'}>
             <Bell size={18} />
             {alertCount > 0 ? <span className="admin-bell-count">{alertCount > 9 ? '9+' : alertCount}</span> : null}
           </NavLink>

@@ -11,6 +11,22 @@ interface ApiResponse<T> {
   errors?: string[];
 }
 
+export class ApiError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
+
+export function httpErrorCode(err: unknown): string | undefined {
+  const status = err instanceof ApiError ? err.status : undefined;
+  if (status === 403 || status === 404 || status === 409 || status === 500) return String(status);
+  if (status && status >= 500) return '500';
+  return undefined;
+}
+
 async function request<T>(
   endpoint: string,
   options: RequestInit = {}
@@ -33,15 +49,18 @@ async function request<T>(
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
     window.dispatchEvent(new Event('auth-change'));
-    throw new Error('Oturum süresi doldu. Lütfen tekrar giriş yapın.');
+    throw new ApiError('Oturum süresi doldu. Lütfen tekrar giriş yapın.', 401);
   }
 
   const forbiddenMessage = 'Bu işlem için yetkiniz bulunmuyor.';
+  const conflictMessage = 'Bu işlem başka bir değişiklikle çakıştı. Verileri yenileyip tekrar deneyin.';
   const raw = await response.text();
   if (!raw) {
     if (!response.ok) {
-      if (response.status === 403) throw new Error(forbiddenMessage);
-      throw new Error('Bir hata oluştu.');
+      if (response.status === 403) throw new ApiError(forbiddenMessage, 403);
+      if (response.status === 409) throw new ApiError(conflictMessage, 409);
+      if (response.status === 404) throw new ApiError('Kayıt bulunamadı.', 404);
+      throw new ApiError('İşlem sırasında beklenmeyen bir hata oluştu.', response.status || 500);
     }
     return undefined as T;
   }
@@ -49,12 +68,6 @@ async function request<T>(
   const result: ApiResponse<T> = JSON.parse(raw);
 
   if (!result.success || !response.ok) {
-    if (response.status === 403) {
-      throw new Error(result.message || forbiddenMessage);
-    }
-    if (response.status === 409) {
-      throw new Error(result.message || 'İşlem çakışması. Lütfen tekrar deneyin.');
-    }
     let errorMsg = result.message || 'Bir hata oluştu.';
     if (result.errors) {
       if (Array.isArray(result.errors)) {
@@ -67,7 +80,10 @@ async function request<T>(
         errorMsg = String(result.errors);
       }
     }
-    throw new Error(errorMsg);
+    if (response.status === 403) throw new ApiError(result.message || forbiddenMessage, 403);
+    if (response.status === 409) throw new ApiError(result.message || conflictMessage, 409);
+    if (response.status === 404) throw new ApiError(result.message || 'Kayıt bulunamadı.', 404);
+    throw new ApiError(errorMsg, response.status || 400);
   }
 
   return result.data;
@@ -383,7 +399,8 @@ export const api = {
   },
   getFieldDrops: (params?: Record<string, string | number | undefined>) =>
     request<any>(`/field-drops${toQuery({ page: 1, pageSize: 25, ...params })}`),
-  getFieldDropCaptures: (id: string) => request<any>(`/field-drops/${id}/captures`),
+  getFieldDropCaptures: (id: string, params?: Record<string, string | number | undefined>) =>
+    request<any>(`/field-drops/${id}/captures${toQuery({ page: 1, pageSize: 25, ...params })}`),
   createFieldDrop: (data: any) =>
     request<any>('/field-drops', {
       method: 'POST',

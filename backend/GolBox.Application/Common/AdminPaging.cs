@@ -21,6 +21,10 @@ public static class AdminDateRange
 {
     public static TimeZoneInfo Istanbul { get; } = ResolveIstanbul();
 
+    public static (DateTime FromUtc, DateTime ToUtc) Today() => Resolve("today", null, null);
+
+    public static DateTime NowIstanbul() => TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, Istanbul);
+
     public static (DateTime FromUtc, DateTime ToUtc) Resolve(string? preset, DateTime? from, DateTime? to)
     {
         var nowLocal = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, Istanbul);

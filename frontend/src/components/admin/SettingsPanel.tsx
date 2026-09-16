@@ -3,10 +3,10 @@ import { api } from '../../services/api';
 import { Button, NumberInput, Skeleton, UnsavedGuard } from '../../admin/components';
 
 const RULES = [
-  { key: 'rewardExpireDays', label: 'Kupon geçerlilik (gün)', hint: '1–3650', min: 1, max: 3650, step: 1 },
-  { key: 'visitBonusPoints', label: 'Ziyaret bonus GP', hint: '0–10000', min: 0, max: 10000, step: 1 },
-  { key: 'pointsExchangeRate', label: 'Puan kuru (1 TL için GP)', hint: '0’dan büyük', min: 0.01, max: 1000, step: 0.01 },
-  { key: 'spendEarnRatePercent', label: 'Nakit kazanç oranı (%)', hint: '0–100', min: 0, max: 100, step: 0.1 }
+  { key: 'rewardExpireDays', label: 'Kupon geçerlilik (gün)', hint: 'Kazanılan kuponun kaç gün geçerli kalacağını belirler (1–3650).', min: 1, max: 3650, step: 1 },
+  { key: 'visitBonusPoints', label: 'Ziyaret bonus GP', hint: 'QR ziyaret kaydında vatandaşa eklenecek GölPuan (0–10000).', min: 0, max: 10000, step: 1 },
+  { key: 'pointsExchangeRate', label: '1 TL karşılığı GölPuan', hint: 'Nakit harcamada 1 TL için kazanılacak GölPuan miktarı. 0’dan büyük olmalıdır.', min: 0.01, max: 1000, step: 0.01 },
+  { key: 'spendEarnRatePercent', label: 'Nakit harcamada GölPuan kazanım oranı (%)', hint: 'Nakit işlem tutarının yüzde kaçı GölPuan olarak kazandırılır (0–100).', min: 0, max: 100, step: 0.1 }
 ];
 
 type SettingRow = { key: string; value: string; description?: string };
@@ -57,7 +57,7 @@ export function SettingsPanel({
     if (!rule) return 'Bu ayar yönetilemez.';
     const value = Number(raw);
     if (!Number.isFinite(value)) return 'Geçerli bir sayı girin.';
-    if (key === 'pointsExchangeRate' && value <= 0) return 'Puan kuru 0’dan büyük olmalıdır.';
+    if (key === 'pointsExchangeRate' && value <= 0) return '1 TL karşılığı GölPuan 0’dan büyük olmalıdır.';
     if (value < rule.min || value > rule.max) return `${rule.label} ${rule.hint} aralığında olmalıdır.`;
     return null;
   };
@@ -104,7 +104,7 @@ export function SettingsPanel({
         </div>
       ))}
       <div className="admin-sticky-save">
-        <Button onClick={() => void saveAll()} loading={saving} disabled={!dirty}>
+        <Button onClick={() => void saveAll()} loading={saving} disabled={!dirty} data-testid="settings-save">
           Değişiklikleri Kaydet
         </Button>
         {dirty ? <span className="admin-muted">Kaydedilmemiş değişiklik var.</span> : <span className="admin-muted">Güncel.</span>}

@@ -1,10 +1,25 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../../../services/api';
 import { pagedMeta } from '../../../lib/adminQuery';
-import { auditActionLabel } from '../../../lib/adminLabels';
+import { auditHumanSummary, auditModuleLabel } from '../../../lib/adminLabels';
 import { formatDateTime } from '../../../lib/adminDate';
-import { Button, FilterBar, Input, Pagination, Select, Skeleton, EmptyState, ErrorState, TableWrap } from '../../../admin/components';
+import { Button, ErrorState, FilterBar, Input, Pagination, Select, Skeleton, EmptyState, TableWrap } from '../../../admin/components';
 import { useAdminFeedback } from '../AdminFeedback';
+
+const MODULES = [
+  { id: 'Users', label: 'Kullanıcılar' },
+  { id: 'Qr', label: 'QR' },
+  { id: 'Orders', label: 'Ismarlıyor' },
+  { id: 'Rewards', label: 'Ödüller' },
+  { id: 'Places', label: 'Tesisler' },
+  { id: 'Campaigns', label: 'Kampanyalar' },
+  { id: 'Cafes', label: 'Göl Kafeler' },
+  { id: 'Activities', label: 'Etkinlikler' },
+  { id: 'Staff', label: 'Personel' },
+  { id: 'MenuItems', label: 'Menü' },
+  { id: 'FieldDrops', label: 'Saha hediyeleri' },
+  { id: 'Points', label: 'GölPuan' }
+];
 
 export function AuditPage() {
   const { setError } = useAdminFeedback();
@@ -18,7 +33,7 @@ export function AuditPage() {
   const [staff, setStaff] = useState('');
   const [preset, setPreset] = useState('30d');
   const [loading, setLoading] = useState(true);
-  const [fail, setFail] = useState<string | null>(null);
+  const [fail, setFail] = useState<unknown>(null);
   const [openId, setOpenId] = useState<string | null>(null);
 
   const load = async () => {
@@ -30,7 +45,7 @@ export function AuditPage() {
       setTotal(meta.totalCount);
       setFail(null);
     } catch (err: any) {
-      setFail(err.message || 'Denetim kayıtları yüklenemedi.');
+      setFail(err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -53,7 +68,7 @@ export function AuditPage() {
             <Input label="İşlem" value={action} onChange={(e) => setAction(e.target.value)} />
             <Select label="Modül" value={moduleName} onChange={(e) => setModuleName(e.target.value)}>
               <option value="">Tümü</option>
-              {['Users', 'Rewards', 'Qr', 'Orders', 'Campaigns', 'Cafes', 'Activities', 'Staff', 'MenuItems'].map((m) => <option key={m} value={m}>{m}</option>)}
+              {MODULES.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
             </Select>
             <Select label="Dönem" value={preset} onChange={(e) => setPreset(e.target.value)}>
               <option value="today">Bugün</option>
@@ -64,8 +79,8 @@ export function AuditPage() {
           </>
         }
       />
-      {fail && <ErrorState description={fail} retry={load} />}
-      {loading ? <Skeleton variant="table" /> : items.length === 0 ? <EmptyState title="Denetim kaydı yok." /> : (
+      {fail ? <ErrorState error={fail} retry={load} /> : null}
+      {loading ? <Skeleton variant="table" /> : items.length === 0 ? <EmptyState title="Denetim kaydı yok." description="Seçilen dönemde işlem kaydı bulunamadı." /> : (
         <TableWrap>
           <table className="admin-table">
             <caption className="admin-sr-only">Denetim kayıtları</caption>
@@ -73,8 +88,8 @@ export function AuditPage() {
               <tr>
                 <th scope="col">Tarih</th>
                 <th scope="col">Personel</th>
-                <th scope="col">İşlem</th>
-                <th scope="col">Hedef</th>
+                <th scope="col">Özet</th>
+                <th scope="col">Modül</th>
               </tr>
             </thead>
             <tbody>
@@ -85,19 +100,22 @@ export function AuditPage() {
                     <tr>
                       <td>{formatDateTime(row.createdDate)}</td>
                       <td>{row.userEmail}</td>
-                      <td>{auditActionLabel(row.actionType)}</td>
+                      <td>{auditHumanSummary(row)}</td>
                       <td>
                         <button type="button" className="admin-btn admin-btn-ghost admin-btn-sm" onClick={() => setOpenId(expanded ? null : row.id)}>
-                          {row.entityName || 'Kayıt'} {expanded ? '▲' : '▼'}
+                          {auditModuleLabel(row.moduleName)} {expanded ? '▲' : '▼'}
                         </button>
                       </td>
                     </tr>
                     {expanded && (
                       <tr>
                         <td colSpan={4}>
-                          <pre className="admin-muted" style={{ whiteSpace: 'pre-wrap', fontSize: 12, margin: 0 }}>
-                            {JSON.stringify({ module: row.moduleName, reason: row.reason, newValues: row.newValues, oldValues: row.oldValues }, null, 2)}
-                          </pre>
+                          <details open>
+                            <summary>Teknik detaylar</summary>
+                            <pre className="admin-muted" style={{ whiteSpace: 'pre-wrap', fontSize: 12, margin: '8px 0 0' }}>
+                              {JSON.stringify({ module: row.moduleName, action: row.actionType, reason: row.reason, newValues: row.newValues, oldValues: row.oldValues }, null, 2)}
+                            </pre>
+                          </details>
                         </td>
                       </tr>
                     )}

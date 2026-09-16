@@ -1,14 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Plus, Save, Trash2, Eye, Upload } from 'lucide-react';
+import { Plus, Trash2, Eye, Upload } from 'lucide-react';
 import { api } from '../services/api';
 import { ConfirmDialog } from '../components/admin/ConfirmDialog';
+import { Modal, UnsavedGuard } from '../admin/components';
+import { istanbulDateTimeToIso, splitIstanbulDateTime, toLocalInput as toIstanbulInput } from '../lib/adminDate';
+import { cmsTypeLabel } from '../lib/adminLabels';
 
 const TYPES = [
-  { id: 'Hero', label: 'Hero' },
+  { id: 'Hero', label: 'Hero / Ana Manşet' },
   { id: 'Announcement', label: 'Duyuru' },
-  { id: 'EventPromo', label: 'Etkinlik tanıtımı' },
-  { id: 'MayorMessage', label: 'Başkan mesajı' },
-  { id: 'Campaign', label: 'Kampanya içeriği' },
+  { id: 'EventPromo', label: 'Etkinlik Tanıtımı' },
+  { id: 'MayorMessage', label: 'Başkan Mesajı' },
+  { id: 'Campaign', label: 'Kampanya' },
   { id: 'Institutional', label: 'Kurumsal' }
 ];
 
@@ -84,11 +87,7 @@ const labelStyle: React.CSSProperties = {
 };
 
 function toLocalInput(value?: string) {
-  if (!value) return '';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return '';
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return toIstanbulInput(value);
 }
 
 export const HomeContentPanel: React.FC<{
@@ -107,6 +106,8 @@ export const HomeContentPanel: React.FC<{
   const [places, setPlaces] = useState<any[]>([]);
   const [cafes, setCafes] = useState<any[]>([]);
   const [archiveTarget, setArchiveTarget] = useState<any>(null);
+  const [snapshot, setSnapshot] = useState('');
+  const dirty = editing && JSON.stringify(form) !== snapshot;
 
   const load = async () => {
     setLoading(true);
@@ -144,8 +145,8 @@ export const HomeContentPanel: React.FC<{
     ctaType: form.ctaType,
     ctaTarget: form.ctaTarget || null,
     priority: Number(form.priority) || 0,
-    startAt: form.startAt ? new Date(form.startAt).toISOString() : new Date().toISOString(),
-    endAt: form.endAt ? new Date(form.endAt).toISOString() : null,
+    startAt: form.startAt ? istanbulDateTimeToIso(form.startAt.split('T')[0], form.startAt.split('T')[1] || '00:00') : istanbulDateTimeToIso(splitIstanbulDateTime(new Date().toISOString()).date, splitIstanbulDateTime(new Date().toISOString()).time),
+    endAt: form.endAt ? istanbulDateTimeToIso(form.endAt.split('T')[0], form.endAt.split('T')[1] || '00:00') : null,
     isPublished: form.isPublished,
     audienceType: form.audienceType,
     audienceMinAge: form.audienceMinAge === '' ? null : Number(form.audienceMinAge),
@@ -158,12 +159,14 @@ export const HomeContentPanel: React.FC<{
   }), [form]);
 
   const openNew = () => {
-    setForm(emptyForm());
+    const next = emptyForm();
+    setForm(next);
+    setSnapshot(JSON.stringify(next));
     setEditing(true);
   };
 
   const openEdit = (item: any) => {
-    setForm({
+    const next = {
       id: item.id,
       type: item.type,
       title: item.title || '',
@@ -186,7 +189,9 @@ export const HomeContentPanel: React.FC<{
       authorTitle: item.authorTitle || '',
       authorImageUrl: item.authorImageUrl || '',
       activityId: item.activityId || ''
-    });
+    };
+    setForm(next);
+    setSnapshot(JSON.stringify(next));
     setEditing(true);
   };
 
@@ -235,6 +240,7 @@ export const HomeContentPanel: React.FC<{
 
   return (
     <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      <UnsavedGuard dirty={!!dirty} />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Kayıtlar</h2>
@@ -270,7 +276,7 @@ export const HomeContentPanel: React.FC<{
             return (
               <div key={item.id} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, padding: '0.95rem 1.25rem', borderBottom: '1px solid #f1f5f9', alignItems: 'center' }}>
                 <div>
-                  <div style={{ fontSize: 11, fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{item.type}</div>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: '#64748b', letterSpacing: '0.08em' }}>{cmsTypeLabel(item.type)}</div>
                   <div style={{ fontWeight: 800, color: '#0f172a' }}>{item.title}</div>
                   <div style={{ fontSize: 12, color: '#64748b' }}>{item.subtitle}</div>
                 </div>
@@ -286,9 +292,19 @@ export const HomeContentPanel: React.FC<{
         </div>
       )}
 
-      {editing && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
-          <form onSubmit={save} className="admin-cms-grid" style={{ width: 920, maxWidth: '100%', maxHeight: '92vh', overflowY: 'auto', background: '#fff', borderRadius: 20, padding: 24 }}>
+      <Modal
+        open={editing}
+        title={`İçerik ${form.id ? 'düzenle' : 'oluştur'}`}
+        size="xl"
+        onClose={() => setEditing(false)}
+        footer={
+          <>
+            <button type="button" onClick={() => setEditing(false)} style={{ flex: 1, padding: 10, borderRadius: 10, border: '1px solid #cbd5e1', background: '#f8fafc', fontWeight: 700, cursor: 'pointer' }}>İptal</button>
+            <button type="submit" form="cms-form" style={{ flex: 1, padding: 10, borderRadius: 10, border: 'none', background: '#1d5f60', color: '#fff', fontWeight: 800, cursor: 'pointer' }}>Kaydet</button>
+          </>
+        }
+      >
+        <form id="cms-form" onSubmit={save} className="admin-cms-grid">
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <h3 style={{ margin: 0, fontSize: 22, fontWeight: 800 }}>İçerik {form.id ? 'düzenle' : 'oluştur'}</h3>
               <label style={labelStyle}>İçerik tipi
@@ -402,10 +418,6 @@ export const HomeContentPanel: React.FC<{
               <label style={{ ...labelStyle, display: 'flex', gap: 8, alignItems: 'center' }}>
                 <input type="checkbox" checked={form.isPublished} onChange={(e) => setForm({ ...form, isPublished: e.target.checked })} /> Yayınla
               </label>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button type="button" onClick={() => setEditing(false)} style={{ flex: 1, padding: 10, borderRadius: 10, border: '1px solid #cbd5e1', background: '#f8fafc', fontWeight: 700, cursor: 'pointer' }}>İptal</button>
-                <button type="submit" style={{ flex: 1, padding: 10, borderRadius: 10, border: 'none', background: '#1d5f60', color: '#fff', fontWeight: 800, cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 6 }}><Save size={16} /> Kaydet</button>
-              </div>
             </div>
             <div>
               <div style={{ fontSize: 12, fontWeight: 800, color: '#64748b', marginBottom: 8 }}>Telefon önizleme</div>
@@ -420,9 +432,8 @@ export const HomeContentPanel: React.FC<{
                 </div>
               </div>
             </div>
-          </form>
-        </div>
-      )}
+        </form>
+      </Modal>
       <ConfirmDialog
         open={!!archiveTarget}
         title="İçeriği arşivle"

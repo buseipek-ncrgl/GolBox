@@ -146,38 +146,43 @@ public class FieldDropsController : BaseApiController
 
     [HttpGet("{id}/captures")]
     [Authorize(Policy = AuthorizationPolicies.StaffOrAdmin)]
-    public async Task<IActionResult> GetCaptures(Guid id)
+    public async Task<IActionResult> GetCaptures(
+        Guid id,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = AdminPaging.DefaultPageSize)
     {
         var exists = await _context.FieldDrops.AnyAsync(d => d.Id == id);
         if (!exists)
             return NotFound(Result<object>.Fail("Saha hediyesi bulunamadı."));
 
-        var captures = await _context.UserFieldCaptures
+        (page, pageSize) = AdminPaging.Normalize(page, pageSize);
+        var query = _context.UserFieldCaptures
             .Include(c => c.User)
             .Where(c => c.FieldDropId == id)
-            .OrderByDescending(c => c.CreatedDate)
+            .OrderByDescending(c => c.CreatedDate);
+
+        var totalCount = await query.CountAsync();
+        var captures = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .Select(c => new
             {
                 c.Id,
-                c.UserId,
-                userFullName = c.User.FirstName + " " + c.User.LastName,
-                userEmail = c.User.Email,
+                userFullName = (c.User.FirstName + " " + c.User.LastName).Trim(),
                 c.PointsGranted,
-                c.DistanceMeters,
-                c.CapturedLatitude,
-                c.CapturedLongitude,
+                status = "Toplandı",
                 c.CreatedDate
             })
             .ToListAsync();
 
-        return Ok(Result<object>.Ok(captures));
+        return Ok(Result<object>.Ok(new { items = captures, page, pageSize, totalCount }));
     }
 
     [HttpPost]
     [Authorize(Policy = AuthorizationPolicies.StaffOrAdmin)]
     public async Task<IActionResult> Create([FromBody] UpsertFieldDropRequest request)
     {
-        var error = Validate(request);
+        var error = Validate(request, isCreate: true);
         if (error != null)
             return BadRequest(Result<object>.Fail(error));
 
@@ -210,8 +215,8 @@ public class FieldDropsController : BaseApiController
             PointsGranted = request.PointsGranted,
             TotalStock = request.TotalStock,
             PerUserLimit = request.PerUserLimit <= 0 ? 1 : request.PerUserLimit,
-            StartsAt = request.StartsAt ?? DateTime.UtcNow,
-            EndsAt = request.EndsAt ?? DateTime.UtcNow.AddDays(30),
+            StartsAt = request.StartsAt!.Value,
+            EndsAt = request.EndsAt!.Value,
             ImageUrl = request.ImageUrl,
             ModelGlbUrl = request.ModelGlbUrl,
             IsActive = request.IsActive,
@@ -246,7 +251,7 @@ public class FieldDropsController : BaseApiController
         if (drop == null)
             return NotFound(Result<object>.Fail("Saha hediyesi bulunamadı."));
 
-        var error = Validate(request);
+        var error = Validate(request, isCreate: false);
         if (error != null)
             return BadRequest(Result<object>.Fail(error));
 
@@ -260,8 +265,8 @@ public class FieldDropsController : BaseApiController
         drop.PointsGranted = request.PointsGranted;
         drop.TotalStock = request.TotalStock;
         drop.PerUserLimit = request.PerUserLimit <= 0 ? 1 : request.PerUserLimit;
-        drop.StartsAt = request.StartsAt ?? drop.StartsAt;
-        drop.EndsAt = request.EndsAt ?? drop.EndsAt;
+        drop.StartsAt = request.StartsAt!.Value;
+        drop.EndsAt = request.EndsAt!.Value;
         drop.ImageUrl = request.ImageUrl;
         drop.ModelGlbUrl = request.ModelGlbUrl;
         drop.IsActive = request.IsActive;
@@ -437,7 +442,7 @@ public class FieldDropsController : BaseApiController
         d.CreatedDate
     };
 
-    private static string? Validate(UpsertFieldDropRequest request)
+    private static string? Validate(UpsertFieldDropRequest request, bool isCreate)
     {
         if (string.IsNullOrWhiteSpace(request.Title))
             return "Başlık zorunludur.";
@@ -449,8 +454,12 @@ public class FieldDropsController : BaseApiController
             return "Puan 0 ile 10000 arasında olmalıdır.";
         if (request.TotalStock.HasValue && request.TotalStock.Value < 1)
             return "Stok en az 1 olmalıdır.";
-        if (request.StartsAt.HasValue && request.EndsAt.HasValue && request.EndsAt <= request.StartsAt)
-            return "Bitiş tarihi başlangıçtan sonra olmalıdır.";
+        var schedule = AdminSafetyRules.ValidateFieldDropSchedule(request.StartsAt, request.EndsAt, isCreate);
+        if (!schedule.Success)
+            return schedule.Message;
+        var limit = AdminSafetyRules.ValidatePerUserLimit(request.PerUserLimit <= 0 ? 1 : request.PerUserLimit);
+        if (!limit.Success)
+            return limit.Message;
         return null;
     }
 

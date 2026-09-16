@@ -1,4 +1,5 @@
 import React from 'react';
+import { canonicalizeOrderStatus, orderStatusLabel, rewardStatusLabel } from '../../lib/adminLabels';
 
 const MAP: Record<string, { label: string; tone: string }> = {
   Pending: { label: 'Bekliyor', tone: 'warning' },
@@ -13,10 +14,16 @@ const MAP: Record<string, { label: string; tone: string }> = {
   Draft: { label: 'Taslak', tone: 'neutral' },
   Archived: { label: 'Arşivlendi', tone: 'neutral' },
   Admin: { label: 'Yönetici', tone: 'info' },
-  Staff: { label: 'Personel', tone: 'neutral' }
+  Staff: { label: 'Personel', tone: 'neutral' },
+  Toplandı: { label: 'Toplandı', tone: 'success' }
 };
 
 export function StatusBadge({ status, label }: { status?: string; label?: string }) {
-  const mapped = MAP[String(status || '')] || { label: label || status || '—', tone: 'neutral' };
-  return <span className={`admin-badge admin-badge-${mapped.tone}`}>{label || mapped.label}</span>;
+  const canonical = canonicalizeOrderStatus(status);
+  const mapped = MAP[canonical] || MAP[String(status || '')] || {
+    label: label || rewardStatusLabel(status) || status || '—',
+    tone: 'neutral'
+  };
+  const text = label || mapped.label || orderStatusLabel(status);
+  return <span className={`admin-badge admin-badge-${mapped.tone}`}>{text}</span>;
 }
