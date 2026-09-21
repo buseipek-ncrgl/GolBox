@@ -8,7 +8,7 @@ import { useGolbox } from "@/lib/golbox-context"
 import { LoginScreen } from "@/components/golbox/screens/login-screen"
 
 export function CafeDetailSheet({ cafeId, onClose }: { cafeId: string; onClose: () => void }) {
-  const { cafes: liveCafes, token, createOrder, loading } = useGolbox()
+  const { cafes: liveCafes, token, user, createOrder, loading } = useGolbox()
   const notify = useGolToast()
   const live = liveCafes.find((cafe) => cafe.id === cafeId)
   const [prep, setPrep] = useState<string[]>([])
@@ -38,8 +38,41 @@ export function CafeDetailSheet({ cafeId, onClose }: { cafeId: string; onClose: 
   const statusLabel = open ? "Açık" : "Kapalı"
   const liveItems = live.menuItems ?? []
 
-  const toggleLive = (id: string) => {
-    setPrep((prev) => (prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]))
+  const checkEligibility = (item: { minAge?: number; maxAge?: number; requiredEducation?: string }) => {
+    if (!item.minAge && !item.maxAge && !item.requiredEducation) {
+      return { eligible: true, reason: null, needsProfile: false }
+    }
+    if (!token || !user) {
+      return { eligible: false, reason: "Giriş gerekli", needsProfile: false }
+    }
+    const missingProfile =
+      ((item.minAge || item.maxAge) && user.age == null) ||
+      (item.requiredEducation && !user.educationLevel)
+
+    if (missingProfile) {
+      return { eligible: false, reason: "Profil bilgilerinizi tamamlamanız gerekiyor", needsProfile: true }
+    }
+
+    if (item.minAge && (user.age ?? 0) < item.minAge) {
+      return { eligible: false, reason: `En az ${item.minAge} yaş gereklidir`, needsProfile: false }
+    }
+    if (item.maxAge && (user.age ?? 0) > item.maxAge) {
+      return { eligible: false, reason: `En fazla ${item.maxAge} yaş gereklidir`, needsProfile: false }
+    }
+    if (item.requiredEducation && user.educationLevel !== item.requiredEducation) {
+      return { eligible: false, reason: `${item.requiredEducation} öğrenci şartı gereklidir`, needsProfile: false }
+    }
+
+    return { eligible: true, reason: null, needsProfile: false }
+  }
+
+  const toggleLive = (item: { id: string; minAge?: number; maxAge?: number; requiredEducation?: string }) => {
+    const { eligible, reason } = checkEligibility(item)
+    if (!eligible && reason) {
+      notify(reason)
+      return
+    }
+    setPrep((prev) => (prev.includes(item.id) ? prev.filter((i) => i !== item.id) : [...prev, item.id]))
   }
 
   const submitLive = async () => {
@@ -117,18 +150,35 @@ export function CafeDetailSheet({ cafeId, onClose }: { cafeId: string; onClose: 
               ) : (
                 liveItems.map((item) => {
                   const active = prep.includes(item.id)
+                  const { eligible, reason, needsProfile } = checkEligibility(item)
+                  const requirementBadge = item.minAge || item.maxAge || item.requiredEducation ? (
+                    <span className="mt-1 inline-block rounded bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-700">
+                      {item.minAge || item.maxAge ? `${item.minAge || 0}-${item.maxAge || "∞"} yaş` : ""}
+                      {item.requiredEducation ? ` · ${item.requiredEducation}` : ""}
+                    </span>
+                  ) : null
+
                   return (
                     <li key={item.id} className="flex items-center gap-3 border-b border-border px-4 py-3 last:border-0">
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium text-card-foreground">{item.name}</p>
-                        <p className="text-xs text-muted-foreground">₺{item.price}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-xs text-muted-foreground">₺{item.price}</p>
+                          {requirementBadge}
+                        </div>
+                        {needsProfile ? (
+                          <p className="mt-0.5 text-[11px] text-amber-600">Profil bilgilerinizi tamamlamanız gerekiyor</p>
+                        ) : !eligible && reason ? (
+                          <p className="mt-0.5 text-[11px] text-muted-foreground">{reason}</p>
+                        ) : null}
                       </div>
                       <button
                         type="button"
-                        onClick={() => toggleLive(item.id)}
+                        onClick={() => toggleLive(item)}
+                        disabled={!eligible && !active}
                         aria-pressed={active}
                         aria-label={`${item.name} ekle`}
-                        className={`flex size-8 items-center justify-center rounded-full transition-colors ${
+                        className={`flex size-8 items-center justify-center rounded-full transition-colors disabled:opacity-40 ${
                           active ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"
                         }`}
                       >

@@ -16,9 +16,16 @@ export function CouponPass({
   compact?: boolean
 }) {
   const used = coupon.status === "Redeemed"
-  const expired = coupon.isExpired || coupon.status === "Cancelled"
-  const active = coupon.status === "Claimed" && !expired
-  const label = used ? "Kullanıldı" : expired ? "Süresi doldu" : "Aktif kupon"
+  const cancelled = coupon.status === "Cancelled"
+  const expired = coupon.isExpired || coupon.status === "Expired"
+  const active = coupon.status === "Claimed" && !expired && !cancelled
+  const label = used
+    ? "Kullanıldı"
+    : cancelled
+    ? "İptal Edildi"
+    : expired
+    ? "Süresi Doldu"
+    : "Kullanılabilir"
   const personalized = coupon.personalizedFor || (coupon.holderName ? `${coupon.holderName}'ya özel` : "Kişiye özel")
 
   return (

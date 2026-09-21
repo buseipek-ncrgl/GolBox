@@ -6,6 +6,7 @@ import { OverlaySheet } from "@/components/golbox/overlay-sheet"
 import { EmptyState } from "@/components/golbox/empty-state"
 import { GPValue } from "@/components/golbox/gp-value"
 import { LoginRequiredSheet } from "@/components/golbox/login-required-sheet"
+import { useGolToast } from "@/components/golbox/gol-toast"
 import type { CityContentItem } from "@/lib/city-content"
 import {
   fetchPublicActivity,
@@ -122,6 +123,7 @@ export function NotificationsSheet({
   onClose,
   onLogin,
   onOpen,
+  onMarkAllRead,
 }: {
   isLoggedIn: boolean
   items: CitizenNotification[]
@@ -129,9 +131,21 @@ export function NotificationsSheet({
   onClose: () => void
   onLogin: () => void
   onOpen: (item: CitizenNotification) => void
+  onMarkAllRead?: () => void
 }) {
   return (
     <OverlaySheet title="Bildirimler" onClose={onClose}>
+      {isLoggedIn && items.length > 0 && onMarkAllRead ? (
+        <div className="mb-3 flex justify-end">
+          <button
+            type="button"
+            onClick={onMarkAllRead}
+            className="text-xs font-semibold text-primary hover:underline"
+          >
+            Tümünü okundu işaretle
+          </button>
+        </div>
+      ) : null}
       {!isLoggedIn ? (
         <EmptyState
           title="Bildirimler hesabına bağlı."
@@ -305,6 +319,7 @@ export function ActivityOverlay({
   onOpenPlace?: (id: string) => void
 }) {
   const { token, refreshData } = useGolbox()
+  const notify = useGolToast()
   const [activity, setActivity] = useState<PublicActivity | null>(null)
   const [busy, setBusy] = useState(false)
   const [showLogin, setShowLogin] = useState(false)
@@ -332,10 +347,20 @@ export function ActivityOverlay({
     setBusy(true)
     try {
       await joinPublicActivity(activity.id, token)
+      notify("Etkinliğe başarıyla katıldınız.")
       setActivity(await fetchPublicActivity(activity.id, token))
       await refreshData()
-    } catch {
-      /* keep current sheet usable */
+    } catch (err: any) {
+      const msg = err?.message || ""
+      if (msg.includes("already") || msg.includes("zaten")) {
+        notify("Bu etkinliğe zaten katıldınız.")
+      } else if (msg.includes("capacity") || msg.includes("kontenjan")) {
+        notify("Etkinlik kontenjanı dolmuştur.")
+      } else if (msg.includes("ended") || msg.includes("son erdi")) {
+        notify("Etkinlik süresi dolmuştur.")
+      } else {
+        notify(msg || "Etkinliğe katılım sağlanamadı.")
+      }
     } finally {
       setBusy(false)
     }

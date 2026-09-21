@@ -26,7 +26,30 @@ export function OverlaySheet({
 }) {
   const shell = usePhoneShell()
   const [mounted, setMounted] = useState(false)
-  useEffect(() => setMounted(true), [])
+
+  useEffect(() => {
+    setMounted(true)
+
+    // Handle Escape key
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose()
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown)
+
+    // Handle browser back button
+    window.history.pushState({ golboxSheet: true }, "")
+    const handlePopState = () => {
+      onClose()
+    }
+    window.addEventListener("popstate", handlePopState)
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown)
+      window.removeEventListener("popstate", handlePopState)
+    }
+  }, [onClose])
 
   const sheet = (
     <div className="absolute inset-0 z-50">

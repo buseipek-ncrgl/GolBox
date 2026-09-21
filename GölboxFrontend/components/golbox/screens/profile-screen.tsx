@@ -15,7 +15,7 @@ function formatWhen(iso: string) {
 }
 
 export function ProfileScreen() {
-  const { user, token, myCaptures, pointTransactions, claimedRewards, logout, loadMyCaptures } = useGolbox()
+  const { user, token, myCaptures, pointTransactions, claimedRewards, orders, logout, loadMyCaptures } = useGolbox()
   const [showLogin, setShowLogin] = useState(false)
   const [showRewards, setShowRewards] = useState(false)
   const [rewardsTab, setRewardsTab] = useState<"catalog" | "cart" | "coupons">("catalog")
@@ -148,6 +148,58 @@ export function ProfileScreen() {
               <CouponPass key={coupon.claimId} coupon={coupon} compact />
             ))}
           </div>
+        )}
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold text-foreground">Ismarlıyor Siparişlerim</h2>
+        <p className="text-xs text-muted-foreground">Kafe ikram siparişlerin. Teslime Hazır olduğunda teslim kodunu göster.</p>
+        {!token ? (
+          <button
+            type="button"
+            onClick={() => setShowLogin(true)}
+            className="gol-card w-full border-dashed px-4 py-6 text-sm text-muted-foreground"
+          >
+            Siparişlerini görmek için giriş yapın.
+          </button>
+        ) : orders.length === 0 ? (
+          <div className="gol-card flex flex-col items-center gap-2 border-dashed px-4 py-6 text-center">
+            <p className="text-xs text-muted-foreground">Henüz Ismarlıyor siparişiniz bulunmuyor.</p>
+          </div>
+        ) : (
+          <ul className="gol-card divide-y divide-border">
+            {orders.map((order) => {
+              const statusMap: Record<string, { label: string; style: string }> = {
+                Pending: { label: "Hazırlanıyor", style: "bg-amber-500/10 text-amber-700" },
+                Preparing: { label: "Hazırlanıyor", style: "bg-amber-500/10 text-amber-700" },
+                Ready: { label: "Teslime Hazır", style: "bg-emerald-500/10 text-emerald-700" },
+                Completed: { label: "Teslim Edildi", style: "bg-muted text-muted-foreground" },
+                Cancelled: { label: "İptal Edildi", style: "bg-destructive/10 text-destructive" },
+              }
+              const st = statusMap[order.status] ?? { label: order.status, style: "bg-muted text-muted-foreground" }
+              const itemName = order.items?.[0]?.menuItemName || "İkram Siparişi"
+
+              return (
+                <li key={order.id} className="space-y-2 px-4 py-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="font-medium text-card-foreground text-sm">{itemName}</p>
+                      <p className="text-xs text-muted-foreground">{order.cafeName} · {formatWhen(order.createdDate)}</p>
+                    </div>
+                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${st.style}`}>
+                      {st.label}
+                    </span>
+                  </div>
+                  {order.status === "Ready" && order.collectionCode ? (
+                    <div className="mt-2 rounded-xl border border-dashed border-emerald-500/30 bg-emerald-50/50 p-2.5 text-center dark:bg-emerald-950/20">
+                      <p className="text-[10px] font-medium uppercase tracking-wide text-emerald-800 dark:text-emerald-300">Teslim Kodu (Kasaya Göster)</p>
+                      <p className="mt-0.5 font-mono text-base font-bold tracking-widest text-emerald-900 dark:text-emerald-100">{order.collectionCode}</p>
+                    </div>
+                  ) : null}
+                </li>
+              )
+            })}
+          </ul>
         )}
       </section>
 
