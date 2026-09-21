@@ -19,8 +19,7 @@ export function useCitizenLocation(pollMs = 0) {
     [loadNearbyFieldDrops],
   )
 
-  useEffect(() => {
-    let cancelled = false
+  const requestLocation = useCallback(() => {
     if (!navigator.geolocation) {
       setPermission("unavailable")
       refresh(SEHITKAMIL.lat, SEHITKAMIL.lng)
@@ -28,7 +27,6 @@ export function useCitizenLocation(pollMs = 0) {
     }
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        if (cancelled) return
         const next = { lat: pos.coords.latitude, lng: pos.coords.longitude }
         setOrigin(next)
         setUsingFallback(false)
@@ -36,7 +34,6 @@ export function useCitizenLocation(pollMs = 0) {
         refresh(next.lat, next.lng)
       },
       (error) => {
-        if (cancelled) return
         setOrigin(SEHITKAMIL)
         setUsingFallback(true)
         setPermission(error.code === error.PERMISSION_DENIED ? "denied" : "unavailable")
@@ -44,9 +41,6 @@ export function useCitizenLocation(pollMs = 0) {
       },
       { enableHighAccuracy: true, timeout: 8000 },
     )
-    return () => {
-      cancelled = true
-    }
   }, [refresh])
 
   useEffect(() => {
@@ -59,6 +53,7 @@ export function useCitizenLocation(pollMs = 0) {
     origin,
     usingFallback,
     permission,
+    requestLocation,
     refresh: () => refresh(origin.lat, origin.lng),
   }
 }

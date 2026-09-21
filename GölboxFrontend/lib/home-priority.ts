@@ -36,7 +36,7 @@ export type PersonalPriority =
       content: CityContentItem
     }
 
-const READY_STATUSES = new Set(["Ready", "Preparing", "Pending", "Approved"])
+const READY_STATUSES = new Set(["Ready"])
 
 export function nextCatalogReward(points: number, rewards: Reward[]) {
   const active = rewards

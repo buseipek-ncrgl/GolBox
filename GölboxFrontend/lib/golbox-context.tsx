@@ -240,7 +240,7 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
   const [unreadCount, setUnreadCount] = useState(0)
   const showToast = useGolToast()
 
-  // Load token from localStorage on mount
+  // Load tokens from localStorage on mount
   useEffect(() => {
     const savedToken = localStorage.getItem("mob_token")
     if (savedToken) {
@@ -248,20 +248,69 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
+  const refreshAuthToken = useCallback(async (): Promise<string | null> => {
+    const savedRefreshToken = typeof window !== "undefined" ? localStorage.getItem("mob_refresh_token") : null
+    if (!savedRefreshToken) return null
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refreshToken: savedRefreshToken }),
+      })
+      if (!res.ok) {
+        localStorage.removeItem("mob_token")
+        localStorage.removeItem("mob_refresh_token")
+        setToken(null)
+        setUser(null)
+        return null
+      }
+      const json = await res.json()
+      if (json.data?.accessToken) {
+        localStorage.setItem("mob_token", json.data.accessToken)
+        if (json.data.refreshToken) {
+          localStorage.setItem("mob_refresh_token", json.data.refreshToken)
+        }
+        setToken(json.data.accessToken)
+        return json.data.accessToken
+      }
+    } catch {
+      /* ignore */
+    }
+    return null
+  }, [])
+
+  const fetchWithAuth = useCallback(
+    async (url: string, init?: RequestInit): Promise<Response> => {
+      let currentToken = token || (typeof window !== "undefined" ? localStorage.getItem("mob_token") : null)
+      const headers = new Headers(init?.headers)
+      if (currentToken) headers.set("Authorization", `Bearer ${currentToken}`)
+      let res = await fetch(url, { ...init, headers })
+
+      if (res.status === 401 && currentToken) {
+        const newToken = await refreshAuthToken()
+        if (newToken) {
+          headers.set("Authorization", `Bearer ${newToken}`)
+          res = await fetch(url, { ...init, headers })
+        }
+      }
+      return res
+    },
+    [token, refreshAuthToken],
+  )
+
   const refreshData = useCallback(async () => {
     const authHeader: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {}
     setSessionError(false)
     try {
-      // 1. Fetch profile and collected field boxes first so Home/Profile
-      // do not wait on cafe menus.
       if (token) {
-        const profileRes = await fetch(`${API_BASE_URL}/users/me`, { headers: authHeader })
+        const [profileRes, mineRes] = await Promise.all([
+          fetchWithAuth(`${API_BASE_URL}/users/me`),
+          fetchWithAuth(`${API_BASE_URL}/field-drops/mine`),
+        ])
         if (profileRes.ok) {
           const res = await profileRes.json()
           if (res.data) setUser(res.data)
         }
-
-        const mineRes = await fetch(`${API_BASE_URL}/field-drops/mine`, { headers: authHeader })
         if (mineRes.ok) {
           const mineJson = await mineRes.json()
           const payload = mineJson.data
@@ -280,41 +329,41 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
         })
       }
 
-      // 2. Fetch cafes — never fall back to fake venues.
+      // Fast boot: fetch cafes without N+1 sequential menu requests
       const cafesRes = await fetch(`${API_BASE_URL}/cafes`, { headers: authHeader })
       if (cafesRes.ok) {
         const res = await cafesRes.json()
         const fetchedCafes: Cafe[] = Array.isArray(res.data) ? res.data : []
-
-        const enrichedCafes = await Promise.all(
-          fetchedCafes.map(async (c) => {
-            const menuRes = await fetch(`${API_BASE_URL}/cafes/${c.id}/menu`, { headers: authHeader })
-            if (menuRes.ok) {
-              const menuData = await menuRes.json()
-              const menuPayload = menuData.data
-              return { ...c, menuItems: Array.isArray(menuPayload) ? menuPayload : [] }
-            }
-            return { ...c, menuItems: [] }
-          })
-        )
-
-        setCafes(enrichedCafes)
-        setCafesLoadState(enrichedCafes.length > 0 ? "ok" : "empty")
+        setCafes(fetchedCafes.map((c) => ({ ...c, menuItems: c.menuItems ?? [] })))
+        setCafesLoadState(fetchedCafes.length > 0 ? "ok" : "empty")
       } else {
         setCafes([])
         setCafesLoadState("error")
       }
 
-      // 3. Fetch user orders if token exists
       if (token) {
-        const ordersRes = await fetch(`${API_BASE_URL}/orders`, { headers: authHeader })
+        const [ordersRes, claimedRes, pointsRes] = await Promise.all([
+          fetchWithAuth(`${API_BASE_URL}/orders`),
+          fetchWithAuth(`${API_BASE_URL}/rewards/my-claimed`),
+          fetchWithAuth(`${API_BASE_URL}/points`),
+        ])
         if (ordersRes.ok) {
           const res = await ordersRes.json()
           setOrders(Array.isArray(res.data) ? res.data : [])
         }
+        if (claimedRes.ok) {
+          const claimedJson = await claimedRes.json()
+          setClaimedRewards(Array.isArray(claimedJson.data) ? claimedJson.data : [])
+        } else {
+          setClaimedRewards([])
+        }
+        if (pointsRes.ok) {
+          const res = await pointsRes.json()
+          const items = res.data?.items || res.data || []
+          setPointTransactions(items)
+        }
       }
 
-      // 4. Fetch live catalog only — fake IDs cannot be checked out.
       const rewardsRes = await fetch(`${API_BASE_URL}/rewards`, { headers: authHeader })
       if (rewardsRes.ok) {
         const res = await rewardsRes.json()
@@ -323,36 +372,14 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
       } else {
         setRewards([])
       }
-
-      if (token) {
-        const claimedRes = await fetch(`${API_BASE_URL}/rewards/my-claimed`, { headers: authHeader })
-        if (claimedRes.ok) {
-          const claimedJson = await claimedRes.json()
-          setClaimedRewards(Array.isArray(claimedJson.data) ? claimedJson.data : [])
-        }
-      } else {
-        setClaimedRewards([])
-      }
-
-      // 5. Fetch point transactions if token exists
-      if (token) {
-        const pointsRes = await fetch(`${API_BASE_URL}/points`, { headers: authHeader })
-        if (pointsRes.ok) {
-          const res = await pointsRes.json()
-          const items = res.data?.items || res.data || []
-          setPointTransactions(items)
-        }
-      }
-
     } catch (e) {
-      console.error("Failed to load user session data", e)
       setSessionError(true)
       setCafes([])
       setCafesLoadState("error")
     } finally {
       setSessionReady(true)
     }
-  }, [token])
+  }, [token, fetchWithAuth])
 
   useEffect(() => {
     if (!token) {
@@ -366,24 +393,33 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
     void refreshData()
   }, [token, refreshData])
 
-  // Real-time SignalR hub listener
+  // Real-time SignalR hub listener with Turkish status mapping
   useEffect(() => {
     if (!token) return
 
     const connection = new signalR.HubConnectionBuilder()
       .withUrl(HUB_URL, {
-        accessTokenFactory: () => token
+        accessTokenFactory: () => token,
       })
       .withAutomaticReconnect()
       .build()
 
-    connection.on("OrderStatusUpdated", (notification: { orderId: string; status: string; collectionCode: string; userId: string }) => {
-      console.log("⚡ SignalR OrderStatusUpdated:", notification)
-      showToast(`${notification.collectionCode} kodlu sipariş: ${notification.status}`)
-      refreshData()
+    const statusTrMap: Record<string, string> = {
+      Pending: "Hazırlanıyor",
+      Preparing: "Hazırlanıyor",
+      Ready: "Teslime Hazır",
+      Completed: "Teslim Edildi",
+      Cancelled: "İptal Edildi",
+    }
+
+    connection.on("OrderStatusUpdated", (notification: { orderId: string; status: string; collectionCode?: string }) => {
+      const trStatus = statusTrMap[notification.status] || notification.status
+      const codeMsg = notification.collectionCode ? ` (${notification.collectionCode})` : ""
+      showToast(`Siparişiniz ${trStatus} durumuna geçti${codeMsg}.`)
+      void refreshData()
     })
 
-    connection.start().catch((err) => console.log("SignalR Connection Error:", err))
+    connection.start().catch(() => {})
 
     return () => {
       connection.stop()

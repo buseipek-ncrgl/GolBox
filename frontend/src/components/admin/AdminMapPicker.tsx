@@ -14,9 +14,9 @@ export function AdminMapPicker({
   onChange: (lat: number, lng: number) => void;
 }) {
   const host = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<import('leaflet').Map | null>(null);
-  const markerRef = useRef<import('leaflet').Marker | null>(null);
-  const circleRef = useRef<import('leaflet').Circle | null>(null);
+  const mapRef = useRef<any>(null);
+  const markerRef = useRef<any>(null);
+  const circleRef = useRef<any>(null);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -25,6 +25,7 @@ export function AdminMapPicker({
     let cancelled = false;
     void (async () => {
       try {
+        // @ts-ignore
         const L = await import('leaflet');
         if (cancelled || !host.current || mapRef.current) return;
         const start: [number, number] = [37.0662, 37.3781];
@@ -49,7 +50,7 @@ export function AdminMapPicker({
           const pos = marker.getLatLng();
           onChangeRef.current(Number(pos.lat.toFixed(6)), Number(pos.lng.toFixed(6)));
         });
-        map.on('click', (e) => {
+        map.on('click', (e: any) => {
           marker.setLatLng(e.latlng);
           onChangeRef.current(Number(e.latlng.lat.toFixed(6)), Number(e.latlng.lng.toFixed(6)));
         });
