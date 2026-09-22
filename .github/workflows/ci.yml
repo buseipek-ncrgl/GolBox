@@ -201,6 +201,19 @@ jobs:
           echo "API failed to start"
           cat /tmp/golbox-api-e2e.log
           exit 1
+      - name: Start admin
+        run: |
+          npx vite --host 127.0.0.1 --port 5173 > /tmp/golbox-admin-e2e.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:5173 >/dev/null; then
+              echo "Admin ready"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Admin failed to start"
+          cat /tmp/golbox-admin-e2e.log
+          exit 1
       - name: Start Citizen App
         working-directory: GölboxFrontend
         run: |
