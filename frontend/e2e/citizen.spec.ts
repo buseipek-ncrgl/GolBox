@@ -36,7 +36,8 @@ test.describe('Şehitkamil+ Citizen App Pilot Hardening Suite', () => {
   });
 
   test('Security regression - citizen cannot access admin endpoints', async ({ request }) => {
-    const res = await request.get('http://127.0.0.1:5000/api/admin/dashboard');
+    const apiTarget = (process.env.VITE_API_BASE_URL || 'http://127.0.0.1:5155/api/v1').replace(/\/api\/v1\/?$/, '');
+    const res = await request.get(`${apiTarget}/api/v1/admin/dashboard`);
     expect(res.status()).toBeGreaterThanOrEqual(401);
   });
 
