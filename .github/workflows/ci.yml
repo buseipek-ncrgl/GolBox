@@ -204,10 +204,9 @@ jobs:
       - name: Start Citizen App
         working-directory: GölboxFrontend
         run: |
-          npm ci
-          NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:5155/api/v1 \
-          NEXT_PUBLIC_MAP_TILE_URL="https://tiles.example.gov.tr/{z}/{x}/{y}.png" \
-          NEXT_PUBLIC_MAP_ATTRIBUTION="© Example" \
+          export NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:5155/api/v1
+          export NEXT_PUBLIC_MAP_TILE_URL="https://tiles.example.gov.tr/{z}/{x}/{y}.png"
+          export NEXT_PUBLIC_MAP_ATTRIBUTION="© Example"
           npm run build
           npm start -- --port 3000 > /tmp/golbox-citizen-e2e.log 2>&1 &
           for i in $(seq 1 30); do
