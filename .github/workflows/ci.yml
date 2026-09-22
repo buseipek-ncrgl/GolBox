@@ -204,6 +204,7 @@ jobs:
       - name: Start Citizen App
         working-directory: GölboxFrontend
         run: |
+          npm ci
           export NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:5155/api/v1
           export NEXT_PUBLIC_MAP_TILE_URL="https://tiles.example.gov.tr/{z}/{x}/{y}.png"
           export NEXT_PUBLIC_MAP_ATTRIBUTION="© Example"
