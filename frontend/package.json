@@ -18,6 +18,8 @@
     "react-router-dom": "^7.18.1"
   },
   "devDependencies": {
+    "@emnapi/core": "^1.11.3",
+    "@emnapi/runtime": "^1.11.3",
     "@playwright/test": "^1.55.0",
     "@types/leaflet": "^1.9.22",
     "@types/node": "^24.13.2",
@@ -27,9 +29,5 @@
     "oxlint": "^1.71.0",
     "typescript": "~6.0.2",
     "vite": "^8.1.1"
-  },
-  "optionalDependencies": {
-    "@emnapi/core": "1.11.3",
-    "@emnapi/runtime": "1.11.3"
   }
 }
