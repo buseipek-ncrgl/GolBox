@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import { Screen } from "@/components/golbox/screen"
 import { Play, Eye, Heart, Share2, Sparkles, Tv, ChevronLeft, ChevronRight, X, ArrowRight, Plus, Clock, CheckCircle2, XCircle, FileVideo, Image as ImageIcon } from "lucide-react"
 import { useGolbox } from "@/lib/golbox-context"
+import { API_BASE_URL } from "@/lib/api-config"
 
 export interface ReelItem {
   id: string
