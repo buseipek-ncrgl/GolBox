@@ -228,7 +228,7 @@ export function ReelsScreen() {
 
     try {
       const endpoint = isLiked ? "like" : "unlike"
-      await fetch(`http://localhost:5155/api/v1/social/${id}/${endpoint}`, { method: "POST" })
+      await fetch(`${API_BASE_URL}/social/${id}/${endpoint}`, { method: "POST" })
     } catch {}
   }
 
@@ -251,7 +251,7 @@ export function ReelsScreen() {
     }
 
     try {
-      await fetch(`http://localhost:5155/api/v1/social/${item.id}/view`, { method: "POST" })
+      await fetch(`${API_BASE_URL}/social/${item.id}/view`, { method: "POST" })
     } catch {}
   }
 
@@ -265,7 +265,7 @@ export function ReelsScreen() {
     const loadAdminSocial = async () => {
       try {
         let adminSocial: any[] = []
-        const res = await fetch("http://localhost:5155/api/v1/social")
+        const res = await fetch(`${API_BASE_URL}/social`)
         if (res.ok) {
           const data = await res.json()
           adminSocial = data.items || []

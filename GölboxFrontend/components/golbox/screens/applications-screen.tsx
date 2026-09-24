@@ -23,6 +23,7 @@ import {
   Edit3
 } from "lucide-react"
 import { useGolbox } from "@/lib/golbox-context"
+import { API_BASE_URL } from "@/lib/api-config"
 
 export interface SupportType {
   id: string
@@ -155,7 +156,7 @@ export function ApplicationsScreen({
         if (stored) {
           adminProgs = JSON.parse(stored)
         } else {
-          const res = await fetch("http://localhost:5155/api/v1/applications/programs/admin")
+          const res = await fetch(`${API_BASE_URL}/applications/programs/admin`)
           if (res.ok) {
             adminProgs = await res.json()
           }
