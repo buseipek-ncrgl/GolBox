@@ -14,8 +14,8 @@ namespace GolBox.Api.Controllers;
 [Authorize]
 public class FilesController : BaseApiController
 {
-    private const long MaxBytes = 5 * 1024 * 1024;
-    private static readonly string[] AllowedExtensions = [".jpg", ".jpeg", ".png", ".webp", ".gif"];
+    private const long MaxBytes = 50 * 1024 * 1024; // 50 MB Max for Video & PDF
+    private static readonly string[] AllowedExtensions = [".jpg", ".jpeg", ".png", ".webp", ".gif", ".pdf", ".mp4", ".mov", ".webm"];
     private static readonly string[] BlockedExtensions =
         [".exe", ".dll", ".bat", ".cmd", ".com", ".js", ".mjs", ".html", ".htm", ".svg", ".xml", ".php", ".sh", ".ps1"];
 
@@ -36,7 +36,7 @@ public class FilesController : BaseApiController
             return BadRequest(Result<object>.Fail("Geçerli bir dosya seçilmedi."));
 
         if (file.Length > MaxBytes)
-            return BadRequest(Result<object>.Fail("Dosya boyutu 5 MB sınırını aşıyor."));
+            return BadRequest(Result<object>.Fail("Dosya boyutu 50 MB sınırını aşıyor."));
 
         var originalName = Path.GetFileName(file.FileName ?? string.Empty);
         if (string.IsNullOrWhiteSpace(originalName) || originalName.Contains("..") || originalName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
@@ -44,13 +44,11 @@ public class FilesController : BaseApiController
 
         var ext = Path.GetExtension(originalName).ToLowerInvariant();
         if (BlockedExtensions.Contains(ext) || Array.IndexOf(AllowedExtensions, ext) < 0)
-            return BadRequest(Result<object>.Fail("Yalnızca resim dosyaları (.jpg, .png, .webp, .gif) yüklenebilir."));
+            return BadRequest(Result<object>.Fail("İzin verilen dosya türleri: .pdf, .mp4, .mov, .jpg, .png, .webp"));
 
         await using var buffer = new MemoryStream();
         await file.CopyToAsync(buffer);
         var bytes = buffer.ToArray();
-        if (!IsAllowedImage(bytes, ext, file.ContentType))
-            return BadRequest(Result<object>.Fail("Dosya içeriği izin verilen resim türleriyle eşleşmiyor."));
 
         var uploadsFolder = ResolveUploadsPath(_configuration, _environment);
         Directory.CreateDirectory(uploadsFolder);

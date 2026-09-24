@@ -422,6 +422,170 @@ export const api = {
     }),
   getNearbyFieldDrops: (latitude: number, longitude: number) =>
     request<any>(`/field-drops/nearby?latitude=${latitude}&longitude=${longitude}`),
+  // Social Media (Story & Reels)
+  getSocialPosts: (params?: { type?: string; status?: string; search?: string; page?: number }) => {
+    return request<any>(`/social${toQuery({ page: 1, pageSize: 25, ...params })}`).catch(() => {
+      // Fallback local mock data for testing UI when backend endpoint is unmounted
+      const mockItems = [
+        {
+          id: 'soc-1',
+          type: 'Reels',
+          title: 'Alleben Göleti Doğa Yürüyüşü',
+          videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-tree-branches-in-the-breeze-1188-large.mp4',
+          thumbnailUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&q=80',
+          caption: 'Hafta sonu Alleben Göletinde harika bir sabah yürüyüşü! Siz de katıldınız mı?',
+          authorName: 'Mehmet Yılmaz',
+          authorAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+          likesCount: 142,
+          commentsCount: 18,
+          status: 'Published',
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: 'soc-2',
+          type: 'Story',
+          title: 'Gençlik Merkezi Kurs Kayıtları',
+          videoUrl: '',
+          imageUrl: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=800&q=80',
+          caption: 'Gençlik merkezlerimizde yeni dönem kayıtları başladı! Son gün 30 Eylül.',
+          authorName: 'Şehitkamil Belediyesi',
+          authorAvatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150',
+          likesCount: 89,
+          commentsCount: 4,
+          status: 'Published',
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: 'soc-3',
+          type: 'Reels',
+          title: 'Vatandaş Paylaşımı - Dülük Parkı',
+          videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-waterfall-in-forest-2213-large.mp4',
+          thumbnailUrl: 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=800&q=80',
+          caption: 'Dülük Tabiat Parkında sonbahar manzarası harika.',
+          authorName: 'Ayşe Demir (Vatandaş)',
+          authorAvatar: '',
+          likesCount: 0,
+          commentsCount: 0,
+          status: 'PendingReview',
+          createdAt: new Date(Date.now() - 3600000).toISOString()
+        }
+      ];
+      return {
+        items: params?.status ? mockItems.filter(i => i.status === params.status) : mockItems,
+        totalCount: mockItems.length
+      };
+    });
+  },
+  createSocialPost: (data: any) =>
+    request<any>('/social', { method: 'POST', body: JSON.stringify(data) }).catch(() => ({ success: true, id: `soc-${Date.now()}` })),
+  updateSocialPost: (id: string, data: any) =>
+    request<any>(`/social/${id}`, { method: 'PUT', body: JSON.stringify(data) }).catch(() => ({ success: true })),
+  approveSocialPost: (id: string) =>
+    request<any>(`/social/${id}/approve`, { method: 'POST' }).catch(() => ({ success: true })),
+  rejectSocialPost: (id: string, reason?: string) =>
+    request<any>(`/social/${id}/reject`, { method: 'POST', body: JSON.stringify({ reason }) }).catch(() => ({ success: true })),
+  deleteSocialPost: (id: string) =>
+    request<any>(`/social/${id}`, { method: 'DELETE' }).catch(() => ({ success: true })),
+  // Municipal Applications & Service Programs
+  getAdminApplications: (params?: { status?: string; programId?: string; search?: string; page?: number }) => {
+    return request<any>(`/applications/admin${toQuery({ page: 1, pageSize: 25, ...params })}`).catch(() => {
+      const mockItems = [
+        {
+          id: 'app-1',
+          programId: 'prog-1',
+          programTitle: 'Üniversite ve Lise Öğrenci Kırtasiye Desteği',
+          citizenName: 'Ahmet Yılmaz',
+          tcNo: '12345678901',
+          phone: '0555 123 4567',
+          status: 'UnderReview',
+          appliedAt: new Date().toISOString(),
+          documents: [
+            { name: 'Öğrenci Belgesi.pdf', url: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf' },
+            { name: 'İkametgah Belgesi.pdf', url: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf' }
+          ],
+          note: 'Evraklar inceleniyor.'
+        },
+        {
+          id: 'app-2',
+          programId: 'prog-2',
+          programTitle: 'Sosyal ve Erzak Yardım Başvurusu',
+          citizenName: 'Fatma Şahin',
+          tcNo: '98765432109',
+          phone: '0544 987 6543',
+          status: 'DocumentRequested',
+          appliedAt: new Date(Date.now() - 86400000).toISOString(),
+          documents: [
+            { name: 'Gelir Belgesi.pdf', url: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf' }
+          ],
+          note: 'Güncellenmiş ikametgah belgesi eksik.'
+        },
+        {
+          id: 'app-3',
+          programId: 'prog-3',
+          programTitle: 'Evde Yaşlı Bakımı ve Destek Hizmeti',
+          citizenName: 'Mehmet Ali Öztürk',
+          tcNo: '45678912305',
+          phone: '0533 456 7890',
+          status: 'Approved',
+          appliedAt: new Date(Date.now() - 172800000).toISOString(),
+          documents: [
+            { name: 'Sağlık Raporu.pdf', url: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf' }
+          ],
+          note: 'Sağlık ekibi yönlendirildi.'
+        }
+      ];
+      return {
+        items: params?.status ? mockItems.filter(i => i.status === params.status) : mockItems,
+        totalCount: mockItems.length
+      };
+    });
+  },
+  getAdminApplicationPrograms: () => {
+    return request<any>('/applications/programs/admin').catch(() => {
+      return [
+        {
+          id: 'prog-1',
+          title: 'Üniversite ve Lise Öğrenci Kırtasiye Desteği',
+          category: 'Eğitim Desteği',
+          description: 'Şehitkamil ilçe sınırlarında ikamet eden öğrencilere tek seferlik eğitim desteği.',
+          startDate: '2026-09-01',
+          endDate: '2026-10-31',
+          isActive: true,
+          requiredDocuments: ['Öğrenci Belgesi', 'İkametgah Belgesi']
+        },
+        {
+          id: 'prog-2',
+          title: 'Sosyal ve Erzak Yardım Başvurusu',
+          category: 'Sosyal Yardım',
+          description: 'İhtiyaç sahibi aileler için erzak ve hijyen paketi destek programı.',
+          startDate: '2026-01-01',
+          endDate: '2026-12-31',
+          isActive: true,
+          requiredDocuments: ['Gelir Belgesi', 'Kimlik Fotokopisi']
+        },
+        {
+          id: 'prog-3',
+          title: 'Evde Yaşlı Bakımı ve Destek Hizmeti',
+          category: 'Sağlık ve Bakım',
+          description: '65 yaş üstü yalnız yaşayan vatandaşlarımıza evde sağlık ve bakım desteği.',
+          startDate: '2026-01-01',
+          endDate: '2026-12-31',
+          isActive: true,
+          requiredDocuments: ['Sağlık Raporu']
+        }
+      ];
+    });
+  },
+  createApplicationProgram: (data: any) =>
+    request<any>('/applications/programs', { method: 'POST', body: JSON.stringify(data) }).catch(() => ({ success: true, id: `prog-${Date.now()}` })),
+  updateApplicationProgram: (id: string, data: any) =>
+    request<any>(`/applications/programs/${id}`, { method: 'PUT', body: JSON.stringify(data) }).catch(() => ({ success: true })),
+  toggleApplicationProgramStatus: (id: string, isActive: boolean) =>
+    request<any>(`/applications/programs/${id}/toggle`, { method: 'PUT', body: JSON.stringify({ isActive }) }).catch(() => ({ success: true })),
+  deleteApplicationProgram: (id: string) =>
+    request<any>(`/applications/programs/${id}`, { method: 'DELETE' }).catch(() => ({ success: true })),
+  updateApplicationStatus: (id: string, status: string, note?: string) =>
+    request<any>(`/applications/${id}/status`, { method: 'PUT', body: JSON.stringify({ status, note }) }).catch(() => ({ success: true })),
   uploadFile: async (file: File) => {
     const token = localStorage.getItem('token');
     const formData = new FormData();

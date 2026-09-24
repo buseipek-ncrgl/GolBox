@@ -1,6 +1,6 @@
 "use client"
 
-import { Gift, MapPin, Navigation } from "lucide-react"
+import { Gift, MapPin, Navigation, Compass, Sparkles } from "lucide-react"
 import { Screen } from "@/components/golbox/screen"
 import { useGolbox } from "@/lib/golbox-context"
 import { LoginScreen } from "@/components/golbox/screens/login-screen"
@@ -32,6 +32,7 @@ export function MapScreen({
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [places, setPlaces] = useState<PlaceListItem[]>([])
   const [placesError, setPlacesError] = useState(false)
+  const [showMapCanvas, setShowMapCanvas] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -65,64 +66,168 @@ export function MapScreen({
       : null
 
   if (capture.showLogin && !capture.token) {
-    return <LoginScreen onClose={() => capture.setShowLogin(false)} closeLabel="Haritaya dön" />
+    return <LoginScreen onClose={() => capture.setShowLogin(false)} closeLabel="Geri dön" />
   }
 
   return (
-    <Screen fill>
-      <header className="mb-3 space-y-1">
-        <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">Keşif</p>
-        <h1 className="font-serif text-2xl text-foreground">Harita</h1>
-        <p className="text-sm text-muted-foreground">
+    <Screen fill className="space-y-4 pb-12">
+      <header className="space-y-1">
+        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Konum Rehberi</p>
+        <h1 className="font-serif text-2xl font-bold text-foreground">Saha & Tesisler</h1>
+        <p className="text-xs text-muted-foreground">
           {usingFallback
-            ? "Konum izni olmadan tesisleri görüntüleyebilirsin. Mesafe sıralaması için konum izni ver."
+            ? "Mesafe ve konum takibi için cihazınızın konum iznini aktif tutun."
             : layer === "golbox"
-              ? "GölBox saha hediyeleri. Yarıçapa girince Al."
-              : "Belediye tesislerini keşfet. Liste haritanın alternatifidir."}
+              ? "Yakınınızdaki 3D saha kutuları. 500m yarıçapa girince kamera ile toplayabilirsiniz."
+              : "Şehitkamil belediye tesisleri ve kitap kafeler."}
         </p>
       </header>
 
-      <div className="mb-3 flex gap-2" role="tablist" aria-label="Harita katmanı">
+      {/* Layer Toggle Tabs */}
+      <div className="flex gap-2" role="tablist" aria-label="Harita katmanı">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={layer === "golbox"}
+          onClick={() => {
+            onLayerChange("golbox")
+            setShowMapCanvas(false)
+          }}
+          className={`flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-2xl text-xs font-bold transition-all ${
+            layer === "golbox" ? "bg-primary text-primary-foreground shadow-2xs" : "bg-secondary text-foreground"
+          }`}
+        >
+          <Gift className="size-4" />
+          Saha Hediyeleri
+        </button>
         <button
           type="button"
           role="tab"
           aria-selected={layer === "places"}
           onClick={() => onLayerChange("places")}
-          className={`flex min-h-11 flex-1 items-center justify-center rounded-2xl text-sm font-semibold ${
-            layer === "places" ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground"
+          className={`flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-2xl text-xs font-bold transition-all ${
+            layer === "places" ? "bg-primary text-primary-foreground shadow-2xs" : "bg-secondary text-foreground"
           }`}
         >
-          Yerler
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={layer === "golbox"}
-          onClick={() => onLayerChange("golbox")}
-          className={`flex min-h-11 flex-1 items-center justify-center rounded-2xl text-sm font-semibold ${
-            layer === "golbox" ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground"
-          }`}
-        >
-          GölBox
+          <MapPin className="size-4" />
+          Tesisler
         </button>
       </div>
 
-      <div className="gol-card overflow-hidden p-0">
-        <div className="h-52 w-full">
-          <FacilityMap
-            layer={layer}
-            places={places}
-            drops={fieldDrops}
-            origin={origin}
-            focus={layer === "places" ? focus : selected ? { lat: Number(selected.latitude), lng: Number(selected.longitude) } : origin}
-            onSelectPlace={onOpenPlace}
-            onSelectDrop={setSelectedId}
-          />
+      {/* Map Canvas (Shown for Places OR when user clicks Show Map for GolBox) */}
+      {(layer === "places" || showMapCanvas) && (
+        <div className="rounded-[22px] border border-border/70 overflow-hidden shadow-xs">
+          <div className="h-52 w-full">
+            <FacilityMap
+              layer={layer}
+              places={places}
+              drops={fieldDrops}
+              origin={origin}
+              focus={layer === "places" ? focus : selected ? { lat: Number(selected.latitude), lng: Number(selected.longitude) } : origin}
+              onSelectPlace={onOpenPlace}
+              onSelectDrop={setSelectedId}
+            />
+          </div>
         </div>
-      </div>
+      )}
 
-      {layer === "places" ? (
-        <ul className="mt-4 flex-1 space-y-2 overflow-y-auto pb-2">
+      {/* GolBox Field Drops View: Clean Radar Guidance (No forced map canvas) */}
+      {layer === "golbox" ? (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Compass className="size-4 text-primary" />
+              <h2 className="text-xs font-bold uppercase tracking-wider text-foreground">Yakındaki Hediyeler</h2>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowMapCanvas((prev) => !prev)}
+              className="text-xs font-semibold text-primary hover:underline"
+            >
+              {showMapCanvas ? "Haritayı Gizle" : "Haritada Göster"}
+            </button>
+          </div>
+
+          <ul className="space-y-2.5">
+            {fieldDrops.length === 0 ? (
+              <li className="rounded-[20px] border border-dashed border-border p-8 text-center text-xs text-muted-foreground">
+                Yakınınızda henüz yayınlanmış saha hediyesi bulunmuyor.
+              </li>
+            ) : (
+              fieldDrops.map((drop) => {
+                const active = (selected?.id ?? "") === drop.id
+                const already = capture.capturedIds.includes(drop.id)
+                const remaining = Math.max(0, Number(drop.distanceMeters) - Number(drop.radiusMeters))
+                return (
+                  <li key={drop.id}>
+                    <div className={`rounded-[22px] border p-4 shadow-2xs transition-all ${
+                      active ? "border-primary bg-primary/5" : "border-border/70 bg-card"
+                    }`}>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedId(drop.id)}
+                        className="flex w-full items-start gap-3.5 text-left"
+                      >
+                        <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[color:var(--color-brand-900)] to-primary text-white shadow-2xs">
+                          <Gift className="size-5.5" strokeWidth={2} />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block font-bold text-foreground text-sm">{drop.title}</span>
+                          <span className="mt-0.5 line-clamp-2 block text-xs text-muted-foreground">
+                            {drop.description}
+                          </span>
+                          <span className="mt-2 flex items-center gap-2 text-xs font-semibold text-primary">
+                            <Navigation className="size-3.5" />
+                            {formatDistance(Number(drop.distanceMeters))} mesafede
+                            <span className="text-muted-foreground font-normal">· {drop.radiusMeters} m yarıçap</span>
+                          </span>
+                        </span>
+                        <span className="shrink-0 rounded-full bg-[color:var(--color-gold)]/20 px-2.5 py-1 text-xs font-bold text-[color:var(--color-gold)]">
+                          +{drop.pointsGranted} GP
+                        </span>
+                      </button>
+                      
+                      <div className="mt-3 border-t border-border/40 pt-2.5">
+                        {already ? (
+                          <p className="text-xs font-bold text-primary flex items-center gap-1">
+                            <Sparkles className="size-3.5" />
+                            Bu Hediye Toplandı
+                          </p>
+                        ) : drop.inRange ? (
+                          <button
+                            type="button"
+                            disabled={capture.loading || capture.busyId === drop.id}
+                            onClick={() => capture.openCapture(drop.id)}
+                            className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-xs font-bold text-primary-foreground shadow-2xs transition-all hover:bg-primary/95 active:scale-95"
+                          >
+                            <Sparkles className="size-4" />
+                            {capture.busyId === drop.id ? "Toplanıyor..." : capture.token ? "3D Kamera ile Topla" : "Giriş yap ve Al"}
+                          </button>
+                        ) : (
+                          <div className="flex items-center justify-between">
+                            <p className="text-xs text-muted-foreground">
+                              Hediyeyi almak için kalan mesafe: <span className="font-bold text-foreground">{Math.ceil(remaining)} m</span>
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => setShowMapCanvas(true)}
+                              className="text-xs font-bold text-primary hover:underline"
+                            >
+                              Yol Tarifi
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </li>
+                )
+              })
+            )}
+          </ul>
+        </div>
+      ) : (
+        /* Places List View */
+        <ul className="space-y-2 overflow-y-auto pb-2">
           {placesError ? (
             <li>
               <InlineError message="Tesisler yüklenemedi." onRetry={() => void fetchPlaces({ lat: origin.lat, lng: origin.lng, pageSize: 50, token }).then((p) => setPlaces(p.items))} />
@@ -137,84 +242,23 @@ export function MapScreen({
                 <button
                   type="button"
                   onClick={() => onOpenPlace(place.id)}
-                  className="gol-card flex w-full items-start gap-3 p-4 text-left"
+                  className="flex w-full items-start gap-3.5 rounded-[20px] border border-border/70 bg-card p-4 text-left shadow-2xs transition-all hover:border-primary/30"
                 >
-                  <span className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-2xl bg-secondary text-primary">
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-secondary text-primary">
                     <MapPin className="size-5" />
                   </span>
                   <span className="min-w-0">
-                    <span className="block text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                    <span className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                       {categoryLabel(place.category)}
                     </span>
-                    <span className="block font-semibold text-foreground">{place.name}</span>
-                    <span className="mt-1 text-xs text-muted-foreground">
+                    <span className="block font-bold text-foreground text-sm mt-0.5">{place.name}</span>
+                    <span className="mt-1 block text-xs text-muted-foreground">
                       {place.addressSummary || openStatusLabel(place.openStatus)}
                     </span>
                   </span>
                 </button>
               </li>
             ))
-          )}
-        </ul>
-      ) : (
-        <ul className="mt-4 flex-1 space-y-2 overflow-y-auto pb-2">
-          {fieldDrops.length === 0 ? (
-            <li className="gol-card border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
-              Yakında yayında saha hediyesi yok.
-            </li>
-          ) : (
-            fieldDrops.map((drop) => {
-              const active = (selected?.id ?? "") === drop.id
-              const already = capture.capturedIds.includes(drop.id)
-              const remaining = Math.max(0, Number(drop.distanceMeters) - Number(drop.radiusMeters))
-              return (
-                <li key={drop.id}>
-                  <div className={`gol-card p-4 ${active ? "border-primary" : ""}`}>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedId(drop.id)}
-                      className="flex w-full items-start gap-3 text-left"
-                    >
-                      <span className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-2xl bg-[#1c2e2e] text-white">
-                        <Gift className="size-5" strokeWidth={2} />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block font-semibold text-card-foreground">{drop.title}</span>
-                        <span className="mt-0.5 line-clamp-2 block text-sm text-muted-foreground">
-                          {drop.description}
-                        </span>
-                        <span className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-                          <Navigation className="size-3.5" />
-                          {formatDistance(Number(drop.distanceMeters))}
-                          <span>· {drop.radiusMeters} m yarıçap</span>
-                        </span>
-                      </span>
-                      <span className="shrink-0 rounded-full bg-accent/20 px-2.5 py-1 text-xs font-semibold text-accent-foreground">
-                        +{drop.pointsGranted} GP
-                      </span>
-                    </button>
-                    <div className="mt-3">
-                      {already ? (
-                        <p className="text-sm font-medium text-primary">Toplandı</p>
-                      ) : drop.inRange ? (
-                        <button
-                          type="button"
-                          disabled={capture.loading || capture.busyId === drop.id}
-                          onClick={() => capture.openCapture(drop.id)}
-                          className="min-h-11 w-full rounded-2xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
-                        >
-                          {capture.busyId === drop.id ? "Alınıyor..." : capture.token ? "Al" : "Giriş yap ve al"}
-                        </button>
-                      ) : (
-                        <p className="text-sm text-muted-foreground">
-                          Henüz yeterince yakın değilsiniz. Kalan yaklaşık {Math.ceil(remaining)} m.
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </li>
-              )
-            })
           )}
         </ul>
       )}

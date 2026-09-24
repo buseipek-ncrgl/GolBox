@@ -1,6 +1,7 @@
 "use client"
 
 import type { ReactNode } from "react"
+import { ArrowRight, Gift, QrCode, Ticket, Calendar } from "lucide-react"
 import { GPValue } from "@/components/golbox/gp-value"
 import { HomeSectionHeader } from "@/components/golbox/home-section-header"
 import { formatDistance } from "@/lib/golbox-geo"
@@ -11,22 +12,36 @@ function PriorityFrame({
   title,
   meta,
   cta,
+  accent = "primary",
   onAction,
 }: {
   label: string
   title: string
   meta?: ReactNode
   cta: string
+  accent?: "primary" | "gold"
   onAction: () => void
 }) {
   return (
-    <article className="rounded-[18px] border border-border bg-card px-4 py-3.5">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">{label}</p>
-      <h3 className="mt-1 text-[15px] font-semibold leading-snug text-foreground">{title}</h3>
-      {meta ? <p className="mt-1 text-[13px] leading-snug text-muted-foreground">{meta}</p> : null}
-      <button type="button" onClick={onAction} className="mt-2 min-h-11 text-sm font-semibold text-primary">
-        {cta}
-      </button>
+    <article className="group relative overflow-hidden rounded-[18px] border border-border/70 bg-card p-4 shadow-xs transition-all hover:border-primary/30 hover:shadow-sm">
+      <div className={`absolute left-0 top-0 bottom-0 w-1 ${accent === "gold" ? "bg-[color:var(--color-gold)]" : "bg-primary"}`} />
+      <div className="pl-1">
+        <span className="inline-block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          {label}
+        </span>
+        <h3 className="mt-1 text-base font-semibold leading-snug tracking-tight text-foreground group-hover:text-primary transition-colors">
+          {title}
+        </h3>
+        {meta ? <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{meta}</p> : null}
+        <button
+          type="button"
+          onClick={onAction}
+          className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline focus-visible:outline-none"
+        >
+          <span>{cta}</span>
+          <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+        </button>
+      </div>
     </article>
   )
 }
@@ -46,31 +61,20 @@ export function PersonalPriorityCard({
   onCoupons: () => void
   onEvent: () => void
 }) {
-  if (item.kind === "ismarliyor") {
-    return (
-      <PriorityFrame
-        label="Ismarlıyor"
-        title={item.title}
-        meta={item.cafe}
-        cta="QR’ımı aç →"
-        onAction={onShowQr}
-      />
-    )
-  }
-
   if (item.kind === "golbox") {
     return (
       <PriorityFrame
-        label="GölBox"
+        label="GölBox Saha Hediyesi"
         title="Yakınında bir hediye var"
         meta={
           <>
             {formatDistance(item.distanceMeters)}
             {" · "}
-            <GPValue amount={item.pointsGranted} signed className="text-[13px]" />
+            <GPValue amount={item.pointsGranted} signed className="text-xs" />
           </>
         }
-        cta={item.inRange ? "Hediyeni al →" : "Haritada gör →"}
+        cta={item.inRange ? "Hediyeni al" : "Haritada gör"}
+        accent="gold"
         onAction={() => (item.inRange ? onCollect(item.id) : onMap())}
       />
     )
@@ -81,8 +85,9 @@ export function PersonalPriorityCard({
       <PriorityFrame
         label="Kuponlarım"
         title={item.title}
-        meta={`${item.daysRemaining} gün kaldı`}
-        cta="Kuponu gör →"
+        meta={`${item.daysRemaining} gün geçerli`}
+        cta="Kuponu gör"
+        accent="primary"
         onAction={onCoupons}
       />
     )
@@ -93,7 +98,8 @@ export function PersonalPriorityCard({
       label={item.content.categoryLabel}
       title={item.title}
       meta={item.meta}
-      cta="Detayı gör →"
+      cta="Detayı gör"
+      accent="primary"
       onAction={onEvent}
     />
   )
@@ -113,3 +119,4 @@ export function PersonalPrioritySection({
     </section>
   )
 }
+

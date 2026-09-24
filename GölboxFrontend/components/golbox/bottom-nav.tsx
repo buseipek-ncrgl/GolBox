@@ -1,14 +1,15 @@
 "use client"
 
-import { Home, MapPin, QrCode, User } from "lucide-react"
+import { Home, Tv, FileText, Gift, Grid } from "lucide-react"
 import type { TabId } from "@/lib/golbox-data"
 import { cn } from "@/lib/utils"
 
 const items: { id: TabId; label: string; icon: typeof Home }[] = [
-  { id: "home", label: "Ana", icon: Home },
-  { id: "map", label: "Harita", icon: MapPin },
-  { id: "qr", label: "QR", icon: QrCode },
-  { id: "profile", label: "Profil", icon: User },
+  { id: "home", label: "Ana Sayfa", icon: Home },
+  { id: "media", label: "Sosyal Medya", icon: Tv },
+  { id: "applications", label: "Başvuru", icon: FileText },
+  { id: "rewards", label: "Ödüllerim", icon: Gift },
+  { id: "menu", label: "Menü", icon: Grid },
 ]
 
 export function BottomNav({
@@ -21,31 +22,42 @@ export function BottomNav({
   return (
     <nav
       aria-label="Ana gezinme"
-      className="pointer-events-none absolute inset-x-0 bottom-0 z-20 border-t border-border/70 bg-background/96 px-2 pt-1 shadow-[0_-1px_12px_rgba(20,40,35,0.04)] pb-[max(0.5rem,env(safe-area-inset-bottom))]"
+      className="pointer-events-none absolute inset-x-0 bottom-0 z-20 border-t border-border/70 bg-background/96 px-2 pt-1.5 shadow-[0_-2px_14px_rgba(20,40,35,0.08)] backdrop-blur-md pb-[max(0.6rem,env(safe-area-inset-bottom))]"
     >
-      <ul className="pointer-events-auto mx-auto flex h-16 max-w-[24rem] items-center justify-between">
+      <ul className="pointer-events-auto mx-auto flex h-13 max-w-[32rem] items-center justify-between gap-1">
         {items.map((item) => {
-          const isActive = active === item.id
-          const isQr = item.id === "qr"
+          const isActive =
+            active === item.id ||
+            (item.id === "media" && active === "reels") ||
+            (item.id === "menu" && (active === "more" || active === "events" || active === "profile" || active === "map"))
           const Icon = item.icon
+
           return (
-            <li key={item.id} className="flex flex-1 justify-center">
+            <li key={item.id} className="flex justify-center">
               <button
                 type="button"
                 onClick={() => onChange(item.id)}
-                aria-label={item.id === "home" ? "Ana Sayfa" : item.label}
+                aria-label={item.label}
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
-                  "flex min-h-11 min-w-11 flex-col items-center justify-center gap-0.5 rounded-full px-2.5 py-1 text-[11px] font-medium focus-visible:ring-2 focus-visible:ring-primary/40",
-                  isActive ? "bg-primary text-primary-foreground" : "text-muted-foreground",
-                  isQr && !isActive ? "text-primary" : null,
+                  "relative flex items-center justify-center gap-1.5 rounded-full py-2 transition-all duration-300 active:scale-95",
+                  isActive
+                    ? "bg-primary px-3.5 text-primary-foreground shadow-2xs font-bold"
+                    : "px-2.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
                 )}
               >
                 <Icon
-                  className={cn("size-5", isQr && !isActive ? "size-[1.35rem]" : null)}
-                  strokeWidth={isActive || isQr ? 2.1 : 1.8}
+                  className={cn(
+                    "size-4.5 shrink-0 transition-transform duration-200",
+                    isActive && "scale-105"
+                  )}
+                  strokeWidth={isActive ? 2.2 : 1.8}
                 />
-                <span className="leading-none">{item.label}</span>
+                {isActive && (
+                  <span className="truncate text-xs font-bold leading-none tracking-tight animate-in fade-in slide-in-from-left-1 duration-200">
+                    {item.label}
+                  </span>
+                )}
               </button>
             </li>
           )

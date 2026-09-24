@@ -7,8 +7,10 @@ import { Skeleton } from './admin/components/Skeleton';
 
 const DashboardPage = lazy(() => import('./features/admin/dashboard/DashboardPage').then((m) => ({ default: m.DashboardPage })));
 const CitizensPage = lazy(() => import('./features/admin/citizens/CitizensPage').then((m) => ({ default: m.CitizensPage })));
+const ApplicationsPage = lazy(() => import('./features/admin/applications/ApplicationsPage').then((m) => ({ default: m.ApplicationsPage })));
 const PlacesPage = lazy(() => import('./features/admin/wrappers').then((m) => ({ default: m.PlacesPage })));
 const HomeContentPage = lazy(() => import('./features/admin/wrappers').then((m) => ({ default: m.HomeContentPage })));
+const SocialPage = lazy(() => import('./features/admin/social/SocialPage').then((m) => ({ default: m.SocialPage })));
 const SettingsPage = lazy(() => import('./features/admin/wrappers').then((m) => ({ default: m.SettingsPage })));
 const CafesPage = lazy(() => import('./features/admin/cafes/CafesPage').then((m) => ({ default: m.CafesPage })));
 const MenuPage = lazy(() => import('./features/admin/menu/MenuPage').then((m) => ({ default: m.MenuPage })));
@@ -54,6 +56,7 @@ const MainApp = () => {
           <Route index element={<DashboardPage />} />
           <Route path="vatandaslar" element={<CitizensPage />} />
           <Route path="vatandaslar/:userId" element={<CitizensPage />} />
+          <Route path="basvurular" element={<ApplicationsPage />} />
           <Route path="tesisler" element={<PlacesPage />} />
           <Route path="gol-kafeler" element={<CafesPage />} />
           <Route path="menu" element={<MenuPage />} />
@@ -63,6 +66,7 @@ const MainApp = () => {
           <Route path="saha-hediyeleri" element={<FieldDropsPage />} />
           <Route path="ismarliyor" element={<OrdersPage />} />
           <Route path="icerikler" element={<HomeContentPage />} />
+          <Route path="sosyal-medya" element={<SocialPage />} />
           <Route path="etkinlikler" element={<ActivitiesPage />} />
           <Route path="kampanyalar" element={<CampaignsPage />} />
           <Route path="bildirimler" element={<NotificationsPage />} />

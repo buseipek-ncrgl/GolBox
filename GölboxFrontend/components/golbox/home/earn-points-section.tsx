@@ -1,6 +1,6 @@
 "use client"
 
-import { ArrowRight } from "lucide-react"
+import { ChevronRight } from "lucide-react"
 import { GPValue } from "@/components/golbox/gp-value"
 import { HomeSectionHeader } from "@/components/golbox/home-section-header"
 import type { FieldDropNearby } from "@/lib/golbox-context"
@@ -19,7 +19,7 @@ export function buildEarnCards(drop?: FieldDropNearby | null, visitBonusPoints =
     {
       id: "visit",
       title: "Göl Kafe ziyareti",
-      description: "Kasada QR’ını göster.",
+      description: "Kasada QR kodunu okutarak anında puan kazan.",
       points: visitBonusPoints,
       cta: "QR’ı aç",
       action: "qr",
@@ -29,7 +29,7 @@ export function buildEarnCards(drop?: FieldDropNearby | null, visitBonusPoints =
     cards.push({
       id: `drop-${drop.id}`,
       title: "GölBox saha hediyesi",
-      description: "Haritadaki kutuyu yarıçap içinde al.",
+      description: "Haritadaki hediyeye yaklaş ve hediyeni topla.",
       points: drop.pointsGranted,
       cta: "Haritada gör",
       action: "map",
@@ -49,15 +49,17 @@ export function EarnPointsCard({
     <button
       type="button"
       onClick={() => onAction(card.action)}
-      className="gol-press gol-card flex w-full items-center gap-3 px-4 py-3.5 text-left"
+      className="group relative flex w-full items-center gap-3 rounded-[18px] border border-border/60 bg-card p-3.5 text-left shadow-2xs transition-all duration-200 hover:border-primary/30 hover:shadow-xs active:scale-[0.98]"
     >
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-foreground">{card.title}</p>
-        <p className="mt-0.5 text-[12px] text-muted-foreground">{card.description}</p>
+        <p className="text-sm font-semibold tracking-tight text-foreground group-hover:text-primary transition-colors">
+          {card.title}
+        </p>
+        <p className="mt-0.5 text-xs text-muted-foreground">{card.description}</p>
       </div>
       <div className="flex shrink-0 items-center gap-2">
-        <GPValue amount={card.points} signed className="text-sm" />
-        <ArrowRight className="size-4 text-muted-foreground" />
+        <GPValue amount={card.points} signed className="text-xs font-semibold" />
+        <ChevronRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
       </div>
     </button>
   )
@@ -75,15 +77,14 @@ export function EarnPointsSection({
   const cards = buildEarnCards(drop, visitBonusPoints)
   if (cards.length === 0) return null
   return (
-    <section aria-label="Şehrinde kazan" className="-mx-5 bg-[color:var(--color-brand-50)] px-5 py-4">
-      <div className="space-y-3">
-        <HomeSectionHeader title="Şehrinde kazan" tone="utility" />
-        <div className="space-y-2">
-          {cards.map((card) => (
-            <EarnPointsCard key={card.id} card={card} onAction={onAction} />
-          ))}
-        </div>
+    <section aria-label="Şehrinde kazan" className="rounded-[22px] border border-primary/10 bg-gradient-to-br from-secondary/40 via-secondary/20 to-card p-4 space-y-3">
+      <HomeSectionHeader title="Şehrinde kazan" tone="utility" />
+      <div className="space-y-2">
+        {cards.map((card) => (
+          <EarnPointsCard key={card.id} card={card} onAction={onAction} />
+        ))}
       </div>
     </section>
   )
 }
+

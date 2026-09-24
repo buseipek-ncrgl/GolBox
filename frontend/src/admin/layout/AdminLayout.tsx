@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { NavLink, Navigate, Outlet, useLocation } from 'react-router-dom';
 import {
-  LayoutDashboard, Users, Landmark, Building2, Coffee, History, CreditCard, Award, MapPin, Gift,
-  FileText, Megaphone, Calendar, Bell, BarChart3, Shield, FileCheck, Settings, ChevronLeft, ChevronRight, LogOut
+  LayoutDashboard, Users, ClipboardCheck, Landmark, Building2, Coffee, History, CreditCard, Award, MapPin, Gift,
+  FileText, Film, Megaphone, Calendar, Bell, BarChart3, Shield, FileCheck, Settings, ChevronLeft, ChevronRight, LogOut
 } from 'lucide-react';
 import { useAuth } from '../../store/AuthContext';
 import { ADMIN_PATHS, canAccessMenu, menuFromPath } from '../../lib/adminRoutes';
@@ -16,6 +16,7 @@ import { Skeleton } from '../components/Skeleton';
 const ICONS: Record<string, React.ComponentType<{ size?: number }>> = {
   overview: LayoutDashboard,
   users: Users,
+  applications: ClipboardCheck,
   places: Landmark,
   cafes: Building2,
   products: Coffee,
@@ -25,6 +26,7 @@ const ICONS: Record<string, React.ComponentType<{ size?: number }>> = {
   fieldDrops: MapPin,
   ismarliyor: Gift,
   homeContent: FileText,
+  social: Film,
   campaigns: Megaphone,
   events: Calendar,
   notifications: Bell,

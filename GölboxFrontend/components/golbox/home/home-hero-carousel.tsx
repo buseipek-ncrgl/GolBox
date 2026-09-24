@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import { ArrowRight } from "lucide-react"
 import { CityImage } from "@/components/golbox/city-image"
 import type { CityContentItem } from "@/lib/city-content"
 import { usePrefersReducedMotion } from "@/lib/use-prefers-reduced-motion"
@@ -56,17 +57,21 @@ export function HomeHeroCard({
         focus={copy.focus}
         className="absolute inset-0 h-full w-full"
       />
-      <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/36 to-black/8" />
-      {/* Left padding is larger than the next-card peek so half-words never appear. */}
-      <div className="relative flex h-full flex-col justify-end py-5 pl-8 pr-5">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/80">
+      <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-black/10" />
+      <div className="relative flex h-full flex-col justify-end py-5 pl-7 pr-5">
+        <span className="inline-flex w-fit items-center rounded-md bg-white/15 px-2 py-0.5 text-[10px] font-semibold tracking-wider text-white/95 uppercase backdrop-blur-md">
           {copy.category}
-        </p>
-        <h3 className="mt-1 line-clamp-2 font-serif text-[1.35rem] leading-[1.15] text-white">{copy.title}</h3>
+        </span>
+        <h3 className="mt-1.5 line-clamp-2 font-serif text-[1.35rem] font-semibold leading-[1.2] text-white">{copy.title}</h3>
         {copy.support ? (
-          <p className="mt-1 line-clamp-1 text-[13px] leading-snug text-white/82">{copy.support}</p>
+          <p className="mt-1 line-clamp-1 text-xs text-white/80">{copy.support}</p>
         ) : null}
-        <span className="mt-2 text-sm font-semibold text-white">{copy.cta} →</span>
+        <div className="mt-2.5 inline-flex items-center gap-1 text-xs font-semibold text-white">
+          <span className="rounded-lg bg-white/20 px-2.5 py-1 backdrop-blur-md transition-colors group-hover:bg-white/30">
+            {copy.cta}
+          </span>
+          <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+        </div>
       </div>
     </button>
   )
@@ -105,11 +110,14 @@ export function HomeHeroCarousel({
       if (!node || pauseRef.current) return
       const width = slideWidth(node)
       if (!width) return
-      const next = (index + 1) % items.length
-      node.scrollTo({ left: next * width, behavior: "smooth" })
-    }, 8000)
+      setIndex((prev) => {
+        const next = (prev + 1) % items.length
+        node.scrollTo({ left: next * width, behavior: "smooth" })
+        return next
+      })
+    }, 4000)
     return () => window.clearInterval(tick)
-  }, [index, items.length, reducedMotion])
+  }, [items.length, reducedMotion])
 
   if (items.length === 0) return null
 

@@ -1,3 +1,4 @@
+import { ChevronRight } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export function HomeSectionHeader({
@@ -14,13 +15,13 @@ export function HomeSectionHeader({
   className?: string
 }) {
   return (
-    <div className={cn("flex items-end justify-between gap-3", className)}>
+    <div className={cn("flex items-center justify-between gap-3", className)}>
       <h2
         className={cn(
-          "leading-none tracking-tight text-foreground",
+          "tracking-tight text-foreground",
           tone === "editorial"
-            ? "font-serif text-[1.375rem]"
-            : "text-[1.0625rem] font-semibold",
+            ? "font-serif text-xl font-bold"
+            : "text-base font-semibold",
         )}
       >
         {title}
@@ -29,11 +30,13 @@ export function HomeSectionHeader({
         <button
           type="button"
           onClick={onAction}
-          className="min-h-11 shrink-0 text-sm font-semibold text-primary"
+          className="group inline-flex items-center gap-0.5 text-xs font-semibold text-primary transition-colors hover:text-primary/80 focus-visible:outline-none"
         >
-          {actionLabel}
+          <span>{actionLabel}</span>
+          <ChevronRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
         </button>
       ) : null}
     </div>
   )
 }
+

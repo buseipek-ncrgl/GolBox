@@ -2,17 +2,9 @@ import type { ClaimedReward, FieldDropNearby, Order, Reward } from "@/lib/golbox
 import type { CityContentItem } from "@/lib/city-content"
 import { isActiveCoupon } from "@/components/golbox/coupon-pass"
 
-export type PersonalPriorityKind = "ismarliyor" | "golbox" | "coupon" | "event"
+export type PersonalPriorityKind = "golbox" | "coupon" | "event"
 
 export type PersonalPriority =
-  | {
-      kind: "ismarliyor"
-      id: string
-      title: string
-      cafe: string
-      status: "hazir" | "hazirlaniyor"
-      items: string[]
-    }
   | {
       kind: "golbox"
       id: string
@@ -36,8 +28,6 @@ export type PersonalPriority =
       content: CityContentItem
     }
 
-const READY_STATUSES = new Set(["Ready"])
-
 export function nextCatalogReward(points: number, rewards: Reward[]) {
   const active = rewards
     .filter((reward) => reward.status === "Active")
@@ -57,30 +47,18 @@ export function selectPersonalPriority(input: {
 }): PersonalPriority | null {
   if (!input.isLoggedIn) return null
 
-  const waiting = input.orders
-    .filter((order) => READY_STATUSES.has(order.status))
-    .sort((a, b) => Number(b.status === "Ready") - Number(a.status === "Ready"))
-  const topOrder = waiting[0]
-  if (topOrder) {
-    return {
-      kind: "ismarliyor",
-      id: topOrder.id,
-      title: (topOrder.items?.[0]?.menuItemName || "İkramın") + " seni bekliyor",
-      cafe: topOrder.cafeName,
-      status: topOrder.status === "Ready" ? "hazir" : "hazirlaniyor",
-      items: (topOrder.items || []).map((item) => item.menuItemName).filter(Boolean),
-    }
-  }
-
+  // Check 3D Gift Drop within 500m proximity
   const drop = input.fieldDrops.find((item) => !input.capturedIds.includes(item.id))
   if (drop) {
+    const dist = Number(drop.distanceMeters) || 0
+    const in500mRange = dist <= 500
     return {
       kind: "golbox",
       id: drop.id,
-      title: drop.title || "Yakınında bir hediye var",
-      distanceMeters: Number(drop.distanceMeters),
+      title: drop.title || "Yakınında 3D Hediye Var",
+      distanceMeters: dist,
       pointsGranted: drop.pointsGranted,
-      inRange: drop.inRange,
+      inRange: in500mRange,
       placeLabel: drop.description || undefined,
     }
   }
@@ -111,3 +89,4 @@ export function selectPersonalPriority(input: {
 
   return null
 }
+

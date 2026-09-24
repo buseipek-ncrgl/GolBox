@@ -1,29 +1,29 @@
 "use client"
 
-import { BookOpen, Coins, MapPin, Ticket } from "lucide-react"
+import { Calendar, Coins, MapPin, Bell } from "lucide-react"
 import { HomeSectionHeader } from "@/components/golbox/home-section-header"
 
-export type QuickActionId = "coupons" | "places" | "cafes" | "events" | "earn"
+export type QuickActionId = "events" | "places" | "notifications" | "golpuan"
 
 export interface QuickActionItem {
   id: QuickActionId
   title: string
   description: string
-  icon: "ticket" | "places" | "calendar" | "coins"
+  icon: "calendar" | "places" | "bell" | "coins"
 }
 
 const ICONS = {
-  ticket: Ticket,
+  calendar: Calendar,
   places: MapPin,
-  calendar: BookOpen,
+  bell: Bell,
   coins: Coins,
 }
 
 export const defaultQuickActions: QuickActionItem[] = [
-  { id: "places", title: "Tesisler", description: "Belediye yerlerini keşfet", icon: "places" },
-  { id: "events", title: "Etkinlikler", description: "Şehirde neler var?", icon: "calendar" },
-  { id: "coupons", title: "Kuponlarım", description: "Aktif kuponlarını gör", icon: "ticket" },
-  { id: "earn", title: "GölPuan Kazan", description: "Kazanç yollarını gör", icon: "coins" },
+  { id: "events", title: "Etkinlikler", description: "Şehirdeki tüm etkinlikler", icon: "calendar" },
+  { id: "places", title: "Tesisler", description: "Belediye tesisleri & kafeler", icon: "places" },
+  { id: "notifications", title: "Bildirimler", description: "Duyuru ve mesajların", icon: "bell" },
+  { id: "golpuan", title: "GölPuan", description: "Ödül kataloğunu keşfet", icon: "coins" },
 ]
 
 export function QuickActionCard({
@@ -34,49 +34,45 @@ export function QuickActionCard({
   onSelect: (id: QuickActionId) => void
 }) {
   const Icon = ICONS[item.icon]
+
   return (
     <button
       type="button"
       onClick={() => onSelect(item.id)}
-      className="gol-press flex h-full min-h-[5.5rem] flex-col items-start rounded-[16px] border border-border bg-card p-3 text-left shadow-none max-[360px]:min-h-[5.25rem]"
+      className="group relative flex h-full min-h-[5.75rem] flex-col justify-between rounded-[18px] border border-border/70 bg-card p-3.5 text-left shadow-none transition-all duration-200 hover:border-primary/30 hover:bg-card hover:shadow-sm active:scale-[0.98]"
     >
-      <span className="flex size-8 items-center justify-center rounded-[10px] bg-secondary text-primary">
-        <Icon className="size-4" strokeWidth={1.8} />
-      </span>
-      <p className="mt-2 text-[15px] font-semibold leading-tight text-foreground max-[360px]:text-sm">
-        {item.title}
-      </p>
-      <p className="mt-0.5 line-clamp-1 text-[12px] leading-snug text-muted-foreground">{item.description}</p>
+      <div className="flex w-full items-start justify-between">
+        <span className="flex size-9 items-center justify-center rounded-xl bg-secondary/80 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+          <Icon className="size-4" strokeWidth={2} />
+        </span>
+      </div>
+
+      <div>
+        <p className="mt-2 text-sm font-semibold tracking-tight text-foreground group-hover:text-primary transition-colors">
+          {item.title}
+        </p>
+        <p className="mt-0.5 line-clamp-1 text-[11px] leading-snug text-muted-foreground">{item.description}</p>
+      </div>
     </button>
   )
 }
 
 export function QuickActions({
   items = defaultQuickActions,
-  couponCount,
   onSelect,
 }: {
   items?: QuickActionItem[]
-  couponCount?: number
   onSelect: (id: QuickActionId) => void
 }) {
-  const resolved = items.map((item) =>
-    item.id === "coupons" && typeof couponCount === "number"
-      ? {
-          ...item,
-          description: couponCount > 0 ? `${couponCount} aktif kupon` : "Aktif kuponlarını gör",
-        }
-      : item,
-  )
-
   return (
-    <section aria-label="Hızlı erişim" className="space-y-3">
+    <section aria-label="Hızlı erişim" className="space-y-2.5">
       <HomeSectionHeader title="Hızlı erişim" tone="utility" />
-      <div className="grid grid-cols-2 auto-rows-fr gap-3">
-        {resolved.map((item) => (
+      <div className="grid grid-cols-2 auto-rows-fr gap-2.5">
+        {items.map((item) => (
           <QuickActionCard key={item.id} item={item} onSelect={onSelect} />
         ))}
       </div>
     </section>
   )
 }
+

@@ -44,6 +44,11 @@ export function useCitizenLocation(pollMs = 0) {
   }, [refresh])
 
   useEffect(() => {
+    refresh(SEHITKAMIL.lat, SEHITKAMIL.lng)
+    requestLocation()
+  }, [requestLocation, refresh])
+
+  useEffect(() => {
     if (!pollMs) return
     const tick = window.setInterval(() => refresh(origin.lat, origin.lng), pollMs)
     return () => window.clearInterval(tick)

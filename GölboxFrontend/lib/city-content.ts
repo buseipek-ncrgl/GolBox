@@ -98,23 +98,72 @@ export function mapPublicContent(raw: Record<string, unknown>): CityContentItem 
   }
 }
 
+export const DEFAULT_HERO_NEWS: CityContentItem[] = [
+  {
+    id: "news-1",
+    type: CityContentTypes.Hero,
+    title: "Şehitkamil Sanat Merkezi Yaz Kursları Başladı",
+    subtitle: "Müzik, resim, tiyatro ve teknoloji eğitimleri için kayıtlar devam ediyor.",
+    body: "Şehitkamil Belediyesi Sanat Merkezi bünyesinde açılan yaz kurslarına başvurular online olarak yapılmaktadır.",
+    imageUrl: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=800&auto=format&fit=crop&q=80",
+    ctaLabel: "Başvuru Yap",
+    ctaType: ContentCtaTypes.InternalRoute,
+    ctaTarget: "home",
+    startAt: new Date().toISOString(),
+    priority: 1,
+    isPublished: true,
+    categoryLabel: "Kültür & Sanat",
+  },
+  {
+    id: "news-2",
+    type: CityContentTypes.Hero,
+    title: "Gençlik Kütüphanesi 24 Saat Hizmetinizde",
+    subtitle: "Geniş kaynakları ve sessiz çalışma alanlarıyla sınav maratonunda yanınızdayız.",
+    body: "24 saat açık kütüphanemizde tüm öğrencilerimize ücretsiz sıcak ikramlar sunulmaktadır.",
+    imageUrl: "https://images.unsplash.com/photo-1521587760476-6c12a4b040da?w=800&auto=format&fit=crop&q=80",
+    ctaLabel: "Konumu Gör",
+    ctaType: ContentCtaTypes.Map,
+    ctaTarget: "map",
+    startAt: new Date().toISOString(),
+    priority: 2,
+    isPublished: true,
+    categoryLabel: "Gençlik & Eğitim",
+  },
+  {
+    id: "news-3",
+    type: CityContentTypes.Hero,
+    title: "Dülük Tabiat Parkı Gençlik Doğa Yürüyüşü",
+    subtitle: "Sağlıklı yaşam ve sıfır atık doğa buluşmasına tüm gençlerimiz davetlidir.",
+    body: "Etkinliğe katılan tüm genç sporseverlere +100 GP hediye puan verilecektir.",
+    imageUrl: "https://images.unsplash.com/photo-1448375240586-882707db888b?w=800&auto=format&fit=crop&q=80",
+    ctaLabel: "Katıl ve Puan Kazan",
+    ctaType: ContentCtaTypes.InternalRoute,
+    ctaTarget: "earn",
+    startAt: new Date().toISOString(),
+    priority: 3,
+    isPublished: true,
+    categoryLabel: "Spor & Doğa",
+  },
+  {
+    id: "news-4",
+    type: CityContentTypes.Hero,
+    title: "Şehitkamil İkram Üyeliği ve GölPuan Fırsatları",
+    subtitle: "Sosyal belediyecilik vizyonuyla gençlere her ay kahve ve tatlı kuponları.",
+    body: "GölBox mobil uygulamasını kullanan tüm gençlerimiz belediyemize ait Kitap Kafelerden ücretsiz faydalanmaktadır.",
+    imageUrl: "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=800&auto=format&fit=crop&q=80",
+    ctaLabel: "Kuponlarım",
+    ctaType: ContentCtaTypes.RewardCatalog,
+    ctaTarget: "catalog",
+    startAt: new Date().toISOString(),
+    priority: 4,
+    isPublished: true,
+    categoryLabel: "Belediye Hizmetleri",
+  },
+]
+
 /** Explicit development fixture. Never used unless NEXT_PUBLIC_USE_DEV_CMS=true. */
 const DEV_FIXTURE: CityContentItem[] = USE_DEV_CMS
-  ? [
-      {
-        id: "dev-hero",
-        type: CityContentTypes.Hero,
-        title: "[DEV] CMS bağlantısı kapalı",
-        subtitle: "Yalnız NEXT_PUBLIC_USE_DEV_CMS=true iken görünür.",
-        body: "Production build bu kaydı taşımaz.",
-        ctaLabel: "Tamam",
-        ctaType: ContentCtaTypes.None,
-        startAt: new Date(0).toISOString(),
-        priority: 99,
-        isPublished: true,
-        categoryLabel: "Geliştirme",
-      },
-    ]
+  ? DEFAULT_HERO_NEWS
   : []
 
 export function devCmsFixture() {

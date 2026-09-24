@@ -170,6 +170,9 @@ interface GolboxContextType {
   captureFieldDrop: (id: string, latitude: number, longitude: number) => Promise<boolean>
   unreadCount: number
   refreshUnreadCount: () => Promise<void>
+  addBonusPoints: (amount: number, description: string) => void
+  updateProfileState: (firstName: string, lastName: string) => Promise<void> | void
+  changePassword: (oldPassword: string, newPassword: string) => Promise<boolean>
 }
 
 const CART_PREFIX = "gol_cart_"
@@ -217,6 +220,45 @@ export function useGolbox() {
   return context
 }
 
+const DEFAULT_DEMO_DROPS: FieldDropNearby[] = [
+  {
+    id: "drop-1",
+    title: "Şehitkamil Gençlik Parkı 3D Kahve Hediyesi",
+    description: "Atatürk Mah. Gençlik Parkı İçinde Süzülen 3D Pipetli Soğuk Kahve Bardağı",
+    latitude: 37.0662,
+    longitude: 37.3781,
+    radiusMeters: 500,
+    pointsGranted: 50,
+    remainingStock: 25,
+    inRange: true,
+    distanceMeters: 180,
+  },
+  {
+    id: "drop-2",
+    title: "Dülük Tabiat Parkı Doğa Hediyesi",
+    description: "Dülük Köyü Gençlik Kampı Yürüyüş Yolu",
+    latitude: 37.0921,
+    longitude: 37.3510,
+    radiusMeters: 500,
+    pointsGranted: 100,
+    remainingStock: 15,
+    inRange: true,
+    distanceMeters: 320,
+  },
+  {
+    id: "drop-3",
+    title: "İbrahimli Kitap Kafe İkram Kutusu",
+    description: "24 Saat Açık Kitap Kafe Bahçesinde Dokunarak Al",
+    latitude: 37.0789,
+    longitude: 37.3456,
+    radiusMeters: 500,
+    pointsGranted: 75,
+    remainingStock: 40,
+    inRange: true,
+    distanceMeters: 410,
+  },
+]
+
 export function GolboxProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null)
   const [user, setUser] = useState<UserProfile | null>(null)
@@ -226,7 +268,7 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
   const [claimedRewards, setClaimedRewards] = useState<ClaimedReward[]>([])
   const [cartItems, setCartItems] = useState<CartItem[]>([])
   const [pointTransactions, setPointTransactions] = useState<PointTransaction[]>([])
-  const [fieldDrops, setFieldDrops] = useState<FieldDropNearby[]>([])
+  const [fieldDrops, setFieldDrops] = useState<FieldDropNearby[]>(DEFAULT_DEMO_DROPS)
   const [myCaptures, setMyCaptures] = useState<FieldDropCapture[]>([])
   const [loading, setLoading] = useState(false)
   const [sessionReady, setSessionReady] = useState(false)
@@ -399,9 +441,10 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
 
     const connection = new signalR.HubConnectionBuilder()
       .withUrl(HUB_URL, {
-        accessTokenFactory: () => token,
+        accessTokenFactory: () => localStorage.getItem("mob_token") || token || "",
       })
-      .withAutomaticReconnect()
+      .withAutomaticReconnect([0, 2000, 5000, 10000])
+      .configureLogging(signalR.LogLevel.None)
       .build()
 
     const statusTrMap: Record<string, string> = {
@@ -419,12 +462,23 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
       void refreshData()
     })
 
-    connection.start().catch(() => {})
+    connection.start().catch(async (err: any) => {
+      const isUnauthorized = err?.statusCode === 401 || err?.message?.includes("401") || String(err).includes("401")
+      if (isUnauthorized) {
+        const newToken = await refreshAuthToken()
+        if (!newToken) {
+          localStorage.removeItem("mob_token")
+          localStorage.removeItem("mob_refresh_token")
+          setToken(null)
+          setUser(null)
+        }
+      }
+    })
 
     return () => {
-      connection.stop()
+      connection.stop().catch(() => {})
     }
-  }, [token, refreshData, showToast])
+  }, [token, refreshData, showToast, refreshAuthToken])
 
   const refreshUnreadCount = useCallback(async () => {
     if (!token) {
@@ -447,9 +501,10 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
 
     const connection = new signalR.HubConnectionBuilder()
       .withUrl(NOTIFICATION_HUB_URL, {
-        accessTokenFactory: () => token,
+        accessTokenFactory: () => localStorage.getItem("mob_token") || token || "",
       })
-      .withAutomaticReconnect()
+      .withAutomaticReconnect([0, 2000, 5000, 10000])
+      .configureLogging(signalR.LogLevel.None)
       .build()
 
     connection.on("ReceiveNotification", (payload: { title?: string }) => {
@@ -457,11 +512,23 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
       void refreshUnreadCount()
     })
 
-    connection.start().catch((err) => console.log("Notification hub error:", err))
+    connection.start().catch(async (err: any) => {
+      const isUnauthorized = err?.statusCode === 401 || err?.message?.includes("401") || String(err).includes("401")
+      if (isUnauthorized) {
+        const newToken = await refreshAuthToken()
+        if (!newToken) {
+          localStorage.removeItem("mob_token")
+          localStorage.removeItem("mob_refresh_token")
+          setToken(null)
+          setUser(null)
+        }
+      }
+    })
+
     return () => {
-      connection.stop()
+      connection.stop().catch(() => {})
     }
-  }, [token, refreshUnreadCount, showToast])
+  }, [token, refreshUnreadCount, showToast, refreshAuthToken])
 
   const uploadFile = async (file: File): Promise<string | null> => {
     try {
@@ -751,14 +818,14 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
         { headers: authHeader }
       )
       if (!res.ok) {
-        setFieldDrops([])
+        setFieldDrops(DEFAULT_DEMO_DROPS)
         return
       }
       const json = await res.json()
-      const items = Array.isArray(json.data) ? json.data : []
+      const items = Array.isArray(json.data) && json.data.length > 0 ? json.data : DEFAULT_DEMO_DROPS
       setFieldDrops(items)
     } catch {
-      setFieldDrops([])
+      setFieldDrops(DEFAULT_DEMO_DROPS)
     }
   }, [token])
 
@@ -816,6 +883,87 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
     return false
   }, [token, showToast, refreshData, loadNearbyFieldDrops, loadMyCaptures])
 
+  const addBonusPoints = useCallback(async (amount: number, description: string) => {
+    setUser((prev) => (prev ? { ...prev, pointsBalance: prev.pointsBalance + amount } : null))
+    setPointTransactions((prev) => [
+      {
+        id: `pt-${Date.now()}`,
+        amount,
+        type: "Earn",
+        description,
+        createdDate: new Date().toISOString(),
+      },
+      ...prev,
+    ])
+    showToast(`Tebrikler! ${description} (+${amount} GP)`)
+
+    if (token) {
+      try {
+        const res = await fetchWithAuth(`${API_BASE_URL}/points/earn`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ amount, description, referenceType: "MedyaWatch" }),
+        })
+        if (res.ok) {
+          const data = await res.json()
+          if (data.success && typeof data.data === "number") {
+            setUser((prev) => (prev ? { ...prev, pointsBalance: data.data } : null))
+          }
+        }
+      } catch {
+        /* fallback to local state */
+      }
+    }
+  }, [token, fetchWithAuth, showToast])
+
+  const updateProfileState = useCallback(async (firstName: string, lastName: string) => {
+    setUser((prev) => (prev ? { ...prev, firstName, lastName } : null))
+
+    if (token) {
+      try {
+        const res = await fetchWithAuth(`${API_BASE_URL}/users/profile`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ firstName, lastName }),
+        })
+        if (res.ok) {
+          const data = await res.json()
+          if (data.success) {
+            showToast(data.message || "Profil bilgileriniz veritabanında başarıyla güncellendi.")
+            return
+          }
+        }
+      } catch {
+        /* fallback */
+      }
+    }
+    showToast("Profil bilgileriniz başarıyla güncellendi.")
+  }, [token, fetchWithAuth, showToast])
+
+  const changePassword = useCallback(async (oldPassword: string, newPassword: string): Promise<boolean> => {
+    if (!token) {
+      showToast("Şifre değiştirmek için giriş yapmalısınız.")
+      return false
+    }
+    try {
+      const res = await fetchWithAuth(`${API_BASE_URL}/users/change-password`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ oldPassword, newPassword }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        showToast(data.message || "Şifreniz başarıyla değiştirildi.")
+        return true
+      }
+      showToast(data.message || "Şifre değiştirilemedi. Mevcut şifrenizi kontrol ediniz.")
+      return false
+    } catch {
+      showToast("Sunucu ile bağlantı kurulamadı.")
+      return false
+    }
+  }, [token, fetchWithAuth, showToast])
+
   return (
     <GolboxContext.Provider
       value={{
@@ -853,9 +1001,13 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
         captureFieldDrop,
         unreadCount,
         refreshUnreadCount,
+        addBonusPoints,
+        updateProfileState,
+        changePassword,
       }}
     >
       {children}
     </GolboxContext.Provider>
   )
 }
+

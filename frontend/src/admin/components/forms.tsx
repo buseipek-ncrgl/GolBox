@@ -1,7 +1,7 @@
 import React, { useId } from 'react';
 
 type FieldWrap = {
-  label: string;
+  label?: string;
   helper?: string;
   error?: string;
   required?: boolean;

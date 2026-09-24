@@ -19,12 +19,11 @@ export function Modal({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const titleId = useId();
-  const close = useCallback(() => onClose(), [onClose]);
-  useFocusTrap(open, ref, close);
+  useFocusTrap(open, ref, onClose);
   if (!open) return null;
 
   return (
-    <div className="admin-overlay" onClick={close}>
+    <div className="admin-overlay" onClick={onClose}>
       <div
         ref={ref}
         role="dialog"
@@ -36,7 +35,7 @@ export function Modal({
       >
         <div className="admin-modal-head">
           <h2 id={titleId}>{title}</h2>
-          <button type="button" className="admin-icon-btn" onClick={close} aria-label="Kapat">
+          <button type="button" className="admin-icon-btn" onClick={onClose} aria-label="Kapat">
             <X size={18} />
           </button>
         </div>

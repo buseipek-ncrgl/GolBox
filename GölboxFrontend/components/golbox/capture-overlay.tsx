@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
-import { Gift, X } from "lucide-react"
+import { Camera, Sparkles, X } from "lucide-react"
 import { safeModelUrl } from "@/lib/safe-model-url"
 import type { FieldDropNearby } from "@/lib/golbox-context"
+import { ThreeCupStage } from "@/components/golbox/three-cup-stage"
 import type { ComponentType } from "react"
 
 export function CaptureOverlay({
@@ -93,7 +94,7 @@ export function CaptureOverlay({
 
   if (!mounted) return null
 
-  const showModel = Boolean(modelUrl) && !modelFailed
+  const showCustomGlb = Boolean(modelUrl) && !modelFailed && GlbStage
   const host = typeof document !== "undefined" ? document.querySelector("[data-golbox-shell]") : null
 
   const ui = (
@@ -101,77 +102,67 @@ export function CaptureOverlay({
       <div className="relative min-h-0 flex-1 overflow-hidden">
         <video
           ref={videoRef}
-          className={`absolute inset-0 h-full w-full object-cover ${cameraState === "live" ? "opacity-100" : "opacity-0"}`}
+          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${cameraState === "live" ? "opacity-100" : "opacity-0"}`}
           autoPlay
           muted
           playsInline
         />
         {cameraState !== "live" && (
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,#1d5f60_0%,#0b1f20_72%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,#1d5f60_0%,#0b1f20_75%)]" />
         )}
 
-        <div className="pointer-events-none absolute inset-x-6 top-[18%] bottom-[28%]">
-          {showModel && GlbStage ? (
-            <GlbStage src={modelUrl!} onError={handleModelError} />
-          ) : (
-            <div className="flex h-full flex-col items-center justify-center gap-3">
-              {drop.imageUrl ? (
-                <img
-                  src={drop.imageUrl}
-                  alt=""
-                  className="max-h-40 rounded-3xl object-cover shadow-2xl"
-                />
-              ) : (
-                <span className="flex size-24 items-center justify-center rounded-[2rem] bg-white/10">
-                  <Gift className="size-10 text-accent" strokeWidth={1.8} />
-                </span>
-              )}
-            </div>
-          )}
+        {/* Floating 3D Animated Drink Cup Stage */}
+        <div 
+          onClick={onConfirm}
+          className="absolute inset-x-6 top-[15%] bottom-[25%] cursor-pointer select-none"
+        >
+          <ThreeCupStage />
         </div>
 
         <button
           type="button"
           onClick={onClose}
-          className="absolute right-4 top-4 z-10 flex size-10 items-center justify-center rounded-full bg-black/45"
+          className="absolute right-4 top-4 z-10 flex size-10 items-center justify-center rounded-full bg-black/50 backdrop-blur-md transition-all hover:bg-black/70 active:scale-95"
           aria-label="Kapat"
         >
           <X className="size-5" />
         </button>
 
-        <div className="absolute inset-x-0 top-4 flex justify-center px-16">
-          <p className="rounded-full bg-black/40 px-3 py-1 text-center text-[11px] font-medium tracking-wide">
-            Kamera üzerine 3D hediye
-          </p>
+        <div className="absolute inset-x-0 top-5 flex justify-center px-12 pointer-events-none">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-black/50 px-3.5 py-1 text-center text-xs font-semibold tracking-wide backdrop-blur-md">
+            <Camera className="size-3.5 text-[color:var(--color-gold)]" />
+            3D Hediye Bardağı Dokunarak Topla
+          </span>
         </div>
       </div>
 
-      <div className="shrink-0 space-y-3 bg-[#0b1f20] px-5 pb-6 pt-4">
-        <div>
-          <p className="font-serif text-xl">{drop.title}</p>
-          <p className="mt-1 text-sm text-white/70">+{drop.pointsGranted} GP · konum doğrulamasıyla alınır</p>
+      <div className="shrink-0 space-y-3 bg-[#0b1f20] px-5 pb-6 pt-4 border-t border-white/10">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="font-serif text-lg font-bold">{drop.title}</p>
+            <p className="mt-0.5 text-xs text-white/75">
+              +{drop.pointsGranted} GP · En yakın 500m konum doğrulamasıyla
+            </p>
+          </div>
+          <span className="inline-flex items-center gap-1 rounded-full bg-[color:var(--color-gold)]/20 px-2.5 py-1 text-xs font-bold text-[color:var(--color-gold)] border border-[color:var(--color-gold)]/30">
+            <Sparkles className="size-3.5" />
+            500m İçi
+          </span>
         </div>
+
         {cameraState === "unavailable" && (
-          <p className="text-xs text-white/65">
-            Kamera açılamadı. Konum yarıçapındaysanız yine de alabilirsiniz.
+          <p className="text-xs text-amber-200/80">
+            Kamera izni verilemedi. Yine de aşağıdaki butona dokunarak hediyenizi alabilirsiniz.
           </p>
         )}
-        {cameraState === "pending" && (
-          <p className="text-xs text-white/65">Kamera isteniyor…</p>
-        )}
-        {!modelUrl && (
-          <p className="text-xs text-white/65">Bu hediyede 3D model yok. GPS Al çalışır.</p>
-        )}
-        {modelUrl && modelFailed && (
-          <p className="text-xs text-white/65">3D model yüklenemedi. GPS Al çalışır.</p>
-        )}
+
         <button
           type="button"
           disabled={busy}
           onClick={onConfirm}
-          className="w-full rounded-2xl bg-primary py-3 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+          className="w-full rounded-2xl bg-gradient-to-r from-primary to-[color:var(--color-brand-600)] py-3.5 text-sm font-bold text-primary-foreground shadow-md transition-all hover:opacity-95 active:scale-[0.98] disabled:opacity-60"
         >
-          {busy ? "Alınıyor..." : "Al"}
+          {busy ? "Hediye Toplanıyor..." : "3D Hediyeyi Topla"}
         </button>
       </div>
     </div>
@@ -179,3 +170,4 @@ export function CaptureOverlay({
 
   return host ? createPortal(ui, host) : ui
 }
+

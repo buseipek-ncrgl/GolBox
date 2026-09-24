@@ -134,4 +134,11 @@ public class PointsController : BaseApiController
         }
         return HandleResult(result);
     }
+
+    [HttpPost("earn")]
+    public async Task<IActionResult> EarnBonusPoints([FromBody] EarnBonusPointsCommand command)
+    {
+        var result = await _mediator.Send(command);
+        return HandleResult(result);
+    }
 }

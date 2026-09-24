@@ -1,4 +1,4 @@
-import { useEffect, type RefObject } from 'react';
+import { useEffect, useRef, type RefObject } from 'react';
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -8,6 +8,9 @@ export function useFocusTrap(
   ref: RefObject<HTMLElement | null>,
   onEscape?: () => void
 ) {
+  const onEscapeRef = useRef(onEscape);
+  onEscapeRef.current = onEscape;
+
   useEffect(() => {
     if (!active) return;
     const node = ref.current;
@@ -19,8 +22,11 @@ export function useFocusTrap(
         (el) => !el.hasAttribute('disabled') && el.tabIndex !== -1 && el.offsetParent !== null
       );
 
-    const first = list()[0];
-    (first || node).focus();
+    if (!node.contains(document.activeElement)) {
+      const items = list();
+      const first = items[0];
+      (first || node).focus();
+    }
 
     const overflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -28,7 +34,7 @@ export function useFocusTrap(
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault();
-        onEscape?.();
+        onEscapeRef.current?.();
         return;
       }
       if (event.key !== 'Tab') return;
@@ -52,7 +58,9 @@ export function useFocusTrap(
     return () => {
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = overflow;
-      previous?.focus?.();
+      if (previous && typeof previous.focus === 'function' && !node.contains(document.activeElement)) {
+        previous.focus();
+      }
     };
-  }, [active, ref, onEscape]);
+  }, [active, ref]);
 }

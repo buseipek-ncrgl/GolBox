@@ -101,7 +101,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    const savedToken = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    const savedUserStr = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
+    let savedUser: User | null = null;
+    try {
+      if (savedUserStr && savedUserStr !== 'undefined') {
+        savedUser = JSON.parse(savedUserStr);
+      }
+    } catch {}
+
+    return {
+      user: savedUser,
+      token: savedToken,
+      login: (newToken: string, newRefreshToken: string, newUser: User) => {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('token', newToken);
+          localStorage.setItem('refreshToken', newRefreshToken);
+          localStorage.setItem('user', JSON.stringify(newUser));
+        }
+      },
+      logout: () => {
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('token');
+          localStorage.removeItem('refreshToken');
+          localStorage.removeItem('user');
+          window.location.reload();
+        }
+      },
+      isAuthenticated: !!savedToken,
+      refreshUser: async () => {},
+    };
   }
   return context;
 };

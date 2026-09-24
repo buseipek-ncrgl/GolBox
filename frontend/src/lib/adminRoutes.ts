@@ -1,6 +1,7 @@
 export type AdminMenuId =
   | 'overview'
   | 'users'
+  | 'applications'
   | 'places'
   | 'cafes'
   | 'products'
@@ -10,6 +11,7 @@ export type AdminMenuId =
   | 'fieldDrops'
   | 'ismarliyor'
   | 'homeContent'
+  | 'social'
   | 'campaigns'
   | 'events'
   | 'notifications'
@@ -21,16 +23,19 @@ export type AdminMenuId =
 export const STAFF_MENU_IDS: AdminMenuId[] = [
   'overview',
   'users',
+  'applications',
   'cafes',
   'products',
   'qr',
   'fieldDrops',
-  'ismarliyor'
+  'ismarliyor',
+  'social'
 ];
 
 export const ADMIN_PATHS: { id: AdminMenuId; path: string; label: string; section: string; description: string }[] = [
   { id: 'overview', path: '/admin', label: 'Genel Bakış', section: 'İşlem', description: 'Günlük özet, kritik kuyruk ve hızlı işlemler.' },
   { id: 'users', path: '/admin/vatandaslar', label: 'Vatandaşlar', section: 'İşlem', description: 'Arama, filtre ve GölPuan işlemleri.' },
+  { id: 'applications', path: '/admin/basvurular', label: 'Başvurular ve Destekler', section: 'İşlem', description: 'Gelen vatandaş başvurularını inceleyin, durum güncelleyin veya yeni başvuru programı açın.' },
   { id: 'places', path: '/admin/tesisler', label: 'Tesisler', section: 'İşlem', description: 'Belediye yerleri, konum ve çalışma saatleri.' },
   { id: 'cafes', path: '/admin/gol-kafeler', label: 'Göl Kafeler', section: 'İşlem', description: 'Menü ve Ismarlıyor operasyonu.' },
   { id: 'products', path: '/admin/menu', label: 'Menü ve Ürünler', section: 'İşlem', description: 'Kafe ürünleri, fiyat ve görünürlük.' },
@@ -40,6 +45,7 @@ export const ADMIN_PATHS: { id: AdminMenuId; path: string; label: string; sectio
   { id: 'fieldDrops', path: '/admin/saha-hediyeleri', label: 'Saha Hediyeleri', section: 'Sadakat', description: 'Konuma bırakılan GölPuan kutuları.' },
   { id: 'ismarliyor', path: '/admin/ismarliyor', label: 'Ismarlıyor', section: 'Sadakat', description: 'Bekliyor → Teslim akışı.' },
   { id: 'homeContent', path: '/admin/icerikler', label: 'Ana Sayfa İçerikleri', section: 'İletişim', description: 'Hero, duyuru ve başkan mesajı.' },
+  { id: 'social', path: '/admin/sosyal-medya', label: 'Sosyal Medya (Story ve Reels)', section: 'İletişim', description: 'Story ve video Reels paylaşımlarını yönetin veya doğrudan yükleyin.' },
   { id: 'campaigns', path: '/admin/kampanyalar', label: 'Kampanya İçerikleri', section: 'İletişim', description: 'Uygulamada görünen duyurular. Otomatik indirim uygulamaz.' },
   { id: 'events', path: '/admin/etkinlikler', label: 'Etkinlikler', section: 'İletişim', description: 'Tarih, tesis ve katılım.' },
   { id: 'notifications', path: '/admin/bildirimler', label: 'Duyurular / Bildirimler', section: 'İletişim', description: 'Hedef kitle ve gönderim önizlemesi.' },
