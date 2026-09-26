@@ -51,7 +51,7 @@ export function LoginScreen({
         >
           +
         </span>
-        <h1 className="font-serif text-[1.75rem] leading-none text-foreground">Şehitkamil+</h1>
+        <h1 className="font-serif text-[1.75rem] leading-none text-foreground">Şehitkamil</h1>
         <p className="mt-2 max-w-[16rem] text-center text-[13px] leading-relaxed text-muted-foreground">
           Şehitkamil Belediyesi vatandaş uygulaması
         </p>

@@ -1,10 +1,10 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Gift, Search, QrCode, MapPin, CheckCircle2, ChevronDown, ChevronUp, Sparkles, Coffee } from "lucide-react"
+import { Gift, Search, QrCode, MapPin, CheckCircle2, ChevronDown, ChevronUp, Sparkles, ExternalLink } from "lucide-react"
 import { Screen } from "@/components/golbox/screen"
 import { LoginScreen } from "@/components/golbox/screens/login-screen"
-import { QrUsageModal, type QrUsageItem } from "@/components/golbox/qr-usage-modal"
+import { QrUsageModal, type QrUsageFacility, type QrUsageItem } from "@/components/golbox/qr-usage-modal"
 import { useGolbox } from "@/lib/golbox-context"
 
 type MainTab = "discover" | "my-rewards"
@@ -31,7 +31,7 @@ const DEFAULT_DEMO_CLAIMS: CombinedRewardClaim[] = [
     sourceType: "Ismarliyor",
     redeemCode: "IS-SH-7890",
     status: "Claimed",
-    facilities: ["Göl Kafe Anneler Parkı", "Göl Kafe Karataş", "Göl Kafe Alleben"],
+    facilities: ["Merkez Kitap Kafe", "Şehitkamil Gençlik Kitap Kafe"],
     claimedAt: new Date().toISOString(),
     expiresAt: new Date(Date.now() + 30 * 86400000).toISOString(),
   },
@@ -53,7 +53,7 @@ const DEFAULT_DEMO_CLAIMS: CombinedRewardClaim[] = [
     sourceType: "GolPuan",
     redeemCode: "GP-SH-1102",
     status: "Claimed",
-    facilities: ["Merkez Kitap Kafe", "Dülük Tabiat Parkı Kafe"],
+    facilities: ["Merkez Kitap Kafe", "Şehitkamil Gençlik Kitap Kafe"],
     claimedAt: new Date().toISOString(),
     expiresAt: new Date(Date.now() + 90 * 86400000).toISOString(),
   },
@@ -68,7 +68,7 @@ export function RewardsScreen({
   closeLabel?: string
   initialTab?: RewardsTabProp
 }) {
-  const { user, token, rewards, claimedRewards, addBonusPoints } = useGolbox()
+  const { user, token, rewards, claimedRewards, cafes, addBonusPoints } = useGolbox()
   const mappedInitial = initialTab === "coupons" || initialTab === "my-rewards" ? "my-rewards" : "discover"
   const [tab, setTab] = useState<MainTab>(mappedInitial)
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all")
@@ -129,7 +129,7 @@ export function RewardsScreen({
       sourceType: "GolPuan",
       redeemCode: `GP-SH-${Math.floor(1000 + Math.random() * 9000)}`,
       status: "Claimed",
-      facilities: ["Göl Kafe Anneler Parkı", "Göl Kafe Karataş", "Merkez Kitap Kafe"],
+      facilities: ["Merkez Kitap Kafe", "Şehitkamil Gençlik Kitap Kafe"],
       claimedAt: new Date().toISOString(),
       expiresAt: new Date(Date.now() + 90 * 86400000).toISOString(),
     }
@@ -140,6 +140,25 @@ export function RewardsScreen({
   if (showLogin && !token) {
     return <LoginScreen onClose={() => setShowLogin(false)} closeLabel="Ödüllere dön" />
   }
+
+  const resolveClaimFacilities = (claim: CombinedRewardClaim): QrUsageFacility[] =>
+    claim.facilities.map((facilityName, index) => {
+      const cafe = cafes.find((item) => item.name === facilityName)
+      return cafe
+        ? {
+            id: cafe.id,
+            name: cafe.name,
+            address: cafe.address,
+            isActive: cafe.isActive,
+            latitude: cafe.latitude,
+            longitude: cafe.longitude,
+          }
+        : {
+            id: `${claim.id}-facility-${index}`,
+            name: facilityName,
+            address: "Adres bilgisi tesis verisi yüklendiğinde görünecek.",
+          }
+    })
 
   return (
     <Screen className="space-y-4 pb-12">
@@ -156,11 +175,13 @@ export function RewardsScreen({
       </header>
 
       {/* Main 2-Tab Switcher: Keşfet | Kazandıklarım */}
-      <div className="grid grid-cols-2 gap-1 rounded-2xl bg-secondary p-1 shadow-2xs">
+      <div className="grid grid-cols-2 gap-1 rounded-2xl bg-secondary p-1 shadow-2xs" role="tablist" aria-label="Ödüllerim bölümleri">
         <button
           type="button"
           onClick={() => setTab("discover")}
-          className={`flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-bold transition-all ${
+          role="tab"
+          aria-selected={tab === "discover"}
+          className={`flex min-h-11 items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/40 ${
             tab === "discover" ? "bg-card text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
           }`}
         >
@@ -170,7 +191,9 @@ export function RewardsScreen({
         <button
           type="button"
           onClick={() => setTab("my-rewards")}
-          className={`flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-bold transition-all ${
+          role="tab"
+          aria-selected={tab === "my-rewards"}
+          className={`flex min-h-11 items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/40 ${
             tab === "my-rewards" ? "bg-card text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
           }`}
         >
@@ -231,7 +254,7 @@ export function RewardsScreen({
                   <button
                     type="button"
                     onClick={() => handleClaimWithPoints(reward.title, reward.requiredPoints)}
-                    className="shrink-0 rounded-xl bg-primary px-3.5 py-2 text-xs font-bold text-primary-foreground shadow-2xs hover:bg-primary/90 transition-all active:scale-95"
+                    className="min-h-11 shrink-0 rounded-xl bg-primary px-3.5 py-2 text-xs font-bold text-primary-foreground shadow-2xs hover:bg-primary/90 transition-all active:scale-95 focus-visible:ring-2 focus-visible:ring-primary/40"
                   >
                     GölPuan ile Al
                   </button>
@@ -257,7 +280,7 @@ export function RewardsScreen({
                 key={val}
                 type="button"
                 onClick={() => setSourceFilter(val as SourceFilter)}
-                className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold transition-all ${
+                className={`min-h-11 shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/40 ${
                   sourceFilter === val
                     ? "bg-primary text-primary-foreground shadow-2xs"
                     : "bg-secondary text-muted-foreground hover:text-foreground"
@@ -277,6 +300,7 @@ export function RewardsScreen({
             <div className="space-y-3">
               {filteredClaims.map((claim) => {
                 const isExpanded = expandedFacilityId === claim.id
+                const claimFacilities = resolveClaimFacilities(claim)
                 const badgeText =
                   claim.sourceType === "Ismarliyor"
                     ? "Ismarlıyor'dan kazandın"
@@ -316,21 +340,50 @@ export function RewardsScreen({
                       <button
                         type="button"
                         onClick={() => setExpandedFacilityId(isExpanded ? null : claim.id)}
-                        className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
+                        aria-expanded={isExpanded}
+                        aria-controls={`claim-facilities-${claim.id}`}
+                        className="flex min-h-11 items-center gap-1.5 rounded-lg text-xs font-semibold text-primary hover:underline focus-visible:ring-2 focus-visible:ring-primary/40"
                       >
                         <MapPin className="size-3.5" />
-                        <span>Nerede Kullanabilirim? ({claim.facilities.length} Tesis)</span>
+                        <span>Nerede Kullanabilirim? ({claimFacilities.length} Tesis)</span>
                         {isExpanded ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
                       </button>
 
                       {isExpanded && (
-                        <div className="mt-2 rounded-xl bg-secondary/60 p-3 text-xs space-y-1 animate-in fade-in duration-150">
+                        <div id={`claim-facilities-${claim.id}`} className="mt-2 rounded-xl bg-secondary/60 p-3 text-xs space-y-1 animate-in fade-in duration-150">
                           <p className="text-[11px] font-bold text-muted-foreground uppercase">Geçerli Tesisler:</p>
-                          <ul className="space-y-1">
-                            {claim.facilities.map((fac, i) => (
-                              <li key={i} className="flex items-center gap-1.5 font-medium text-foreground">
-                                <CheckCircle2 className="size-3 text-emerald-600 shrink-0" />
-                                {fac}
+                          <ul className="space-y-2">
+                            {claimFacilities.map((facility) => (
+                              <li key={facility.id} className="rounded-xl border border-border/60 bg-card p-2.5">
+                                <div className="flex items-start gap-2">
+                                  <CheckCircle2 className="mt-0.5 size-3.5 shrink-0 text-emerald-600" />
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex items-center justify-between gap-2">
+                                      <p className="font-semibold text-foreground">{facility.name}</p>
+                                      {typeof facility.isActive === "boolean" ? (
+                                        <span className={`shrink-0 text-[10px] font-bold ${
+                                          facility.isActive ? "text-emerald-700 dark:text-emerald-400" : "text-destructive"
+                                        }`}>
+                                          {facility.isActive ? "Açık" : "Kapalı"}
+                                        </span>
+                                      ) : null}
+                                    </div>
+                                    <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+                                      {facility.address}
+                                    </p>
+                                    {typeof facility.latitude === "number" && typeof facility.longitude === "number" ? (
+                                      <a
+                                        href={`https://www.google.com/maps/search/?api=1&query=${facility.latitude},${facility.longitude}`}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="mt-1 inline-flex min-h-11 items-center gap-1 rounded-lg text-[11px] font-semibold text-primary hover:underline focus-visible:ring-2 focus-visible:ring-primary/40"
+                                      >
+                                        Haritada Gör
+                                        <ExternalLink className="size-3" />
+                                      </a>
+                                    ) : null}
+                                  </div>
+                                </div>
                               </li>
                             ))}
                           </ul>
@@ -340,8 +393,8 @@ export function RewardsScreen({
 
                     {/* Action Button: QR ile Kullan */}
                     <div className="flex items-center justify-between border-t border-border/60 pt-3">
-                      <span className="font-mono text-xs font-semibold text-muted-foreground tracking-wider">
-                        Kod: {claim.redeemCode}
+                      <span className="max-w-[11rem] text-[11px] leading-tight text-muted-foreground">
+                        Kullanım kodu yalnızca açık onayınızla gösterilir.
                       </span>
                       <button
                         type="button"
@@ -351,10 +404,10 @@ export function RewardsScreen({
                             title: claim.title,
                             sourceType: claim.sourceType,
                             redeemCode: claim.redeemCode,
-                            facilities: claim.facilities,
+                            facilities: claimFacilities,
                           })
                         }
-                        className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground shadow-2xs hover:bg-primary/90 transition-all active:scale-95"
+                        className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground shadow-2xs hover:bg-primary/90 transition-all active:scale-95 focus-visible:ring-2 focus-visible:ring-primary/40"
                       >
                         <QrCode className="size-4" />
                         QR ile Kullan

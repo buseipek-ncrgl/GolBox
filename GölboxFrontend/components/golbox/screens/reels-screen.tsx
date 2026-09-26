@@ -1,9 +1,9 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import Image from "next/image"
 import { Screen } from "@/components/golbox/screen"
 import { Play, Eye, Heart, Share2, Sparkles, Tv, ChevronLeft, ChevronRight, X, ArrowRight, Plus, Clock, CheckCircle2, XCircle, FileVideo, Image as ImageIcon } from "lucide-react"
-import { useGolbox } from "@/lib/golbox-context"
 import { API_BASE_URL } from "@/lib/api-config"
 
 export interface ReelItem {
@@ -48,7 +48,7 @@ export interface CitizenSocialSubmission {
   rejectionReason?: string
 }
 
-const CATEGORIES = ["Hepsi", "Gençlik ve Eğitim", "Spor ve Doğa", "GölBox Rehber", "Kültür ve Sanat"]
+const CATEGORIES = ["Hepsi", "Gençlik ve Eğitim", "Spor ve Doğa", "Hediye Avı", "Kültür ve Sanat"]
 
 const DEMO_STORIES: StoryGroup[] = [
   {
@@ -61,7 +61,7 @@ const DEMO_STORIES: StoryGroup[] = [
         id: "s1",
         title: "Şehitkamil Kitap Kafelerde 24 Saat İkram Hizmeti",
         subtitle: "Gençlerin ders çalışma alanlarında sıcak ikramlar ücretsiz sunuluyor.",
-        imageUrl: "/images/story-1.jpg",
+        imageUrl: "/city/kafe.jpg",
         category: "Kütüphane",
         date: "Bugün",
         ctaText: "Detayları Oku",
@@ -70,7 +70,7 @@ const DEMO_STORIES: StoryGroup[] = [
         id: "s2",
         title: "Gençlik Kampında Hafta Sonu Heyecanı",
         subtitle: "Dülük Tabiat Parkında düzenlenen sporsal etkinliklerden kareler.",
-        imageUrl: "/images/story-2.jpg",
+        imageUrl: "/city/park.jpg",
         category: "Doğa Sporu",
         date: "Bugün",
       },
@@ -86,7 +86,7 @@ const DEMO_STORIES: StoryGroup[] = [
         id: "s3",
         title: "Ücretsiz Sanat ve Müzik Kursları Başladı",
         subtitle: "Görsel sanatlar, piyano, gitar ve ney atölyelerine online başvuru yapabilirsiniz.",
-        imageUrl: "/images/story-3.jpg",
+        imageUrl: "/city/kultur.jpg",
         category: "Atölye",
         date: "Dün",
         ctaText: "Başvuru Yap",
@@ -103,7 +103,7 @@ const DEMO_STORIES: StoryGroup[] = [
         id: "s4",
         title: "Alleben Yüzme Havuzunda Kış Dönemi",
         subtitle: "Çocuklar ve gençler için uluslararası standartlarda yüzme eğitimi.",
-        imageUrl: "/images/story-4.jpg",
+        imageUrl: "/city/park.jpg",
         category: "Yüzme",
         date: "Dün",
       },
@@ -111,7 +111,7 @@ const DEMO_STORIES: StoryGroup[] = [
         id: "s5",
         title: "Gençlik Basketbol Turnuvası Finalleri",
         subtitle: "Şehitkamil Spor Salonunda düzenlenen coşkulu final maçları.",
-        imageUrl: "/images/story-5.jpg",
+        imageUrl: "/city/bilimfest.jpg",
         category: "Turnuva",
         date: "2 Gün Önce",
       },
@@ -119,16 +119,16 @@ const DEMO_STORIES: StoryGroup[] = [
   },
   {
     id: "story-golbox",
-    name: "GölBox",
+    name: "Hediye Avı",
     category: "Ödül",
-    avatarText: "GB",
+    avatarText: "HA",
     slides: [
       {
         id: "s6",
         title: "Yeni Saha Hediyeleri Haritada!",
         subtitle: "Şehrin 5 farklı noktasına yerleştirilen 3D hediye kutularını yakala, 100 GP kazan.",
-        imageUrl: "/images/story-6.jpg",
-        category: "GölBox",
+        imageUrl: "/rewards/latte.png",
+        category: "Hediye Avı",
         date: "Bugün",
         ctaText: "Haritayı Aç",
       },
@@ -144,7 +144,7 @@ const DEMO_REELS: ReelItem[] = [
     duration: "0:45",
     views: "14.250",
     likes: "1.840",
-    imageUrl: "/images/reel-library.jpg",
+    imageUrl: "/city/kafe.jpg",
     description: "Kütüphane ve kitap kafelerimizde sınırsız internet, sıcak ikramlar ve sessiz çalışma ortamı gençleri bekliyor.",
     author: "Şehitkamil Medya",
   },
@@ -155,20 +155,20 @@ const DEMO_REELS: ReelItem[] = [
     duration: "1:15",
     views: "9.810",
     likes: "1.230",
-    imageUrl: "/images/reel-camp.jpg",
+    imageUrl: "/city/park.jpg",
     description: "Hafta sonu düzenlenen oryantiring ve gençlik doğa yürüyüşünden heyecan dolu anlar!",
     author: "Şehitkamil Spor",
   },
   {
     id: "reel-3",
-    title: "GölBox İle QR Okutarak İkramını Nasıl Alırsın?",
-    category: "GölBox Rehber",
+    title: "Hediye Avı ile Kazandığın İkramı Nasıl Kullanırsın?",
+    category: "Hediye Avı",
     duration: "0:30",
     views: "22.500",
     likes: "3.410",
-    imageUrl: "/images/reel-guide.jpg",
+    imageUrl: "/rewards/latte.png",
     description: "Uygulamadaki QR kodunuzu kitapkefe kasalarında okutarak GölPuan ikramınızı anında alabilirsiniz.",
-    author: "GölBox Destek",
+    author: "Şehitkamil Destek",
   },
   {
     id: "reel-4",
@@ -177,14 +177,13 @@ const DEMO_REELS: ReelItem[] = [
     duration: "1:00",
     views: "7.620",
     likes: "950",
-    imageUrl: "/images/reel-art.jpg",
+    imageUrl: "/city/kultur.jpg",
     description: "Ücretsiz enstrüman ve görsel sanat atölyelerimize kayıtlar başladı.",
     author: "Kültür İşleri",
   },
 ]
 
 export function ReelsScreen() {
-  const { addBonusPoints, token, user } = useGolbox()
   const [activeReel, setActiveReel] = useState<ReelItem | null>(null)
   const [activeStoryGroupIndex, setActiveStoryGroupIndex] = useState<number | null>(null)
   const [activeSlideIndex, setActiveSlideIndex] = useState<number>(0)
@@ -246,10 +245,7 @@ export function ReelsScreen() {
       })
     )
 
-    if (!watchedMap[item.id]) {
-      setWatchedMap((prev) => ({ ...prev, [item.id]: true }))
-      addBonusPoints(15, `"${item.title.slice(0, 20)}..." videosu izlendi`)
-    }
+    setWatchedMap((prev) => ({ ...prev, [item.id]: true }))
 
     try {
       await fetch(`${API_BASE_URL}/social/${item.id}/view`, { method: "POST" })
@@ -331,13 +327,28 @@ export function ReelsScreen() {
     return () => clearTimeout(timer)
   }, [activeStoryGroupIndex, activeSlideIndex])
 
+  useEffect(() => {
+    if (!showUploadModal && activeStoryGroupIndex === null && !activeReel) return
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return
+      if (activeReel) {
+        setActiveReel(null)
+      } else if (activeStoryGroupIndex !== null) {
+        setActiveStoryGroupIndex(null)
+      } else {
+        setShowUploadModal(false)
+      }
+    }
+    document.addEventListener("keydown", handleKeyDown)
+    return () => document.removeEventListener("keydown", handleKeyDown)
+  }, [activeReel, activeStoryGroupIndex, showUploadModal])
+
   const openStoryGroup = (index: number) => {
     setActiveStoryGroupIndex(index)
     setActiveSlideIndex(0)
     const storyGroup = DEMO_STORIES[index]
     if (storyGroup && !watchedMap[storyGroup.id]) {
       setWatchedMap((prev) => ({ ...prev, [storyGroup.id]: true }))
-      addBonusPoints(10, `"${storyGroup.name}" hikayesi izlendi`)
     }
   }
 
@@ -409,7 +420,7 @@ export function ReelsScreen() {
         <button
           type="button"
           onClick={() => setShowUploadModal(true)}
-          className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-xs font-bold text-primary-foreground shadow-2xs hover:bg-primary/90 transition-all active:scale-95"
+          className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-xs font-bold text-primary-foreground shadow-2xs hover:bg-primary/90 transition-all active:scale-95 focus-visible:ring-2 focus-visible:ring-primary/40"
         >
           <Plus className="size-4" />
           İçerik Paylaş
@@ -418,17 +429,17 @@ export function ReelsScreen() {
 
       {/* Stories Bar */}
       <section aria-label="Hikayeler" className="space-y-2">
-        <p className="text-xs font-bold tracking-tight text-foreground">Günün Hikayeleri (+10 GP)</p>
+        <p className="text-xs font-bold tracking-tight text-foreground">Günün Hikayeleri</p>
         <div className="no-scrollbar flex items-center gap-3.5 overflow-x-auto py-1">
           {DEMO_STORIES.map((group, index) => (
             <button
               key={group.id}
               type="button"
               onClick={() => openStoryGroup(index)}
-              className="group flex flex-col items-center gap-1.5 focus:outline-none"
+              className="group flex min-h-11 flex-col items-center gap-1.5 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
             >
-              <div className="relative flex size-15 items-center justify-center rounded-full border-2 border-[color:var(--color-gold)] p-0.5 shadow-2xs transition-transform group-hover:scale-105 active:scale-95">
-                <div className="flex size-full items-center justify-center rounded-full bg-gradient-to-br from-[color:var(--color-brand-900)] to-primary text-xs font-bold text-white">
+              <div className="relative flex size-15 items-center justify-center rounded-full border-2 border-primary/70 p-0.5 shadow-2xs transition-transform group-hover:scale-105 active:scale-95">
+                <div className="flex size-full items-center justify-center rounded-full bg-primary text-xs font-bold text-white">
                   {group.avatarText}
                 </div>
               </div>
@@ -496,7 +507,7 @@ export function ReelsScreen() {
                 key={cat}
                 type="button"
                 onClick={() => setSelectedCategory(cat)}
-                className={`rounded-full px-3.5 py-1.5 text-xs font-bold whitespace-nowrap transition-all active:scale-95 ${
+                className={`min-h-11 rounded-full px-3.5 py-1.5 text-xs font-bold whitespace-nowrap transition-all active:scale-95 focus-visible:ring-2 focus-visible:ring-primary/40 ${
                   isActive
                     ? "bg-primary text-primary-foreground shadow-2xs"
                     : "bg-secondary text-muted-foreground hover:text-foreground"
@@ -511,12 +522,9 @@ export function ReelsScreen() {
 
       {/* Video Reels Feed */}
       <div className="space-y-4 pt-1">
-        <div className="flex items-center justify-between">
-          <p className="text-xs font-bold tracking-tight text-foreground">
-            {selectedCategory === "Hepsi" ? "Öne Çıkan Video Haberler" : `${selectedCategory} Videoları`}
-          </p>
-          <span className="text-[11px] font-semibold text-[color:var(--color-gold)]">Her Video +15 GP</span>
-        </div>
+        <p className="text-xs font-bold tracking-tight text-foreground">
+          {selectedCategory === "Hepsi" ? "Öne Çıkan Video Haberler" : `${selectedCategory} Videoları`}
+        </p>
         
         {filteredReels.map((item) => {
           const isLiked = Boolean(likedMap[item.id])
@@ -527,10 +535,20 @@ export function ReelsScreen() {
               key={item.id}
               className="group relative overflow-hidden rounded-[22px] border border-border/70 bg-gradient-to-b from-card to-secondary/30 shadow-xs transition-all hover:border-primary/30"
             >
-              <div 
+              <button
+                type="button"
                 onClick={() => handleWatchVideo(item)}
-                className="relative aspect-[16/9] w-full cursor-pointer overflow-hidden bg-[color:var(--color-brand-900)]"
+                aria-label={`${item.title} videosunu oynat`}
+                className="relative block aspect-[16/9] w-full overflow-hidden bg-[color:var(--color-brand-900)] text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
               >
+                <Image
+                  src={item.imageUrl}
+                  alt=""
+                  fill
+                  unoptimized
+                  sizes="(max-width: 768px) 100vw, 520px"
+                  className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+                />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-black/10 z-10" />
                 
                 <div className="absolute inset-0 z-20 flex items-center justify-center">
@@ -543,11 +561,11 @@ export function ReelsScreen() {
                   <span className="rounded-md bg-black/50 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur-md uppercase tracking-wider">
                     {item.category}
                   </span>
-                  <span className={`rounded-md px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur-md ${
-                    isWatched ? "bg-[color:var(--color-success)]" : "bg-[color:var(--color-gold)]"
-                  }`}>
-                    {isWatched ? "İzlendi (+15 GP)" : "+15 GP İZLE"}
-                  </span>
+                  {isWatched ? (
+                    <span className="rounded-md bg-[color:var(--color-success)] px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur-md">
+                      İzlendi
+                    </span>
+                  ) : null}
                 </div>
 
                 <div className="absolute right-3 top-3 z-20">
@@ -555,7 +573,7 @@ export function ReelsScreen() {
                     {item.duration}
                   </span>
                 </div>
-              </div>
+              </button>
 
               <div className="p-4">
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
@@ -578,7 +596,7 @@ export function ReelsScreen() {
                   <button
                     type="button"
                     onClick={() => toggleLike(item.id)}
-                    className={`inline-flex items-center gap-1.5 text-xs font-semibold transition-colors ${
+                    className={`inline-flex min-h-11 items-center gap-1.5 rounded-lg text-xs font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-primary/40 ${
                       isLiked ? "text-[color:var(--color-danger)]" : "text-muted-foreground hover:text-foreground"
                     }`}
                   >
@@ -593,7 +611,7 @@ export function ReelsScreen() {
                         void navigator.share({ title: item.title, text: item.description, url: window.location.href })
                       }
                     }}
-                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-primary transition-colors"
+                    className="inline-flex min-h-11 items-center gap-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-primary transition-colors focus-visible:ring-2 focus-visible:ring-primary/40"
                   >
                     <Share2 className="size-3.5" />
                     <span>Paylaş</span>
@@ -610,15 +628,18 @@ export function ReelsScreen() {
         <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/70 p-0 sm:items-center sm:p-4 backdrop-blur-xs animate-in fade-in duration-200">
           <form
             onSubmit={handleCreateSubmit}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="social-upload-title"
             className="relative w-full max-w-md rounded-t-[28px] border border-border bg-card p-6 shadow-2xl sm:rounded-[28px] space-y-4"
           >
             <div className="flex items-center justify-between border-b border-border/60 pb-3">
-              <h2 className="font-serif text-lg font-bold text-foreground">Yeni İçerik Oluştur</h2>
+              <h2 id="social-upload-title" className="font-serif text-lg font-bold text-foreground">Yeni İçerik Oluştur</h2>
               <button
                 type="button"
                 onClick={() => setShowUploadModal(false)}
                 aria-label="Kapat"
-                className="flex size-8 items-center justify-center rounded-full bg-secondary text-muted-foreground hover:text-foreground"
+              className="flex size-11 items-center justify-center rounded-full bg-secondary text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/40"
               >
                 <X className="size-4" />
               </button>
@@ -629,7 +650,7 @@ export function ReelsScreen() {
               <button
                 type="button"
                 onClick={() => setContentType("Story")}
-                className={`flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-bold transition-all ${
+                className={`flex min-h-11 items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-bold transition-all ${
                   contentType === "Story" ? "bg-card text-foreground shadow-xs" : "text-muted-foreground"
                 }`}
               >
@@ -639,7 +660,7 @@ export function ReelsScreen() {
               <button
                 type="button"
                 onClick={() => setContentType("Reels")}
-                className={`flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-bold transition-all ${
+                className={`flex min-h-11 items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-bold transition-all ${
                   contentType === "Reels" ? "bg-card text-foreground shadow-xs" : "text-muted-foreground"
                 }`}
               >
@@ -707,14 +728,14 @@ export function ReelsScreen() {
               <button
                 type="button"
                 onClick={() => setShowUploadModal(false)}
-                className="rounded-xl bg-secondary px-4 py-2.5 text-xs font-bold text-foreground"
+                className="min-h-11 rounded-xl bg-secondary px-4 py-2.5 text-xs font-bold text-foreground focus-visible:ring-2 focus-visible:ring-primary/40"
               >
                 Vazgeç
               </button>
               <button
                 type="submit"
                 disabled={uploadBusy || !newTitle.trim()}
-                className="rounded-xl bg-primary px-5 py-2.5 text-xs font-bold text-primary-foreground shadow-2xs hover:bg-primary/90 disabled:opacity-50"
+                className="min-h-11 rounded-xl bg-primary px-5 py-2.5 text-xs font-bold text-primary-foreground shadow-2xs hover:bg-primary/90 disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-primary/40"
               >
                 {uploadBusy ? "Gönderiliyor..." : "Onaya Gönder"}
               </button>
@@ -725,7 +746,7 @@ export function ReelsScreen() {
 
       {/* Story Viewer */}
       {currentStoryGroup && currentStorySlide ? (
-        <div className="fixed inset-0 z-[100] flex flex-col bg-black text-white select-none">
+        <div role="dialog" aria-modal="true" aria-label="Hikaye görüntüleyici" className="fixed inset-0 z-[100] flex flex-col bg-black text-white select-none">
           <div className="absolute top-3 inset-x-3 z-30 flex items-center gap-1.5">
             {currentStoryGroup.slides.map((slide, i) => (
               <div key={slide.id} className="h-1 flex-1 overflow-hidden rounded-full bg-white/30">
@@ -755,26 +776,32 @@ export function ReelsScreen() {
             <button
               type="button"
               onClick={() => setActiveStoryGroupIndex(null)}
-              className="flex size-8 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-md hover:bg-black/60"
+              aria-label="Hikayeyi kapat"
+              className="flex size-11 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-md hover:bg-black/60 focus-visible:ring-2 focus-visible:ring-white/70"
             >
               <X className="size-4" />
             </button>
           </div>
 
-          <div className="relative flex-1 bg-gradient-to-b from-[color:var(--color-brand-900)] via-[#0b1f20] to-black p-6 flex flex-col justify-end">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_35%,#1d5f60_0%,#0b1f20_75%)] opacity-80" />
+          <div className="relative flex-1 bg-[color:var(--color-brand-900)] p-6 flex flex-col justify-end overflow-hidden">
+            <Image src={currentStorySlide.imageUrl} alt="" fill unoptimized sizes="100vw" className="object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-black/25" />
 
-            <div
+            <button
+              type="button"
               onClick={handlePrevSlide}
-              className="absolute left-0 top-16 bottom-24 w-1/3 z-20 cursor-pointer"
+              aria-label="Önceki hikaye"
+              className="absolute bottom-24 left-0 top-16 z-20 w-1/3 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/70"
             />
-            <div
+            <button
+              type="button"
               onClick={handleNextSlide}
-              className="absolute right-0 top-16 bottom-24 w-2/3 z-20 cursor-pointer"
+              aria-label="Sonraki hikaye"
+              className="absolute bottom-24 right-0 top-16 z-20 w-2/3 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/70"
             />
 
             <div className="relative z-30 space-y-3 pb-8">
-              <span className="inline-flex items-center gap-1 rounded-full bg-[color:var(--color-gold)] px-2.5 py-0.5 text-[10px] font-bold text-white uppercase tracking-wider">
+              <span className="inline-flex items-center gap-1 rounded-full bg-primary px-2.5 py-0.5 text-[10px] font-bold text-white uppercase tracking-wider">
                 <Sparkles className="size-3" />
                 {currentStorySlide.category}
               </span>
@@ -806,13 +833,13 @@ export function ReelsScreen() {
 
       {/* Video Modal Player */}
       {activeReel ? (
-        <div className="fixed inset-0 z-[90] flex flex-col bg-black text-white">
+        <div role="dialog" aria-modal="true" aria-label="Video oynatıcı" className="fixed inset-0 z-[90] flex flex-col bg-black text-white">
           <div className="flex items-center justify-between p-4 z-20">
             <span className="text-xs font-semibold text-white/80">{activeReel.category}</span>
             <button
               type="button"
               onClick={() => setActiveReel(null)}
-              className="rounded-full bg-white/20 px-3 py-1 text-xs font-bold text-white backdrop-blur-md"
+              className="min-h-11 rounded-full bg-white/20 px-4 py-2 text-xs font-bold text-white backdrop-blur-md focus-visible:ring-2 focus-visible:ring-white/70"
             >
               Kapat
             </button>

@@ -1,78 +1,25 @@
 "use client"
 
-import { useState } from "react"
 import { Screen } from "@/components/golbox/screen"
 import { 
-  Building2, 
-  Coffee, 
-  GraduationCap, 
+  CalendarDays,
   Ticket, 
   User, 
   PhoneCall, 
   MapPin, 
-  ChevronRight, 
-  ExternalLink,
-  Sparkles,
-  Info,
-  QrCode
+  Building2,
 } from "lucide-react"
 import { useGolbox } from "@/lib/golbox-context"
-
-export interface FacilityItem {
-  id: string
-  name: string
-  category: string
-  address: string
-  hours: string
-  icon: typeof Coffee
-  badge?: string
-}
-
-const DEMO_FACILITIES: FacilityItem[] = [
-  {
-    id: "fac-1",
-    name: "Şehitkamil Sanat ve Kitap Kafe",
-    category: "Kitap Kafe ve Kütüphane",
-    address: "Güvenevler Mah. 29017 Sk. No:4",
-    hours: "24 Saat Açık",
-    icon: Coffee,
-    badge: "GölBox Noktası",
-  },
-  {
-    id: "fac-2",
-    name: "Dülük Tabiat Parkı Gençlik Kampı",
-    category: "Doğa ve Spor",
-    address: "Dülük Köyü İçi Yolu No:1",
-    hours: "08:00 - 22:00",
-    icon: Building2,
-  },
-  {
-    id: "fac-3",
-    name: "Şehitkamil Gençlik Sanat Merkezi",
-    category: "Kültür ve Sanat",
-    address: "Atatürk Mah. 15002 Sk.",
-    hours: "09:00 - 18:00",
-    icon: GraduationCap,
-  },
-  {
-    id: "fac-4",
-    name: "İbrahimli Spor Kompleksi ve Havuz",
-    category: "Spor Tesisleri",
-    address: "İbrahimli Mah. Batıkent Cad.",
-    hours: "07:00 - 23:00",
-    icon: Building2,
-  },
-]
+import type { TabId } from "@/lib/golbox-data"
 
 export function MenuScreen({
   onNavigate,
   onOpenCoupons,
 }: {
-  onNavigate: (tab: any) => void
+  onNavigate: (tab: TabId) => void
   onOpenCoupons: () => void
 }) {
-  const { user, token } = useGolbox()
-  const [selectedFacility, setSelectedFacility] = useState<FacilityItem | null>(null)
+  const { cafes, cafesLoadState } = useGolbox()
 
   return (
     <Screen className="space-y-6 pb-12">
@@ -81,10 +28,10 @@ export function MenuScreen({
           Kurumsal ve Hizmetler
         </span>
         <h1 className="font-serif text-2xl font-bold tracking-tight text-foreground">
-          Menü ve Tesisler
+          Menü
         </h1>
         <p className="mt-1 text-xs text-muted-foreground">
-          Şehitkamil Belediyesi tesisleri, kitap kafeleri ve kurumsal hizmetler.
+          Şehitkamil Belediyesi hizmetleri ve uygulama bölümleri.
         </p>
       </header>
 
@@ -109,15 +56,15 @@ export function MenuScreen({
 
           <button
             type="button"
-            onClick={() => onNavigate("qr")}
-            className="flex flex-col items-center justify-center text-center gap-1.5 rounded-[18px] border border-primary/40 bg-primary/5 p-3 shadow-2xs transition-all hover:border-primary active:scale-95"
+            onClick={() => onNavigate("events")}
+            className="flex flex-col items-center justify-center text-center gap-1.5 rounded-[18px] border border-border/70 bg-card p-3 shadow-2xs transition-all hover:border-primary/40 active:scale-95"
           >
-            <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-              <QrCode className="size-4.5" />
+            <span className="flex size-9 items-center justify-center rounded-xl bg-secondary text-primary">
+              <CalendarDays className="size-4.5" />
             </span>
             <div>
-              <p className="text-xs font-bold text-foreground">QR Kodum</p>
-              <p className="text-[10px] text-muted-foreground">Kasa Kodu</p>
+              <p className="text-xs font-bold text-foreground">Etkinlikler</p>
+              <p className="text-[10px] text-muted-foreground">Şehir Takvimi</p>
             </div>
           </button>
 
@@ -140,7 +87,7 @@ export function MenuScreen({
       {/* Belediye Tesisleri Listesi */}
       <section aria-label="Belediye Tesisleri" className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-bold text-foreground">Şehitkamil Belediye Tesisleri</h2>
+          <h2 className="text-sm font-bold text-foreground">Şehitkamil Belediyesi Tesisleri</h2>
           <button
             type="button"
             onClick={() => onNavigate("map")}
@@ -152,25 +99,23 @@ export function MenuScreen({
         </div>
 
         <div className="space-y-2.5">
-          {DEMO_FACILITIES.map((fac) => {
-            const Icon = fac.icon
-            return (
+          {cafes.map((fac) => (
               <div
                 key={fac.id}
                 className="group flex w-full items-center gap-3.5 rounded-[20px] border border-border/70 bg-card p-3.5 text-left shadow-2xs transition-all hover:border-primary/30"
               >
                 <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-secondary text-primary">
-                  <Icon className="size-5.5" strokeWidth={1.8} />
+                  <Building2 className="size-5.5" strokeWidth={1.8} />
                 </span>
 
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-semibold text-muted-foreground uppercase">
-                      {fac.category}
+                      {fac.categoryName || "Belediye Tesisi"}
                     </span>
-                    {fac.badge ? (
+                    {fac.isActive !== false ? (
                       <span className="rounded-md bg-[color:var(--color-gold)]/20 px-1.5 py-0.5 text-[9px] font-bold text-[color:var(--color-gold)] uppercase">
-                        {fac.badge}
+                        Ödül Kullanım Noktası
                       </span>
                     ) : null}
                   </div>
@@ -178,12 +123,20 @@ export function MenuScreen({
                   <p className="truncate text-xs text-muted-foreground mt-0.5">{fac.address}</p>
                 </div>
 
-                <span className="shrink-0 rounded-lg bg-secondary/80 px-2 py-1 text-[10px] font-semibold text-muted-foreground">
-                  {fac.hours}
+                <span className={`shrink-0 rounded-lg px-2 py-1 text-[10px] font-semibold ${
+                  fac.isActive === false
+                    ? "bg-destructive/10 text-destructive"
+                    : "bg-emerald-600/10 text-emerald-700 dark:text-emerald-400"
+                }`}>
+                  {fac.isActive === false ? "Kapalı" : "Açık"}
                 </span>
               </div>
-            )
-          })}
+          ))}
+          {cafesLoadState === "empty" || cafesLoadState === "error" ? (
+            <div className="rounded-[20px] border border-dashed border-border p-5 text-center text-xs text-muted-foreground">
+              Tesis bilgileri şu anda görüntülenemiyor.
+            </div>
+          ) : null}
         </div>
       </section>
 

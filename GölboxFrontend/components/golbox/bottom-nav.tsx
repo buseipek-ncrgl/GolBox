@@ -40,7 +40,7 @@ export function BottomNav({
                 aria-label={item.label}
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
-                  "relative flex items-center justify-center gap-1.5 rounded-full py-2 transition-all duration-300 active:scale-95",
+                  "relative flex min-h-11 items-center justify-center gap-1.5 rounded-full py-2 transition-all duration-300 active:scale-95 focus-visible:ring-2 focus-visible:ring-primary/40",
                   isActive
                     ? "bg-primary px-3.5 text-primary-foreground shadow-2xs font-bold"
                     : "px-2.5 text-muted-foreground hover:bg-secondary hover:text-foreground"

@@ -10,7 +10,6 @@ import { PlacesOverlay } from "@/components/golbox/places-overlay"
 import { PlaceDetailSheet } from "@/components/golbox/place-detail-sheet"
 import { ActivityOverlay, NotificationsSheet } from "@/components/golbox/home/home-sheets"
 import { HomeScreen } from "@/components/golbox/screens/home-screen"
-import { QrScreen } from "@/components/golbox/screens/qr-screen"
 import { ProfileScreen } from "@/components/golbox/screens/profile-screen"
 import { MapScreen } from "@/components/golbox/screens/map-screen"
 import { EventsScreen } from "@/components/golbox/screens/events-screen"
@@ -80,7 +79,6 @@ export function AppShell() {
           firstName={user?.firstName}
           pointsBalance={token ? (user?.pointsBalance ?? 0) : undefined}
           onOpenPoints={() => goto("rewards")}
-          onOpenQr={() => goto("qr")}
           unreadCount={unreadCount}
           onNotifications={() => void handleOpenNotifications()}
           onProfile={() => goto("profile")}
@@ -111,7 +109,6 @@ export function AppShell() {
             onOpenCoupons={() => setShowCoupons(true)}
           />
         )}
-        {tab === "qr" && <QrScreen />}
         {tab === "map" && (
           <MapScreen
             layer={mapLayer}
