@@ -17,7 +17,7 @@ const fraunces = Fraunces({
 })
 
 export const metadata: Metadata = {
-  title: "Şehitkamil+",
+  title: "Şehitkamil",
   description: "Şehitkamil Belediyesi’nin modern vatandaş uygulaması.",
   generator: "v0.app",
 }

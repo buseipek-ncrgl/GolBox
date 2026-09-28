@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Image from "next/image"
 import { Coffee, CheckCircle2, Clock, Users, ArrowRight } from "lucide-react"
 import { useGolbox } from "@/lib/golbox-context"
 
@@ -37,6 +38,18 @@ export function IsmarliyorCard({
   const { token, addBonusPoints } = useGolbox()
   const [joined, setJoined] = useState(false)
   const [busy, setBusy] = useState(false)
+  const sponsorInitials = campaign.sponsorName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toLocaleUpperCase("tr-TR"))
+    .join("")
+  const studentCondition = campaign.conditions.find((condition) =>
+    condition.toLocaleLowerCase("tr-TR").includes("öğrenci"),
+  )
+  const targetAudience = studentCondition?.toLocaleLowerCase("tr-TR").includes("üniversite öğrencisi")
+    ? "Üniversite Öğrencileri"
+    : undefined
 
   const handleJoin = () => {
     if (!token) return
@@ -67,8 +80,19 @@ export function IsmarliyorCard({
       <div className="relative overflow-hidden rounded-[22px] border border-primary/20 bg-gradient-to-br from-card via-card to-primary/5 p-4 shadow-xs">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-sm border border-primary/20">
-              UY
+            <div className="relative flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full border border-primary/20 bg-primary/10 text-sm font-bold text-primary">
+              {campaign.sponsorAvatar ? (
+                <Image
+                  src={campaign.sponsorAvatar}
+                  alt={`${campaign.sponsorName} profil fotoğrafı`}
+                  fill
+                  unoptimized
+                  sizes="44px"
+                  className="object-cover"
+                />
+              ) : (
+                <span aria-label={`${campaign.sponsorName} baş harfleri`}>{sponsorInitials}</span>
+              )}
             </div>
             <div>
               <p className="text-xs font-bold text-primary">{campaign.sponsorName} Ismarlıyor</p>
@@ -85,6 +109,11 @@ export function IsmarliyorCard({
           <h3 className="font-serif text-base font-bold leading-tight text-foreground">
             {campaign.itemName}
           </h3>
+          {targetAudience ? (
+            <span className="inline-flex min-h-7 items-center rounded-full bg-primary/10 px-2.5 text-[11px] font-bold text-primary">
+              Hedef Kitle: {targetAudience}
+            </span>
+          ) : null}
           <div className="space-y-1 pt-1">
             <p className="text-[11px] font-semibold text-muted-foreground">Katılım şartları:</p>
             <ul className="space-y-0.5">
@@ -109,7 +138,7 @@ export function IsmarliyorCard({
               type="button"
               onClick={handleJoin}
               disabled={busy}
-              className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground shadow-2xs hover:bg-primary/90 transition-all active:scale-95 disabled:opacity-50"
+              className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground shadow-2xs hover:bg-primary/90 transition-all active:scale-95 disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-primary/40"
             >
               {busy ? "İşleniyor..." : "Katıl ve İkram Kazan"}
               <ArrowRight className="size-3.5" />

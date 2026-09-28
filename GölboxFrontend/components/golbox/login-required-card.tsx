@@ -10,7 +10,7 @@ export function LoginRequiredCard({
   return (
     <article className="rounded-[18px] border border-border bg-card px-4 py-4">
       <p className="text-[15px] font-semibold leading-snug text-foreground">
-        Kasada göstermek ve kuponlarını kullanmak için Şehitkamil+ hesabınla giriş yap.
+        Kasada göstermek ve kuponlarını kullanmak için Şehitkamil hesabınla giriş yap.
       </p>
       <button type="button" onClick={onLogin} className="mt-2 min-h-11 text-sm font-semibold text-primary">
         Giriş yap →

@@ -1,11 +1,11 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('Şehitkamil+ Citizen App Pilot Hardening Suite', () => {
+test.describe('Şehitkamil Citizen App Pilot Hardening Suite', () => {
 
   test('Guest home & places view without authed state', async ({ page }) => {
     await page.goto('http://127.0.0.1:3000');
     // Ensure page loads without error and displays welcome/brand title
-    await expect(page).toHaveTitle(/Şehitkamil\+/i);
+    await expect(page).toHaveTitle(/^Şehitkamil$/i);
     // Guest should see prompt to login for GP balance instead of fake 0 GP
     const bodyText = await page.content();
     expect(bodyText).toBeDefined();

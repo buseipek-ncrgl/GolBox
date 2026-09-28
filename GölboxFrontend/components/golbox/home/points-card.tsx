@@ -17,7 +17,7 @@ export function GuestPointsCard({ onLogin }: { onLogin: () => void }) {
             </span>
             <h2 className="mt-2.5 text-base font-semibold tracking-tight text-foreground">GölPuan kazanmaya başla</h2>
             <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-              Şehitkamil+ dijital hesabınla etkinliklerden puan kazan, ödül kuponlarını hemen kullan.
+              Şehitkamil dijital hesabınla etkinliklerden puan kazan, ödül kuponlarını hemen kullan.
             </p>
           </div>
         </div>
@@ -68,7 +68,7 @@ export function PointsCard({
             <Coins className="size-3.5 text-[color:var(--color-gold)]" strokeWidth={2} />
             GölPuan Bakiyen
           </span>
-          <span className="text-[11px] font-medium text-white/70">Şehitkamil+</span>
+          <span className="text-[11px] font-medium text-white/70">Şehitkamil</span>
         </div>
 
         <div className="relative mt-3.5 flex items-baseline gap-2">
@@ -120,4 +120,3 @@ export function PointsCard({
     </section>
   )
 }
-

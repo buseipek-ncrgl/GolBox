@@ -349,7 +349,7 @@ export function HomeScreen({
       {sheet?.type === "earn" && (
         <EarnInfoSheet
           onClose={() => setSheet(null)}
-          onQr={() => onNavigate("qr")}
+          onQr={() => onNavigate("rewards")}
           onMap={() => onNavigate("map")}
         />
       )}
