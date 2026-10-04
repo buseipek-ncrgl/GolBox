@@ -1,6 +1,6 @@
 "use client"
 
-import { Bell, Coins, User } from "lucide-react"
+import { Bell, Coins, User, MapPin, ChevronDown } from "lucide-react"
 import { GPValue } from "@/components/golbox/gp-value"
 import { cn } from "@/lib/utils"
 
@@ -16,7 +16,10 @@ export function AppHeader({
   onOpenPoints,
   onNotifications,
   onProfile,
+  onOpenBranches,
+  selectedBranchName,
   unreadCount = 0,
+  showGreeting = true,
   className,
 }: {
   firstName?: string
@@ -24,7 +27,10 @@ export function AppHeader({
   onOpenPoints?: () => void
   onNotifications: () => void
   onProfile: () => void
+  onOpenBranches?: () => void
+  selectedBranchName?: string
   unreadCount?: number
+  showGreeting?: boolean
   className?: string
 }) {
   const greeting = greetingForHour(new Date().getHours())
@@ -35,15 +41,29 @@ export function AppHeader({
     <header className={cn("flex items-center justify-between gap-2 py-1.5", className)}>
       <div className="min-w-0">
         <div className="flex items-center gap-1.5">
-          <span className="inline-block size-2 rounded-full bg-primary" />
-          <span className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase">
+          <span className="inline-block size-2 rounded-full bg-emerald-600" />
+          <span className="text-[10px] font-extrabold tracking-widest text-muted-foreground uppercase">
             T.C. Şehitkamil Belediyesi
           </span>
         </div>
-        <h1 className="mt-0.5 truncate font-serif text-xl font-bold tracking-tight text-foreground">
-          Şehitkamil
-        </h1>
-        <p className="truncate text-xs font-medium text-muted-foreground">{line}</p>
+        <div className="flex items-center gap-2">
+          <h1 className="mt-0.5 font-serif text-xl font-bold tracking-tight text-foreground shrink-0">
+            GölBOX
+          </h1>
+          {onOpenBranches && (
+            <button
+              type="button"
+              onClick={onOpenBranches}
+              aria-label="Şube Değiştir"
+              className="mt-0.5 inline-flex items-center gap-1 rounded-xl bg-primary/10 border border-primary/20 px-2 py-0.5 text-[10px] font-extrabold text-primary hover:bg-primary/20 transition truncate max-w-[160px] active:scale-95 cursor-pointer"
+            >
+              <MapPin className="size-3 text-primary shrink-0" />
+              <span className="truncate">{selectedBranchName || "Şube Seç"}</span>
+              <ChevronDown className="size-3 text-primary shrink-0 ml-0.5" />
+            </button>
+          )}
+        </div>
+        {showGreeting && <p className="truncate text-xs font-medium text-muted-foreground">{line}</p>}
       </div>
 
       <div className="flex shrink-0 items-center gap-1.5">
@@ -89,4 +109,3 @@ export function AppHeader({
     </header>
   )
 }
-

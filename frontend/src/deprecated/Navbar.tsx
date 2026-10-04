@@ -18,7 +18,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
     <nav className="nav-bar">
       <div className="nav-logo">
         <Sparkles size={24} color="#ff6600" />
-        <span>Şehitkamil+</span>
+        <span>GölBOX</span>
       </div>
 
       <div className="nav-links">

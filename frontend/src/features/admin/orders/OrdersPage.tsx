@@ -6,6 +6,7 @@ import { Button, DataTable, FilterBar, Modal, Pagination, Select, StatusBadge } 
 import { canonicalizeOrderStatus } from '../../../lib/adminLabels';
 import { useAdminFeedback } from '../AdminFeedback';
 import { OrderActions } from './OrderActions';
+import { StaffOrdersView } from './StaffOrdersView';
 
 const PILLS = [
   { id: 'All', label: 'Tümü' },
@@ -17,7 +18,9 @@ const PILLS = [
 ];
 
 export function OrdersPage() {
-  const { setSuccess, setError, savingKey, setSavingKey } = useAdminFeedback();
+  const { isAdmin, setSuccess, setError, savingKey, setSavingKey } = useAdminFeedback();
+  const [viewMode, setViewMode] = useState<'terminal' | 'table'>(isAdmin ? 'table' : 'terminal');
+
   const [items, setItems] = useState<any[]>([]);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
@@ -57,11 +60,32 @@ export function OrdersPage() {
     }).catch(() => undefined);
   }, []);
 
+  // Staff users always use the operational terminal view
+  if (!isAdmin || viewMode === 'terminal') {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {isAdmin && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <Button size="sm" variant="secondary" onClick={() => setViewMode('table')}>
+              📋 Liste Görünümüne Geç (Admin Tablosu)
+            </Button>
+          </div>
+        )}
+        <StaffOrdersView />
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
         <p style={{ color: '#64748b', margin: 0 }}>Canonical akış: Bekliyor → Hazırlanıyor → Teslime Hazır → Tamamlandı</p>
-        <Button onClick={() => setShowCreate(true)}>+ Yeni Ismarlıyor</Button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Button size="sm" variant="secondary" onClick={() => setViewMode('terminal')}>
+            📱 Personel Terminal Görünümü (Kanban)
+          </Button>
+          <Button onClick={() => setShowCreate(true)}>+ Yeni Ismarlıyor</Button>
+        </div>
       </div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         {PILLS.map((p) => (

@@ -6,36 +6,58 @@ import { useGolbox } from "@/lib/golbox-context"
 import { AppHeader } from "@/components/golbox/app-header"
 import { BottomNav } from "@/components/golbox/bottom-nav"
 import { CafeDetailSheet } from "@/components/golbox/cafe-detail-sheet"
-import { PlacesOverlay } from "@/components/golbox/places-overlay"
-import { PlaceDetailSheet } from "@/components/golbox/place-detail-sheet"
-import { ActivityOverlay, NotificationsSheet } from "@/components/golbox/home/home-sheets"
+import { NotificationsSheet } from "@/components/golbox/home/home-sheets"
 import { HomeScreen } from "@/components/golbox/screens/home-screen"
 import { ProfileScreen } from "@/components/golbox/screens/profile-screen"
-import { MapScreen } from "@/components/golbox/screens/map-screen"
-import { EventsScreen } from "@/components/golbox/screens/events-screen"
-import { ReelsScreen } from "@/components/golbox/screens/reels-screen"
-import { MoreScreen } from "@/components/golbox/screens/more-screen"
+import { QrScreen } from "@/components/golbox/screens/qr-screen"
 import { RewardsScreen } from "@/components/golbox/screens/rewards-screen"
-import { ApplicationsScreen } from "@/components/golbox/screens/applications-screen"
 import { MenuScreen } from "@/components/golbox/screens/menu-screen"
 import { LoginScreen } from "@/components/golbox/screens/login-screen"
-import { fetchMyNotifications, markNotificationRead, type CitizenNotification } from "@/lib/city-content-api"
+import { SplashScreen } from "@/components/golbox/screens/splash-screen"
+import { BranchesScreen } from "@/components/golbox/screens/branches-screen"
+import { CampaignsScreen } from "@/components/golbox/screens/campaigns-screen"
+import { EventsScreen } from "@/components/golbox/screens/events-screen"
+import { MissionsScreen } from "@/components/golbox/screens/missions-screen"
+import { useEffect } from "react"
+import { InAppNotificationToast } from "@/components/golbox/notifications/in-app-notification-toast"
+import { fetchMyNotifications, type CitizenNotification } from "@/lib/city-content-api"
 
 export function AppShell() {
-  const { token, user, unreadCount, refreshUnreadCount, sessionReady } = useGolbox()
+  const { token, user, unreadCount, sessionReady, selectedBranch, refreshData } = useGolbox()
+  const [showSplash, setShowSplash] = useState(true)
   const [tab, setTab] = useState<TabId>("home")
   const [cafeId, setCafeId] = useState<string | null>(null)
-  const [placeId, setPlaceId] = useState<string | null>(null)
-  const [showPlaces, setShowPlaces] = useState(false)
-  const [activityId, setActivityId] = useState<string | null>(null)
   const [showCoupons, setShowCoupons] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
+  const [showBranches, setShowBranches] = useState(false)
+  const [showCampaigns, setShowCampaigns] = useState(false)
+  const [showEvents, setShowEvents] = useState(false)
+  const [showMissions, setShowMissions] = useState(false)
   const [notifications, setNotifications] = useState<CitizenNotification[]>([])
   const [notificationsLoading, setNotificationsLoading] = useState(false)
-  const [mapLayer, setMapLayer] = useState<"places" | "golbox">("golbox")
-  const [mapFocusPlaceId, setMapFocusPlaceId] = useState<string | null>(null)
+  const [transientNotification, setTransientNotification] = useState<CitizenNotification | null>(null)
 
-  // Direct login screen when unauthenticated (no guest mode)
+  // APP RESUME FOREGROUND SYNC (PRD SECTIONS 103, 218, 294)
+  useEffect(() => {
+    const handleResume = () => {
+      if (document.visibilityState === "visible") {
+        void refreshData()
+      }
+    }
+    window.addEventListener("focus", handleResume)
+    document.addEventListener("visibilitychange", handleResume)
+    return () => {
+      window.removeEventListener("focus", handleResume)
+      document.removeEventListener("visibilitychange", handleResume)
+    }
+  }, [refreshData])
+
+  // 1. SPLASH SCREEN (Section 1)
+  if (showSplash) {
+    return <SplashScreen onComplete={() => setShowSplash(false)} />
+  }
+
+  // 2. AUTH GATE / LOGIN SCREEN (Section 2 & 3)
   if (sessionReady && !token) {
     return (
       <div className="relative flex h-full flex-col justify-center p-5 bg-background">
@@ -46,14 +68,12 @@ export function AppShell() {
 
   const goto = (next: TabId) => {
     setCafeId(null)
-    setPlaceId(null)
-    setShowPlaces(false)
-    setActivityId(null)
     setShowCoupons(false)
-    if (next === "map") {
-      setMapLayer("golbox")
-      setMapFocusPlaceId(null)
-    }
+    setShowBranches(false)
+    setShowCampaigns(false)
+    setShowEvents(false)
+    setShowMissions(false)
+    setShowNotifications(false)
     setTab(next)
   }
 
@@ -71,17 +91,47 @@ export function AppShell() {
     }
   }
 
+  // DEEP LINK ROUTER ENGINE (PRD SECTIONS 41, 49, 143-145)
+  const handleNotificationClick = (item: CitizenNotification) => {
+    setShowNotifications(false)
+    setTransientNotification(null)
+
+    const entityType = item.entityType || ""
+    const type = item.type || ""
+
+    if (entityType === "ORDER" || type.startsWith("ORDER_")) {
+      if (type === "ORDER_READY" || item.title.toLowerCase().includes("hazır") || item.body.toLowerCase().includes("hazır")) {
+        goto("qr")
+      } else {
+        goto("home")
+      }
+    } else if (entityType === "EVENT" || type.startsWith("EVENT_")) {
+      setShowEvents(true)
+    } else if (entityType === "MISSION" || type.startsWith("MISSION_")) {
+      setShowMissions(true)
+    } else if (entityType === "REWARD" || type.startsWith("LOYALTY_")) {
+      goto("golpuan")
+    } else if (entityType === "CAMPAIGN" || type.startsWith("CAMPAIGN_")) {
+      setShowCampaigns(true)
+    } else {
+      goto("home")
+    }
+  }
+
   return (
     <div className="relative flex h-full flex-col [--gol-dock:7.5rem]">
-      {/* Global Persistent Header across all tabs */}
-      <div className="px-5 pt-2">
+      {/* Global Persistent Header (Sticky at top) */}
+      <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-md px-5 py-2 border-b border-border/40 shadow-2xs">
         <AppHeader
           firstName={user?.firstName}
           pointsBalance={token ? (user?.pointsBalance ?? 0) : undefined}
-          onOpenPoints={() => goto("rewards")}
+          onOpenPoints={() => goto("golpuan")}
           unreadCount={unreadCount}
           onNotifications={() => void handleOpenNotifications()}
           onProfile={() => goto("profile")}
+          onOpenBranches={() => setShowBranches(true)}
+          selectedBranchName={selectedBranch?.name}
+          showGreeting={false}
         />
       </div>
 
@@ -90,37 +140,80 @@ export function AppShell() {
           <HomeScreen
             onNavigate={goto}
             onOpenCafe={setCafeId}
-            onOpenPlace={setPlaceId}
-            onOpenPlaces={() => {
-              setMapLayer("places")
-              goto("map")
-            }}
-            onOpenActivity={setActivityId}
+            onOpenCampaigns={() => setShowCampaigns(true)}
+            onOpenEvents={() => setShowEvents(true)}
+            onOpenMissions={() => setShowMissions(true)}
             hideHeader
           />
         )}
-        {tab === "events" && <EventsScreen onOpenActivity={setActivityId} />}
-        {(tab === "media" || tab === "reels") && <ReelsScreen />}
-        {tab === "applications" && <ApplicationsScreen onNavigate={goto} />}
-        {tab === "rewards" && <RewardsScreen />}
-        {(tab === "menu" || tab === "more") && (
+        {tab === "menu" && (
           <MenuScreen
             onNavigate={goto}
             onOpenCoupons={() => setShowCoupons(true)}
           />
         )}
-        {tab === "map" && (
-          <MapScreen
-            layer={mapLayer}
-            onLayerChange={setMapLayer}
-            focusPlaceId={mapFocusPlaceId}
-            onOpenPlace={setPlaceId}
+        {tab === "qr" && <QrScreen />}
+        {tab === "golpuan" && (
+          <RewardsScreen onOpenMissions={() => setShowMissions(true)} />
+        )}
+        {tab === "profile" && (
+          <ProfileScreen
+            onOpenEvents={() => setShowEvents(true)}
+            onOpenMissions={() => setShowMissions(true)}
           />
         )}
-        {tab === "profile" && <ProfileScreen />}
       </main>
 
       <BottomNav active={tab} onChange={goto} />
+
+      {showBranches && (
+        <BranchesScreen
+          onBack={() => setShowBranches(false)}
+          onSelectBranchSuccess={() => setShowBranches(false)}
+          onNavigateToMenu={() => {
+            setShowBranches(false)
+            goto("menu")
+          }}
+        />
+      )}
+
+      {showCampaigns && (
+        <CampaignsScreen
+          onBack={() => setShowCampaigns(false)}
+          onNavigateToMenu={() => {
+            setShowCampaigns(false)
+            goto("menu")
+          }}
+        />
+      )}
+
+      {showEvents && (
+        <EventsScreen
+          onBack={() => setShowEvents(false)}
+          onOpenQrScreen={() => {
+            setShowEvents(false)
+            goto("qr")
+          }}
+        />
+      )}
+
+      {showMissions && (
+        <MissionsScreen
+          onBack={() => setShowMissions(false)}
+          onNavigateToMenu={() => {
+            setShowMissions(false)
+            goto("menu")
+          }}
+          onNavigateToEvents={() => {
+            setShowMissions(false)
+            setShowEvents(true)
+          }}
+          onNavigateToBranches={() => {
+            setShowMissions(false)
+            setShowBranches(true)
+          }}
+        />
+      )}
 
       {showNotifications && (
         <NotificationsSheet
@@ -132,43 +225,24 @@ export function AppShell() {
             setShowNotifications(false)
             goto("profile")
           }}
-          onOpen={() => setShowNotifications(false)}
+          onOpen={(item) => handleNotificationClick(item)}
+          onMarkAllRead={() => setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })))}
         />
       )}
+
+      {transientNotification && (
+        <InAppNotificationToast
+          notification={transientNotification}
+          onOpen={() => handleNotificationClick(transientNotification)}
+          onDismiss={() => setTransientNotification(null)}
+        />
+      )}
+
       {showCoupons && (
         <RewardsScreen
           initialTab="coupons"
           onClose={() => setShowCoupons(false)}
           closeLabel="Geri Dön"
-        />
-      )}
-      {showPlaces && (
-        <PlacesOverlay onOpenPlace={setPlaceId} onClose={() => setShowPlaces(false)} />
-      )}
-      {placeId && (
-        <PlaceDetailSheet
-          placeId={placeId}
-          onClose={() => setPlaceId(null)}
-          onOpenCafe={setCafeId}
-          onOpenActivity={setActivityId}
-          onOpenMap={(place) => {
-            setPlaceId(null)
-            setShowPlaces(false)
-            setActivityId(null)
-            setMapFocusPlaceId(place.id)
-            setMapLayer("places")
-            setTab("map")
-          }}
-        />
-      )}
-      {activityId && (
-        <ActivityOverlay
-          activityId={activityId}
-          onClose={() => setActivityId(null)}
-          onOpenPlace={(id) => {
-            setActivityId(null)
-            setPlaceId(id)
-          }}
         />
       )}
       {cafeId && <CafeDetailSheet cafeId={cafeId} onClose={() => setCafeId(null)} />}

@@ -42,21 +42,28 @@ export interface MenuItem {
 
 export interface Order {
   id: string
+  orderNumber?: string
   userId: string
   userFullName: string
   cafeName: string
+  branchAddress?: string
   totalAmount: number
   paidWithPoints: boolean
   pointsUsed: number
-  status: string
+  status: "PENDING" | "CONFIRMED" | "PREPARING" | "READY" | "COMPLETED" | "CANCELLED" | "NO_SHOW" | string
+  paymentStatus?: "UNPAID" | "PAID"
   collectionCode: string
   imageUrl?: string
   createdDate: string
+  estimatedMin?: number
+  estimatedMax?: number
+  canCancel?: boolean
   items: {
     id: string
     menuItemId: string
     menuItemName: string
     menuItemImageUrl?: string
+    customizationSummary?: string
     quantity: number
     unitPrice: number
   }[]
@@ -135,6 +142,37 @@ export interface PointTransaction {
   createdDate: string
 }
 
+export interface SavedConfiguration {
+  id: string
+  productId: string
+  name: string
+  summary: string
+  createdAt: string
+}
+
+export interface FoodCartItem {
+  id: string
+  product: MenuItem & { imageUrl?: string; studentPrice?: number }
+  customizationSummary: string
+  quantity: number
+  unitPrice: number
+  totalPrice: number
+  isAvailable?: boolean
+}
+
+export interface SelectedBranch {
+  id: string
+  name: string
+  address: string
+  latitude?: number
+  longitude?: number
+  isOpen?: boolean
+  closesAt?: string
+  pickupStatus?: string
+  estimatedMin?: number
+  estimatedMax?: number
+}
+
 interface GolboxContextType {
   token: string | null
   user: UserProfile | null
@@ -153,6 +191,14 @@ interface GolboxContextType {
   sessionError: boolean
   cafesLoadState: CafesLoadState
   publicSettings: PublicSettings
+  foodCart: FoodCartItem[]
+  selectedBranch: SelectedBranch
+  addToFoodCart: (product: MenuItem, quantity: number, customizationSummary: string, unitPrice: number) => void
+  updateFoodCartQuantity: (cartItemId: string, quantity: number) => void
+  updateFoodCartCustomization: (cartItemId: string, customizationSummary: string, unitPrice: number) => void
+  removeFromFoodCart: (cartItemId: string) => void
+  clearFoodCart: () => void
+  setSelectedBranch: (branch: SelectedBranch) => void
   login: (email: string, password: string) => Promise<boolean>
   logout: () => void
   register: (data: any) => Promise<boolean>
@@ -169,6 +215,10 @@ interface GolboxContextType {
   loadMyCaptures: () => Promise<void>
   captureFieldDrop: (id: string, latitude: number, longitude: number) => Promise<boolean>
   unreadCount: number
+  favorites: string[]
+  toggleFavorite: (productId: string) => void
+  savedConfigurations: SavedConfiguration[]
+  saveCustomConfiguration: (name: string, productId: string, summary: string) => void
   refreshUnreadCount: () => Promise<void>
   addBonusPoints: (amount: number, description: string) => void
   updateProfileState: (firstName: string, lastName: string) => Promise<void> | void
@@ -280,6 +330,167 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
     pointsExchangeRate: 1,
   })
   const [unreadCount, setUnreadCount] = useState(0)
+  const [favorites, setFavoritesState] = useState<string[]>(() => {
+    if (typeof window === "undefined") return ["m-1", "m-4"]
+    try {
+      const raw = localStorage.getItem("gol_favorites")
+      return raw ? JSON.parse(raw) : ["m-1", "m-4"]
+    } catch {
+      return ["m-1", "m-4"]
+    }
+  })
+
+  const toggleFavorite = useCallback((productId: string) => {
+    setFavoritesState((prev) => {
+      const next = prev.includes(productId) ? prev.filter((id) => id !== productId) : [...prev, productId]
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem("gol_favorites", JSON.stringify(next))
+        } catch {}
+      }
+      return next
+    })
+  }, [])
+
+  const [savedConfigurations, setSavedConfigurations] = useState<SavedConfiguration[]>(() => {
+    if (typeof window === "undefined") return []
+    try {
+      const raw = localStorage.getItem("gol_saved_configs")
+      return raw ? JSON.parse(raw) : []
+    } catch {
+      return []
+    }
+  })
+
+  const saveCustomConfiguration = useCallback((name: string, productId: string, summary: string) => {
+    setSavedConfigurations((prev) => {
+      const newConfig: SavedConfiguration = {
+        id: `cfg-${Date.now()}`,
+        name: name || "Benim Özel Kahvem",
+        productId,
+        summary,
+        createdAt: new Date().toISOString()
+      }
+      const next = [newConfig, ...prev]
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem("gol_saved_configs", JSON.stringify(next))
+        } catch {}
+      }
+      return next
+    })
+  }, [])
+
+  // FOOD & DRINK MOBILE CART STATE (SECTIONS 1 - 136)
+  const [selectedBranch, setSelectedBranch] = useState<SelectedBranch>({
+    id: "branch-1",
+    name: "Şehitkamil Kitap Kafe Merkez",
+    address: "Atatürk Mah. Bulvar No:42, Gaziantep"
+  })
+
+  const [foodCart, setFoodCart] = useState<FoodCartItem[]>(() => [
+    {
+      id: "fc-1",
+      product: {
+        id: "m-4",
+        name: "Iced Vanilla Latte",
+        description: "Espresso, süt, vanilya şurubu ve buzun ferahlatıcı buluşması",
+        price: 70,
+        imageUrl: "https://images.unsplash.com/photo-1517701604599-bb29b565090c?w=400&auto=format&fit=crop&q=60"
+      },
+      customizationSummary: "Büyük Boy · Yulaf Sütü · Ekstra Shot · Az Buz",
+      quantity: 1,
+      unitPrice: 195,
+      totalPrice: 195,
+      isAvailable: true
+    },
+    {
+      id: "fc-2",
+      product: {
+        id: "m-7",
+        name: "Belçika Çikolatalı Cheesecake",
+        description: "%100 Belçika çikolatalı taze cheesecake",
+        price: 85,
+        imageUrl: "https://images.unsplash.com/photo-1533134242443-d4fd215305ad?w=400&auto=format&fit=crop&q=60"
+      },
+      customizationSummary: "Standart Dilim",
+      quantity: 1,
+      unitPrice: 85,
+      totalPrice: 85,
+      isAvailable: true
+    }
+  ])
+
+  const addToFoodCart = useCallback((product: MenuItem, quantity: number, customizationSummary: string, unitPrice: number) => {
+    setFoodCart((prev) => {
+      const existingIndex = prev.findIndex(item => item.product.id === product.id && item.customizationSummary === customizationSummary)
+      if (existingIndex > -1) {
+        const next = [...prev]
+        const existing = next[existingIndex]
+        const newQty = existing.quantity + quantity
+        next[existingIndex] = {
+          ...existing,
+          quantity: newQty,
+          totalPrice: existing.unitPrice * newQty
+        }
+        return next
+      } else {
+        const newItem: FoodCartItem = {
+          id: `fc-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+          product,
+          customizationSummary: customizationSummary || "Standart Reçete",
+          quantity,
+          unitPrice,
+          totalPrice: unitPrice * quantity,
+          isAvailable: true
+        }
+        return [newItem, ...prev]
+      }
+    })
+  }, [])
+
+  const updateFoodCartQuantity = useCallback((cartItemId: string, quantity: number) => {
+    setFoodCart((prev) => {
+      if (quantity <= 0) {
+        return prev.filter(item => item.id !== cartItemId)
+      }
+      return prev.map(item => {
+        if (item.id === cartItemId) {
+          return {
+            ...item,
+            quantity,
+            totalPrice: item.unitPrice * quantity
+          }
+        }
+        return item
+      })
+    })
+  }, [])
+
+  const updateFoodCartCustomization = useCallback((cartItemId: string, customizationSummary: string, unitPrice: number) => {
+    setFoodCart((prev) => {
+      return prev.map(item => {
+        if (item.id === cartItemId) {
+          return {
+            ...item,
+            customizationSummary,
+            unitPrice,
+            totalPrice: unitPrice * item.quantity
+          }
+        }
+        return item
+      })
+    })
+  }, [])
+
+  const removeFromFoodCart = useCallback((cartItemId: string) => {
+    setFoodCart((prev) => prev.filter(item => item.id !== cartItemId))
+  }, [])
+
+  const clearFoodCart = useCallback(() => {
+    setFoodCart([])
+  }, [])
+
   const showToast = useGolToast()
 
   // Load tokens from localStorage on mount
@@ -610,9 +821,15 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
 
   const logout = () => {
     localStorage.removeItem("mob_token")
+    localStorage.removeItem("mob_refresh_token")
     setToken(null)
     setUser(null)
+    setOrders([])
+    setPointTransactions([])
+    setMyCaptures([])
     setClaimedRewards([])
+    setFoodCart([])
+    setUnreadCount(0)
     setCartItems(readCart("guest"))
     showToast("Oturum kapatıldı.")
   }
@@ -984,6 +1201,14 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
         sessionError,
         cafesLoadState,
         publicSettings,
+        foodCart,
+        selectedBranch,
+        addToFoodCart,
+        updateFoodCartQuantity,
+        updateFoodCartCustomization,
+        removeFromFoodCart,
+        clearFoodCart,
+        setSelectedBranch,
         login,
         logout,
         register,
@@ -1000,6 +1225,10 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
         loadMyCaptures,
         captureFieldDrop,
         unreadCount,
+        favorites,
+        toggleFavorite,
+        savedConfigurations,
+        saveCustomConfiguration,
         refreshUnreadCount,
         addBonusPoints,
         updateProfileState,

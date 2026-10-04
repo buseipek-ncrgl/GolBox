@@ -155,7 +155,37 @@ public static class DbInitializer
                 Role = "Staff"
             };
 
-            context.Users.AddRange(adminUser, testUser, staffUser);
+            var testUser2 = new User
+            {
+                Id = Guid.Parse("66666666-6666-6666-6666-666666666666"),
+                OrganizationId = orgId,
+                Email = "ahmet.yilmaz@sehitkamil.bel.tr",
+                NormalizedEmail = "AHMET.YILMAZ@SEHITKAMIL.BEL.TR",
+                PasswordHash = passwordHasher.Hash("123456"),
+                FirstName = "Ahmet",
+                LastName = "Yılmaz",
+                PointsBalance = 340,
+                Age = 24,
+                EducationLevel = "Üniversite",
+                Role = "User"
+            };
+
+            var studentUser = new User
+            {
+                Id = Guid.Parse("55555555-5555-5555-5555-444444444444"),
+                OrganizationId = orgId,
+                Email = "ogrenci@golbox.edu.tr",
+                NormalizedEmail = "OGRENCI@GOLBOX.EDU.TR",
+                PasswordHash = passwordHasher.Hash("Password123*"),
+                FirstName = "Ömer",
+                LastName = "Yılmaz",
+                PointsBalance = 150,
+                Age = 20,
+                EducationLevel = "Üniversite",
+                Role = "User"
+            };
+
+            context.Users.AddRange(adminUser, testUser, testUser2, studentUser, staffUser);
             await context.SaveChangesAsync();
         }
         else
@@ -166,20 +196,41 @@ public static class DbInitializer
                 admin.Role = "Admin";
             }
 
-            var hasStaff = await context.Users.AnyAsync(u => u.Email == "staff@golbox.gov.tr");
-            if (!hasStaff)
+            var hasAhmet = await context.Users.AnyAsync(u => u.Email == "ahmet.yilmaz@sehitkamil.bel.tr");
+            if (!hasAhmet)
             {
                 context.Users.Add(new User
                 {
-                    Id = Guid.Parse("77777777-7777-7777-7777-999999999999"),
+                    Id = Guid.Parse("66666666-6666-6666-6666-666666666666"),
                     OrganizationId = orgId,
-                    Email = "staff@golbox.gov.tr",
-                    NormalizedEmail = "STAFF@GOLBOX.GOV.TR",
-                    PasswordHash = passwordHasher.Hash("Staff123!"),
-                    FirstName = "Ayşe",
-                    LastName = "Demir",
-                    PointsBalance = 0,
-                    Role = "Staff"
+                    Email = "ahmet.yilmaz@sehitkamil.bel.tr",
+                    NormalizedEmail = "AHMET.YILMAZ@SEHITKAMIL.BEL.TR",
+                    PasswordHash = passwordHasher.Hash("123456"),
+                    FirstName = "Ahmet",
+                    LastName = "Yılmaz",
+                    PointsBalance = 340,
+                    Age = 24,
+                    EducationLevel = "Üniversite",
+                    Role = "User"
+                });
+            }
+
+            var hasOgrenci = await context.Users.AnyAsync(u => u.Email == "ogrenci@golbox.edu.tr");
+            if (!hasOgrenci)
+            {
+                context.Users.Add(new User
+                {
+                    Id = Guid.Parse("55555555-5555-5555-5555-444444444444"),
+                    OrganizationId = orgId,
+                    Email = "ogrenci@golbox.edu.tr",
+                    NormalizedEmail = "OGRENCI@GOLBOX.EDU.TR",
+                    PasswordHash = passwordHasher.Hash("Password123*"),
+                    FirstName = "Ömer",
+                    LastName = "Yılmaz",
+                    PointsBalance = 150,
+                    Age = 20,
+                    EducationLevel = "Üniversite",
+                    Role = "User"
                 });
             }
 

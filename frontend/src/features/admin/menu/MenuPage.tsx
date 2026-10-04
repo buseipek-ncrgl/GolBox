@@ -6,10 +6,13 @@ import { educationLabel } from '../../../lib/adminLabels';
 import { Button, Checkbox, EmptyState, ErrorState, FilterBar, Input, Modal, NumberInput, Pagination, Select, Textarea, UnsavedGuard } from '../../../admin/components';
 import { SafeImg } from '../../../components/admin/adminUi';
 import { useAdminFeedback } from '../AdminFeedback';
+import { StaffProductAvailability } from './StaffProductAvailability';
 
 export function MenuPage() {
-  const { confirm, setError, setSuccess, savingKey, setSavingKey } = useAdminFeedback();
+  const { isAdmin, confirm, setError, setSuccess, savingKey, setSavingKey } = useAdminFeedback();
   const [params] = useSearchParams();
+  const [viewMode, setViewMode] = useState<'catalog' | 'availability'>(isAdmin ? 'catalog' : 'availability');
+
   const [items, setItems] = useState<any[]>([]);
   const [cafes, setCafes] = useState<any[]>([]);
   const [page, setPage] = useState(1);
@@ -36,6 +39,7 @@ export function MenuPage() {
       setLoading(false);
     }
   };
+
   useEffect(() => { void load(); }, [page, cafeId, active]);
   useEffect(() => { void api.getCafes().then((c) => setCafes(Array.isArray(c) ? c : extractArray(c))); }, []);
 
@@ -46,10 +50,29 @@ export function MenuPage() {
     else setForm(null);
   };
 
+  // Staff users use the branch product availability view
+  if (!isAdmin || viewMode === 'availability') {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {isAdmin && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <Button size="sm" variant="secondary" onClick={() => setViewMode('catalog')}>
+              📋 Katalog Görünümüne Geç (Admin Kataloğu)
+            </Button>
+          </div>
+        )}
+        <StaffProductAvailability />
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <UnsavedGuard dirty={dirty} />
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Button size="sm" variant="secondary" onClick={() => setViewMode('availability')}>
+          ☕ Şube Ürün Durumu Görünümü (Personel)
+        </Button>
         <Button data-testid="menu-create" onClick={() => open({ cafeId, name: '', description: '', price: 45, imageUrl: '', minAge: '', requiredEducation: '', isActive: true })}>+ Yeni ürün</Button>
       </div>
       <FilterBar search={search} onSearch={setSearch} activeCount={[search, cafeId, active].filter(Boolean).length} onClear={() => { setSearch(''); setCafeId(''); setActive(''); setPage(1); void load(); }} onSubmit={() => { setPage(1); void load(); }} filters={
@@ -100,51 +123,34 @@ export function MenuPage() {
       <Modal open={!!form} title={form?.id ? 'Ürünü düzenle' : 'Yeni ürün'} onClose={close} footer={
         <>
           <Button variant="secondary" onClick={close}>Vazgeç</Button>
-          <Button loading={!!savingKey} onClick={() => void (document.getElementById('menu-form') as HTMLFormElement | null)?.requestSubmit()}>Kaydet</Button>
+          <Button form="menu-form" type="submit" loading={!!savingKey}>Kaydet</Button>
         </>
       }>
         {form && (
           <form id="menu-form" style={{ display: 'grid', gap: 12 }} onSubmit={async (e) => {
             e.preventDefault();
-            if (!form.cafeId) { setError('Kafe seçilmelidir.'); return; }
-            if (!form.price || Number(form.price) <= 0) { setError('Fiyat 0\'dan büyük olmalıdır.'); return; }
-            setSavingKey('menu');
+            setSavingKey('menu-save');
             try {
-              const payload = {
-                name: form.name,
-                description: form.description,
-                price: Number(form.price),
-                imageUrl: form.imageUrl,
-                minAge: form.minAge ? Number(form.minAge) : null,
-                requiredEducation: form.requiredEducation || null,
-                isActive: form.isActive !== false
-              };
-              if (form.id) await api.updateMenuItem(form.cafeId, form.id, payload);
-              else await api.createMenuItem(form.cafeId, payload);
-              setSuccess(form.id ? 'Ürün güncellendi.' : 'Ürün eklendi.');
+              if (form.id) await api.updateMenuItem(form.cafeId, form.id, form);
+              else await api.createMenuItem(form.cafeId, form);
+              setSuccess('Ürün kaydedildi.');
               setForm(null);
               await load();
             } catch (err: any) {
-              setError(err.message);
+              setError(err.message || 'Ürün kaydedilemedi.');
             } finally {
               setSavingKey(null);
             }
           }}>
-            <Select required label="Göl Kafe" value={form.cafeId} onChange={(e) => setForm({ ...form, cafeId: e.target.value })}>
-              <option value="">Kafe seçin</option>
-              {cafes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </Select>
             <Input required label="Ürün Adı" value={form.name || ''} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             <Textarea label="Açıklama" value={form.description || ''} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-            <NumberInput required min={1} label="Satış Fiyatı" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
-            <NumberInput label="Minimum Yaş" helper="Opsiyonel" value={form.minAge || ''} onChange={(e) => setForm({ ...form, minAge: e.target.value })} />
-            <Select label="Öğrenim Durumu" helper="Opsiyonel uygunluk kuralı" value={form.requiredEducation || ''} onChange={(e) => setForm({ ...form, requiredEducation: e.target.value })}>
-              <option value="">Öğrenim şartı yok</option>
-              <option value="Lise">Lise</option>
-              <option value="Üniversite">Üniversite</option>
+            <NumberInput required min={0} label="Fiyat (TL)" value={form.price ?? 45} onChange={(e) => setForm({ ...form, price: Number(e.target.value) })} />
+            <Input label="Görsel URL" value={form.imageUrl || ''} onChange={(e) => setForm({ ...form, imageUrl: e.target.value })} />
+            <Select required label="Göl Kafe" value={form.cafeId || ''} onChange={(e) => setForm({ ...form, cafeId: e.target.value })}>
+              <option value="">Kafe seç</option>
+              {cafes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </Select>
-            <Input label="Ürün Görseli" helper="Opsiyonel görsel URL" value={form.imageUrl || ''} onChange={(e) => setForm({ ...form, imageUrl: e.target.value })} />
-            <Checkbox label="Aktiflik" helper="Pasif ürünler Ismarlıyor menüsünde görünmez." checked={form.isActive !== false} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} />
+            <Checkbox label="Aktif" checked={form.isActive !== false} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} />
           </form>
         )}
       </Modal>

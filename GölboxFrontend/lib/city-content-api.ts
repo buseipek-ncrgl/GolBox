@@ -1,5 +1,5 @@
 import { API_BASE_URL } from "@/lib/api-config"
-import { mapPublicContent, type CityContentItem } from "@/lib/city-content"
+import { mapPublicContent, DEFAULT_HERO_NEWS, type CityContentItem } from "@/lib/city-content"
 
 export interface Paged<T> {
   items: T[]
@@ -31,12 +31,25 @@ export interface CitizenNotification {
   id: string
   title: string
   body: string
-  type: string
+  type: string // ORDER_READY, EVENT_REMINDER, MISSION_COMPLETED, LOYALTY_REWARD, CAMPAIGN_ANNOUNCEMENT
+  category?: "TRANSACTIONAL" | "PERSONAL" | "MARKETING" | string
+  priority?: "CRITICAL" | "HIGH" | "NORMAL" | "LOW"
+  entityType?: "ORDER" | "EVENT" | "MISSION" | "REWARD" | "CAMPAIGN" | string | null
+  entityId?: string | null
   targetType?: string | null
   targetId?: string | null
+  deepLink?: string | null
   isRead: boolean
   createdAt: string
   readAt?: string | null
+}
+
+export interface CitizenNotificationPreferences {
+  orderUpdates: boolean
+  eventUpdates: boolean
+  loyaltyUpdates: boolean
+  missionUpdates: boolean
+  marketingUpdates: boolean
 }
 
 function authHeaders(token?: string | null): HeadersInit {
@@ -54,11 +67,16 @@ async function readJson(res: Response) {
 }
 
 export async function fetchHeroContent(token?: string | null): Promise<CityContentItem[]> {
-  const res = await fetch(`${API_BASE_URL}/content/hero`, { headers: authHeaders(token), cache: "no-store" })
-  if (!res.ok) throw new Error("hero")
-  const json = await readJson(res)
-  const data = json?.data
-  return Array.isArray(data) ? data.map(mapPublicContent) : []
+  try {
+    const res = await fetch(`${API_BASE_URL}/content/hero`, { headers: authHeaders(token), cache: "no-store" })
+    if (!res.ok) return DEFAULT_HERO_NEWS
+    const json = await readJson(res)
+    const data = json?.data
+    const mapped = Array.isArray(data) ? data.map(mapPublicContent) : []
+    return mapped.length > 0 ? mapped : DEFAULT_HERO_NEWS
+  } catch {
+    return DEFAULT_HERO_NEWS
+  }
 }
 
 export async function fetchAgendaContent(
@@ -164,4 +182,31 @@ export async function markAllNotificationsRead(token: string) {
     headers: authHeaders(token),
   })
   if (!res.ok) throw new Error("read-all")
+}
+
+export async function registerPushToken(token: string, pushToken: string, platform = "web") {
+  const res = await fetch(`${API_BASE_URL}/devices/push-token`, {
+    method: "POST",
+    headers: { ...authHeaders(token), "Content-Type": "application/json" },
+    body: JSON.stringify({ pushToken, platform }),
+  })
+  if (!res.ok) throw new Error("push-token-register")
+}
+
+export async function revokePushToken(token: string, pushToken: string) {
+  const res = await fetch(`${API_BASE_URL}/devices/push-token`, {
+    method: "DELETE",
+    headers: { ...authHeaders(token), "Content-Type": "application/json" },
+    body: JSON.stringify({ pushToken }),
+  })
+  if (!res.ok) throw new Error("push-token-revoke")
+}
+
+export async function updateNotificationPreferences(token: string, preferences: CitizenNotificationPreferences) {
+  const res = await fetch(`${API_BASE_URL}/users/me/notification-preferences`, {
+    method: "PUT",
+    headers: { ...authHeaders(token), "Content-Type": "application/json" },
+    body: JSON.stringify(preferences),
+  })
+  if (!res.ok) throw new Error("notification-preferences-update")
 }

@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Gift, Search, QrCode, MapPin, CheckCircle2, ChevronDown, ChevronUp, Sparkles, ExternalLink } from "lucide-react"
+import { Gift, Search, QrCode, MapPin, CheckCircle2, ChevronDown, ChevronUp, Sparkles, ExternalLink, Award, ChevronRight } from "lucide-react"
 import { Screen } from "@/components/golbox/screen"
 import { LoginScreen } from "@/components/golbox/screens/login-screen"
 import { QrUsageModal, type QrUsageFacility, type QrUsageItem } from "@/components/golbox/qr-usage-modal"
@@ -36,17 +36,6 @@ const DEFAULT_DEMO_CLAIMS: CombinedRewardClaim[] = [
     expiresAt: new Date(Date.now() + 30 * 86400000).toISOString(),
   },
   {
-    id: "claim-2",
-    title: "Şehitkamil 3D Rozet & Kahve Kutusu",
-    description: "Şehitkamil Gençlik Parkı 3D Hediye Avı noktasından kamerayla toplandı.",
-    sourceType: "GiftHunt",
-    redeemCode: "HA-SH-4521",
-    status: "Claimed",
-    facilities: ["Merkez Kitap Kafe", "Şehitkamil Gençlik Kitap Kafe"],
-    claimedAt: new Date().toISOString(),
-    expiresAt: new Date(Date.now() + 60 * 86400000).toISOString(),
-  },
-  {
     id: "claim-3",
     title: "Türk Kahvesi Kuponu",
     description: "40 GP harcanarak Ödül Kataloğu'ndan alındı.",
@@ -63,10 +52,12 @@ export function RewardsScreen({
   onClose,
   closeLabel = "Geri",
   initialTab = "discover",
+  onOpenMissions,
 }: {
   onClose?: () => void
   closeLabel?: string
   initialTab?: RewardsTabProp
+  onOpenMissions?: () => void
 }) {
   const { user, token, rewards, claimedRewards, cafes, addBonusPoints } = useGolbox()
   const mappedInitial = initialTab === "coupons" || initialTab === "my-rewards" ? "my-rewards" : "discover"
@@ -223,6 +214,37 @@ export function RewardsScreen({
             </div>
           </div>
 
+          {/* AKTİF GÖREVİN KOMPAKT KARTI (PRD SECTION 103-104) */}
+          <div
+            onClick={onOpenMissions}
+            className="cursor-pointer rounded-2xl border border-amber-400/40 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent p-3.5 shadow-2xs hover:border-amber-400 transition flex items-center justify-between group"
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex size-10 items-center justify-center rounded-xl bg-amber-400 text-amber-950 font-black shrink-0">
+                <Award className="size-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-400">
+                    Aktif Görevin
+                  </span>
+                  <span className="rounded-full bg-amber-400/20 px-1.5 py-0.5 text-[9px] font-black text-amber-700 dark:text-amber-300">
+                    +150 GP
+                  </span>
+                </div>
+                <h4 className="text-xs font-black text-foreground group-hover:text-primary transition-colors mt-0.5">
+                  Haftalık Kahve Molası (2 / 3)
+                </h4>
+              </div>
+            </div>
+            {onOpenMissions && (
+              <span className="text-xs font-black text-primary flex items-center gap-0.5 shrink-0">
+                <span>Görevi Gör</span>
+                <ChevronRight className="size-4" />
+              </span>
+            )}
+          </div>
+
           {/* Search Input */}
           <div className="relative">
             <input
@@ -241,9 +263,17 @@ export function RewardsScreen({
             <div className="grid gap-3">
               {filteredRewards.map((reward) => (
                 <div key={reward.id} className="flex items-center justify-between gap-3 rounded-[20px] border border-border/80 bg-card p-3.5 shadow-2xs">
-                  <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 font-serif text-lg font-bold text-primary">
-                    {reward.title.charAt(0)}
-                  </div>
+                  {reward.imageUrl ? (
+                    <img
+                      src={reward.imageUrl}
+                      alt={reward.title}
+                      className="size-12 shrink-0 rounded-xl object-cover border border-border/40"
+                    />
+                  ) : (
+                    <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      <Gift className="size-6" />
+                    </div>
+                  )}
                   <div className="min-w-0 flex-1">
                     <h3 className="truncate font-bold text-sm text-foreground">{reward.title}</h3>
                     <p className="line-clamp-1 text-xs text-muted-foreground">{reward.description}</p>
@@ -274,7 +304,6 @@ export function RewardsScreen({
               ["all", "Tümü"],
               ["GolPuan", "GölPuan"],
               ["Ismarliyor", "Ismarlıyor"],
-              ["GiftHunt", "Hediye Avı"],
             ].map(([val, label]) => (
               <button
                 key={val}

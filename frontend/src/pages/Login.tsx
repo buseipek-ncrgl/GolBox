@@ -108,7 +108,7 @@ export const Login: React.FC = () => {
               margin: '0.35rem 0 0',
             }}
           >
-            Şehitkamil+ Yönetim
+            GölBOX Yönetim
           </h1>
           <p style={{ color: '#5b6f6e', fontSize: '0.875rem', marginTop: '0.4rem' }}>
             Personel girişi. Vatandaş uygulaması ayrıdır.

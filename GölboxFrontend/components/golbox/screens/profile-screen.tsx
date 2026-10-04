@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from "react"
 import { Screen } from "@/components/golbox/screen"
-import { Gift, LogIn, LogOut, Ticket } from "lucide-react"
+import { Gift, Heart, LogIn, LogOut, Ticket, Award, ChevronRight, Bell } from "lucide-react"
 import { useGolbox } from "@/lib/golbox-context"
 import { LoginScreen } from "@/components/golbox/screens/login-screen"
 import { RewardsScreen } from "@/components/golbox/screens/rewards-screen"
 import { CouponPass, isActiveCoupon } from "@/components/golbox/coupon-pass"
+import { FavoritesScreen } from "@/components/golbox/screens/favorites-screen"
+import { NotificationPreferencesSheet } from "@/components/golbox/notifications/notification-preferences-sheet"
 
 function formatWhen(iso: string) {
   const date = new Date(iso)
@@ -158,10 +160,23 @@ function ProfileUpdateSection() {
   )
 }
 
-export function ProfileScreen() {
-  const { user, token, myCaptures, pointTransactions, claimedRewards, orders, logout, loadMyCaptures } = useGolbox()
+export function ProfileScreen({
+  onNavigateToMenu,
+  onNavigateToCart,
+  onOpenEvents,
+  onOpenMissions
+}: {
+  onNavigateToMenu?: () => void
+  onNavigateToCart?: () => void
+  onOpenEvents?: () => void
+  onOpenMissions?: () => void
+}) {
+  const { user, token, myCaptures, pointTransactions, claimedRewards, orders, logout, loadMyCaptures, favorites, toggleFavorite } = useGolbox()
   const [showLogin, setShowLogin] = useState(false)
   const [showRewards, setShowRewards] = useState(false)
+  const [showFavorites, setShowFavorites] = useState(false)
+  const [showNotifPrefs, setShowNotifPrefs] = useState(false)
+  const [favoritesTab, setFavoritesTab] = useState<"products" | "recipes">("products")
   const [rewardsTab, setRewardsTab] = useState<"catalog" | "cart" | "coupons">("catalog")
 
   useEffect(() => {
@@ -181,6 +196,17 @@ export function ProfileScreen() {
           kind: pt.amount >= 0 ? "earn" : "spend",
         }))
       : []
+
+  if (showFavorites) {
+    return (
+      <FavoritesScreen
+        onBack={() => setShowFavorites(false)}
+        onNavigateToMenu={onNavigateToMenu || (() => {})}
+        onNavigateToCart={onNavigateToCart}
+        initialTab={favoritesTab}
+      />
+    )
+  }
 
   if (showRewards) {
     return (
@@ -249,6 +275,124 @@ export function ProfileScreen() {
       {token && (
         <ProfileUpdateSection />
       )}
+
+      {/* GÖREVLERİM SIK KULLANILAN AKSİYON (PRD SECTION 4: Profil -> Görevlerim) */}
+      <button
+        type="button"
+        onClick={onOpenMissions}
+        className="flex w-full items-center justify-between rounded-2xl border border-amber-400/40 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent p-4 shadow-2xs hover:border-amber-400 transition text-left group"
+      >
+        <div className="flex items-center gap-3.5">
+          <div className="flex size-10 items-center justify-center rounded-xl bg-amber-400 text-amber-950 font-black shrink-0 shadow-2xs">
+            <Award className="size-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-1.5">
+              <h3 className="text-xs font-black text-foreground group-hover:text-primary transition-colors">Görevlerim</h3>
+              <span className="rounded-full bg-amber-400/20 px-2 py-0.5 text-[9px] font-black text-amber-700 dark:text-amber-300">
+                4 Aktif
+              </span>
+            </div>
+            <p className="text-[11px] text-muted-foreground font-medium mt-0.5">
+              Belediye etkinlikleri, şube ziyaretleri ve özel görev takibi
+            </p>
+          </div>
+        </div>
+        <ChevronRight className="size-4 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
+      </button>
+
+      {/* BİLDİRİM TERCİHLERİ (PRD SECTION 236: Profil -> Bildirim Tercihleri) */}
+      <button
+        type="button"
+        onClick={() => setShowNotifPrefs(true)}
+        className="flex w-full items-center justify-between rounded-2xl border border-border bg-card p-4 shadow-2xs hover:bg-accent/50 transition text-left group"
+      >
+        <div className="flex items-center gap-3.5">
+          <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary font-black shrink-0">
+            <Bell className="size-5" />
+          </div>
+          <div>
+            <h3 className="text-xs font-black text-foreground group-hover:text-primary transition-colors">Bildirim Tercihleri</h3>
+            <p className="text-[11px] text-muted-foreground font-medium mt-0.5">
+              Sipariş, etkinlik, GölPuan ve görev bildirim izinleri
+            </p>
+          </div>
+        </div>
+        <ChevronRight className="size-4 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
+      </button>
+
+      {showNotifPrefs && (
+        <NotificationPreferencesSheet onClose={() => setShowNotifPrefs(false)} />
+      )}
+
+      {/* FAVORİ LEZZETLERİM & BENİM GÖLBOX'IM SECTION */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-bold text-foreground flex items-center gap-1.5">
+              <Heart className="size-4 text-rose-500 fill-rose-500" /> Favori Lezzetlerim & Benim GölBOX'ım
+            </h2>
+            <p className="text-xs text-muted-foreground">Sevdiğin ürünler ve sana özel kahve tariflerin.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setFavoritesTab("products")
+              setShowFavorites(true)
+            }}
+            className="text-xs font-black text-primary hover:underline bg-primary/10 px-2.5 py-1 rounded-full"
+          >
+            Tümünü Gör
+          </button>
+        </div>
+        {!token ? (
+          <button
+            type="button"
+            onClick={() => setShowLogin(true)}
+            className="gol-card w-full border-dashed px-4 py-6 text-sm text-muted-foreground"
+          >
+            Favorilerini görmek için giriş yapın.
+          </button>
+        ) : favorites.length === 0 ? (
+          <div className="gol-card flex flex-col items-center gap-2 border-dashed px-4 py-6 text-center">
+            <Heart className="size-8 text-muted-foreground/40" />
+            <p className="text-xs font-bold text-foreground">Henüz favori ürününüz yok.</p>
+            <p className="text-[11px] text-muted-foreground">Menü ekranından kalp ikonuna dokunarak lezzetleri favorilerinize ekleyebilirsiniz.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-2.5">
+            {[
+              { id: "m-1", name: "GölBOX Özel Filtre Kahve", price: 35, imageUrl: "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=400&auto=format&fit=crop&q=60" },
+              { id: "m-2", name: "Karamel Macchiato", price: 65, imageUrl: "https://images.unsplash.com/photo-1485808191679-5f86510681a2?w=400&auto=format&fit=crop&q=60" },
+              { id: "m-3", name: "Caffè Latte", price: 55, imageUrl: "https://images.unsplash.com/photo-1534778101976-62847782c213?w=400&auto=format&fit=crop&q=60" },
+              { id: "m-4", name: "Iced Vanilla Latte", price: 70, imageUrl: "https://images.unsplash.com/photo-1517701604599-bb29b565090c?w=400&auto=format&fit=crop&q=60" },
+              { id: "m-5", name: "GölBOX Iced Cold Brew", price: 60, imageUrl: "https://images.unsplash.com/photo-1461023058943-07fcbe16d735?w=400&auto=format&fit=crop&q=60" },
+              { id: "m-6", name: "Bergamotlu Siyah Çay", price: 25, imageUrl: "https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=400&auto=format&fit=crop&q=60" },
+              { id: "m-7", name: "Belçika Çikolatalı Cheesecake", price: 85, imageUrl: "https://images.unsplash.com/photo-1533134242443-d4fd215305ad?w=400&auto=format&fit=crop&q=60" }
+            ].filter(item => favorites.includes(item.id)).map((item) => (
+              <div key={item.id} className="flex items-center justify-between rounded-2xl border border-border bg-card p-2.5 shadow-2xs">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="relative size-12 shrink-0 overflow-hidden rounded-xl bg-muted">
+                    <img src={item.imageUrl} alt={item.name} className="size-full object-cover" />
+                  </div>
+                  <div className="min-w-0">
+                    <h4 className="truncate text-xs font-bold text-foreground">{item.name}</h4>
+                    <p className="text-xs font-extrabold text-primary mt-0.5">₺{item.price}</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => toggleFavorite(item.id)}
+                  className="flex size-7 shrink-0 items-center justify-center rounded-full bg-rose-50 dark:bg-rose-950/60 text-rose-500 hover:bg-rose-100 transition"
+                  title="Favorilerden Çıkar"
+                >
+                  <Heart className="size-4 fill-rose-500 text-rose-500" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
       <section className="space-y-3">
         <div className="flex items-end justify-between">

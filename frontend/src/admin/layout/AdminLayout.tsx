@@ -15,22 +15,19 @@ import { Skeleton } from '../components/Skeleton';
 
 const ICONS: Record<string, React.ComponentType<{ size?: number }>> = {
   overview: LayoutDashboard,
-  users: Users,
-  applications: ClipboardCheck,
-  places: Landmark,
+  orders: Gift,
+  qr: CreditCard,
+  eventCheckin: Calendar,
   cafes: Building2,
   products: Coffee,
   points: History,
-  qr: CreditCard,
   rewards: Award,
-  fieldDrops: MapPin,
-  ismarliyor: Gift,
-  homeContent: FileText,
-  social: Film,
   campaigns: Megaphone,
   events: Calendar,
+  missions: Award,
   notifications: Bell,
   reports: BarChart3,
+  users: Users,
   roles: Shield,
   audit: FileCheck,
   settings: Settings
@@ -65,8 +62,6 @@ export function AdminLayout() {
       }
       setAlertCount(
         extractArray(alerts.longPendingOrders).length +
-        extractArray(alerts.lowStockFieldDrops).length +
-        extractArray(alerts.expiringFieldDrops).length +
         extractArray(alerts.todayActivities).length
       );
     }).catch(() => undefined);
@@ -74,10 +69,10 @@ export function AdminLayout() {
   }, [location.pathname]);
 
   if (!canAccessMenu(active, isAdmin)) {
-    return <Navigate to="/admin" replace />;
+    return <Navigate to={isAdmin ? '/admin' : '/admin/siparisler'} replace />;
   }
 
-  const sections = ['İşlem', 'Sadakat', 'İletişim', 'Yönetim'];
+  const sections = ['Genel', 'Operasyon', 'Menü Yönetimi', 'Sadakat', 'İçerik', 'Yönetim'];
 
   return (
     <div className="admin-shell" data-testid="admin-layout">
@@ -85,7 +80,7 @@ export function AdminLayout() {
         <div className="admin-sidebar-brand">
           {!collapsed && (
             <div>
-              <div className="admin-brand-name">Şehitkamil+</div>
+              <div className="admin-brand-name">GölBOX</div>
               <div className="admin-brand-sub">Şehitkamil Belediyesi</div>
             </div>
           )}

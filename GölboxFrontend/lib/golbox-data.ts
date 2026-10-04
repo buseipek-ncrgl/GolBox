@@ -1,1 +1,1 @@
-export type TabId = "home" | "media" | "reels" | "events" | "map" | "more" | "profile" | "applications" | "rewards" | "menu"
+export type TabId = "home" | "menu" | "qr" | "golpuan" | "profile"

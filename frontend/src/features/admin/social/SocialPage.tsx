@@ -157,7 +157,7 @@ export function SocialPage() {
       
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
         <p className="admin-muted" style={{ margin: 0, maxWidth: 640 }}>
-          Bu alandan Şehitkamil+ mobil uygulamasında yer alan <strong>Story</strong> ve <strong>Reels Video</strong> içeriklerini yükleyebilir, düzenleyebilir, pasife alabilir veya silebilirsiniz.
+          Bu alandan GölBOX mobil uygulamasında yer alan <strong>Story</strong> ve <strong>Reels Video</strong> içeriklerini yükleyebilir, düzenleyebilir, pasife alabilir veya silebilirsiniz.
         </p>
         {isAdmin && (
           <Button

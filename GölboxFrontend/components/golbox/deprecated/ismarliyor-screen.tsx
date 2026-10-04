@@ -19,7 +19,7 @@ export function IsmarliyorScreen({
         </p>
       </header>
       <WaitingTreats
-        onShowQr={() => onNavigate("rewards")}
+        onShowQr={() => onNavigate("golpuan")}
         onExploreCafes={onExploreCafes ?? (() => onNavigate("home"))}
       />
     </div>

@@ -116,9 +116,88 @@ export function AgendaListSheet({
   )
 }
 
+import {
+  Bell,
+  Coffee,
+  Calendar,
+  Award,
+  Coins,
+  Sparkles,
+  Zap,
+  CheckCircle2,
+  ChevronRight,
+  Clock,
+  Info,
+  CheckCheck,
+  Check
+} from "lucide-react"
+
+export const DEFAULT_NOTIFICATIONS: CitizenNotification[] = [
+  {
+    id: "not-1",
+    title: "Siparişin Hazır! ☕",
+    body: "GölBOX Üniversite Şubesi'ne gelerek siparişini teslim alabilirsin. Ödemeni kasada QR ile yapacaksın.",
+    type: "ORDER_READY",
+    category: "TRANSACTIONAL",
+    priority: "HIGH",
+    entityType: "ORDER",
+    entityId: "GB-1042",
+    isRead: false,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: "not-2",
+    title: "Yarın Görüşüyoruz 👋",
+    body: "Gençlik Teknoloji ve Yapay Zekâ Atölyesi yarın 14:00'te Gölbaşı Gençlik Merkezi'nde başlıyor.",
+    type: "EVENT_REMINDER",
+    category: "PERSONAL",
+    priority: "HIGH",
+    entityType: "EVENT",
+    entityId: "act-1",
+    isRead: false,
+    createdAt: new Date(Date.now() - 3 * 3600000).toISOString(),
+  },
+  {
+    id: "not-3",
+    title: "Görevi Tamamladın! 🎉",
+    body: "GölBOX Kaşifi görevini tamamladın. +100 GölPuan hesabına aktarıldı.",
+    type: "MISSION_COMPLETED",
+    category: "PERSONAL",
+    priority: "NORMAL",
+    entityType: "MISSION",
+    entityId: "ms-2",
+    isRead: true,
+    createdAt: new Date(Date.now() - 24 * 3600000).toISOString(),
+  },
+  {
+    id: "not-4",
+    title: "+24 GölPuan Kazandın ☕",
+    body: "Son siparişiniz başarıyla tamamlandı. Yeni bakiyeniz 340 GölPuan.",
+    type: "LOYALTY_REWARD",
+    category: "PERSONAL",
+    priority: "NORMAL",
+    entityType: "REWARD",
+    entityId: "gp-102",
+    isRead: true,
+    createdAt: new Date(Date.now() - 48 * 3600000).toISOString(),
+  },
+  {
+    id: "not-5",
+    title: "Haftanın GölPuan Fırsatları ⚡",
+    body: "Bu hafta seçili soğuk kahvelerde 2 kat GölPuan kazanma fırsatını kaçırmayın!",
+    type: "CAMPAIGN_ANNOUNCEMENT",
+    category: "MARKETING",
+    priority: "LOW",
+    entityType: "CAMPAIGN",
+    entityId: "cmp-1",
+    isRead: true,
+    createdAt: new Date(Date.now() - 72 * 3600000).toISOString(),
+  }
+]
+
 export function NotificationsSheet({
   isLoggedIn,
-  items,
+  items: rawItems,
   loading,
   onClose,
   onLogin,
@@ -133,61 +212,226 @@ export function NotificationsSheet({
   onOpen: (item: CitizenNotification) => void
   onMarkAllRead?: () => void
 }) {
-  return (
-    <OverlaySheet title="Bildirimler" onClose={onClose}>
-      {isLoggedIn && items.length > 0 && onMarkAllRead ? (
-        <div className="mb-3 flex justify-end">
-          <button
-            type="button"
-            onClick={onMarkAllRead}
-            className="text-xs font-semibold text-primary hover:underline"
-          >
-            Tümünü okundu işaretle
-          </button>
+  const [filterCategory, setFilterCategory] = useState<"ALL" | "ORDER" | "EVENT" | "MISSION" | "REWARD">("ALL")
+  const [notificationsList, setNotificationsList] = useState<CitizenNotification[]>([])
+
+  useEffect(() => {
+    setNotificationsList(rawItems.length > 0 ? rawItems : DEFAULT_NOTIFICATIONS)
+  }, [rawItems])
+
+  const filteredItems = notificationsList.filter((item) => {
+    if (filterCategory === "ALL") return true
+    if (filterCategory === "ORDER") return item.entityType === "ORDER" || item.type.startsWith("ORDER_")
+    if (filterCategory === "EVENT") return item.entityType === "EVENT" || item.type.startsWith("EVENT_")
+    if (filterCategory === "MISSION") return item.entityType === "MISSION" || item.type.startsWith("MISSION_")
+    if (filterCategory === "REWARD") return item.entityType === "REWARD" || item.type.startsWith("LOYALTY_")
+    return true
+  })
+
+  // Date grouping (Bugün, Dün, Daha Önce - PRD Section 65)
+  const now = new Date()
+  const todayItems: CitizenNotification[] = []
+  const yesterdayItems: CitizenNotification[] = []
+  const olderItems: CitizenNotification[] = []
+
+  filteredItems.forEach((item) => {
+    const d = new Date(item.createdAt)
+    const diffHours = (now.getTime() - d.getTime()) / (1000 * 3600)
+    if (diffHours < 24) {
+      todayItems.push(item)
+    } else if (diffHours < 48) {
+      yesterdayItems.push(item)
+    } else {
+      olderItems.push(item)
+    }
+  })
+
+  const handleMarkAllRead = () => {
+    setNotificationsList((prev) => prev.map((n) => ({ ...n, isRead: true })))
+    if (onMarkAllRead) onMarkAllRead()
+  }
+
+  const renderNotificationCard = (item: CitizenNotification) => {
+    let icon = <Bell className="size-4 text-primary" />
+    let iconBg = "bg-primary/10 text-primary"
+
+    if (item.entityType === "ORDER" || item.type.startsWith("ORDER_")) {
+      icon = <Coffee className="size-4 text-emerald-600 dark:text-emerald-400" />
+      iconBg = "bg-emerald-100 dark:bg-emerald-950 border border-emerald-300 dark:border-emerald-800"
+    } else if (item.entityType === "EVENT" || item.type.startsWith("EVENT_")) {
+      icon = <Calendar className="size-4 text-sky-600 dark:text-sky-400" />
+      iconBg = "bg-sky-100 dark:bg-sky-950 border border-sky-300 dark:border-sky-800"
+    } else if (item.entityType === "MISSION" || item.type.startsWith("MISSION_")) {
+      icon = <Award className="size-4 text-amber-600 dark:text-amber-400" />
+      iconBg = "bg-amber-100 dark:bg-amber-950 border border-amber-300 dark:border-amber-800"
+    } else if (item.entityType === "REWARD" || item.type.startsWith("LOYALTY_")) {
+      icon = <Coins className="size-4 text-amber-500" />
+      iconBg = "bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800"
+    } else if (item.entityType === "CAMPAIGN" || item.type.startsWith("CAMPAIGN_")) {
+      icon = <Zap className="size-4 text-purple-600 dark:text-purple-400" />
+      iconBg = "bg-purple-100 dark:bg-purple-950 border border-purple-300 dark:border-purple-800"
+    }
+
+    return (
+      <button
+        key={item.id}
+        type="button"
+        onClick={() => {
+          setNotificationsList((prev) =>
+            prev.map((n) => (n.id === item.id ? { ...n, isRead: true } : n))
+          )
+          onOpen(item)
+        }}
+        className={`group flex w-full items-start gap-3 rounded-2xl border p-3.5 text-left transition hover:scale-[1.005] ${
+          item.isRead
+            ? "border-border/60 bg-card/60 opacity-80"
+            : "border-primary/40 bg-card shadow-xs font-semibold"
+        }`}
+      >
+        <div className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${iconBg} mt-0.5`}>
+          {icon}
         </div>
-      ) : null}
+        <div className="min-w-0 flex-1 space-y-1">
+          <div className="flex items-center justify-between gap-2">
+            <h4 className="truncate text-xs font-black text-foreground group-hover:text-primary transition-colors">
+              {item.title}
+            </h4>
+            {!item.isRead ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setNotificationsList((prev) =>
+                    prev.map((n) => (n.id === item.id ? { ...n, isRead: true } : n))
+                  )
+                }}
+                className="flex items-center gap-1 rounded-md bg-emerald-100 dark:bg-emerald-950 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-200 transition"
+                title="Okundu olarak işaretle"
+              >
+                <Check className="size-3" /> Okundu
+              </button>
+            ) : (
+              <span className="text-[10px] font-semibold text-muted-foreground/60">Okundu ✓</span>
+            )}
+          </div>
+          <p className="line-clamp-2 text-xs text-muted-foreground font-medium leading-relaxed">
+            {item.body}
+          </p>
+          <div className="flex items-center justify-between pt-1 text-[10px] text-muted-foreground font-semibold">
+            <span className="flex items-center gap-1">
+              <Clock className="size-3" />
+              {new Date(item.createdAt).toLocaleString("tr-TR", {
+                day: "numeric",
+                month: "short",
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </span>
+            <span className="flex items-center gap-0.5 text-primary font-black group-hover:translate-x-0.5 transition-transform">
+              <span>İncele</span>
+              <ChevronRight className="size-3" />
+            </span>
+          </div>
+        </div>
+      </button>
+    )
+  }
+
+  return (
+    <OverlaySheet title="Bildirim Merkezi" onClose={onClose}>
+      {isLoggedIn && (
+        <div className="space-y-3 mb-2">
+          {/* TOP ACTION HEADER */}
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-muted-foreground">
+              {notificationsList.filter((n) => !n.isRead).length} okunmamış bildirim
+            </span>
+            <button
+              type="button"
+              onClick={handleMarkAllRead}
+              className="flex items-center gap-1 text-xs font-black text-primary hover:underline"
+            >
+              <CheckCheck className="size-3.5" />
+              Tümünü Okundu İşaretle
+            </button>
+          </div>
+
+          {/* CATEGORY FILTER PILLS (PRD SECTION 135) */}
+          <div className="flex gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+            {[
+              { id: "ALL", label: "Tümü" },
+              { id: "ORDER", label: "Siparişler" },
+              { id: "EVENT", label: "Etkinlikler" },
+              { id: "MISSION", label: "Görevler" },
+              { id: "REWARD", label: "GölPuan" },
+            ].map((cat) => (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => setFilterCategory(cat.id as any)}
+                className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-black transition ${
+                  filterCategory === cat.id
+                    ? "bg-primary text-primary-foreground shadow-2xs"
+                    : "bg-accent text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {cat.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {!isLoggedIn ? (
         <EmptyState
           title="Bildirimler hesabına bağlı."
-          description="Giriş yapınca kişisel bildirimlerin bu listede durur."
+          description="Giriş yapınca kişisel sipariş, etkinlik ve GölPuan bildirimlerin bu listede durur."
           action={
             <button
               type="button"
               onClick={onLogin}
-              className="min-h-11 rounded-[14px] bg-primary px-5 text-sm font-semibold text-primary-foreground"
+              className="min-h-11 rounded-[14px] bg-primary px-5 text-sm font-bold text-primary-foreground shadow-md"
             >
               Giriş yap
             </button>
           }
         />
       ) : loading ? (
-        <p className="text-sm text-muted-foreground">Bildirimler yükleniyor…</p>
-      ) : items.length === 0 ? (
-        <EmptyState title="Yeni bildirimin yok." />
+        <div className="space-y-3 py-4 text-center">
+          <div className="mx-auto size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <p className="text-xs font-semibold text-muted-foreground">Bildirimler yükleniyor…</p>
+        </div>
+      ) : filteredItems.length === 0 ? (
+        <EmptyState title="Seçilen filtrede henüz bildirim yok." description="Sipariş ve etkinlik durumların burada görünecek." />
       ) : (
-        <ul className="space-y-2">
-          {items.map((item) => (
-            <li key={item.id}>
-              <button
-                type="button"
-                onClick={() => onOpen(item)}
-                className="gol-card flex w-full gap-3 p-3 text-left"
-              >
-                <span
-                  className={`mt-1.5 size-2 shrink-0 rounded-full ${item.isRead ? "bg-transparent" : "bg-[color:var(--color-danger)]"}`}
-                  aria-hidden
-                />
-                <span className="min-w-0">
-                  <span className="block text-sm font-semibold text-foreground">{item.title}</span>
-                  <span className="mt-0.5 line-clamp-2 text-[13px] text-muted-foreground">{item.body}</span>
-                  <span className="mt-1 block text-[12px] text-muted-foreground">
-                    {new Date(item.createdAt).toLocaleString("tr-TR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
-                  </span>
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
+        <div className="space-y-4 pt-1">
+          {todayItems.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="text-[10px] font-black uppercase tracking-wider text-muted-foreground px-1">
+                Bugün
+              </h3>
+              <div className="space-y-2">{todayItems.map(renderNotificationCard)}</div>
+            </div>
+          )}
+
+          {yesterdayItems.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="text-[10px] font-black uppercase tracking-wider text-muted-foreground px-1">
+                Dün
+              </h3>
+              <div className="space-y-2">{yesterdayItems.map(renderNotificationCard)}</div>
+            </div>
+          )}
+
+          {olderItems.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="text-[10px] font-black uppercase tracking-wider text-muted-foreground px-1">
+                Daha Önce
+              </h3>
+              <div className="space-y-2">{olderItems.map(renderNotificationCard)}</div>
+            </div>
+          )}
+        </div>
       )}
     </OverlaySheet>
   )

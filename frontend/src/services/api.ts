@@ -299,6 +299,26 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+  updateBranchPickupStatus: (branchId: string, status: 'OPEN' | 'PAUSED' | 'CLOSED', data?: { reason?: string; durationMinutes?: number }) =>
+    request<any>(`/staff/branches/${branchId}/pickup-status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status, ...data }),
+    }),
+  updateProductAvailability: (productId: string, isAvailable: boolean) =>
+    request<any>(`/staff/products/${productId}/availability`, {
+      method: 'PATCH',
+      body: JSON.stringify({ isAvailable }),
+    }),
+  resolveOrderQr: (qrToken: string) =>
+    request<any>('/staff/qr/resolve-order', {
+      method: 'POST',
+      body: JSON.stringify({ qrToken }),
+    }),
+  completeOrderPickup: (orderId: string, data: { paymentMethod: string; pointsRedeemed?: number }) =>
+    request<any>(`/staff/orders/${orderId}/complete-pickup`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 
   // Dashboard & Specification Endpoints
   getDashboardOverview: () => request<any>('/dashboard/overview'),
@@ -307,6 +327,15 @@ export const api = {
     request<any>(`/users/${id}/adjust-points`, {
       method: 'POST',
       body: JSON.stringify(data),
+    }),
+  addUserRestriction: (id: string, data: { type: string; reasonCode: string; internalNote?: string; durationDays?: number }) =>
+    request<any>(`/users/${id}/restrictions`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  revokeUserSessions: (id: string) =>
+    request<any>(`/users/${id}/revoke-sessions`, {
+      method: 'POST',
     }),
   getAuditLogs: (params?: Record<string, string | number | undefined>) =>
     request<any>(`/auditlogs${toQuery({ page: 1, pageSize: 25, ...params })}`),
@@ -387,6 +416,20 @@ export const api = {
     request<any>(`/activities/${id}/unpublish`, { method: 'POST' }),
   archiveActivity: (id: string) =>
     request<any>(`/activities/${id}/archive`, { method: 'POST' }),
+  completeActivity: (id: string) =>
+    request<any>(`/activities/${id}/complete`, { method: 'POST' }),
+  checkInEventParticipant: (data: { eventId: string; qrToken: string; notes?: string }) =>
+    request<any>(`/staff/events/${data.eventId}/check-in`, { method: 'POST', body: JSON.stringify(data) }),
+  getMissions: (params?: Record<string, string | number | undefined>) =>
+    request<any>(`/missions${toQuery({ page: 1, pageSize: 25, ...params })}`),
+  createMission: (data: any) =>
+    request<any>('/missions', { method: 'POST', body: JSON.stringify(data) }),
+  updateMission: (id: string, data: any) =>
+    request<any>(`/missions/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  publishMission: (id: string) =>
+    request<any>(`/missions/${id}/publish`, { method: 'POST' }),
+  endMission: (id: string) =>
+    request<any>(`/missions/${id}/end`, { method: 'POST' }),
   getReportsSummary: (params?: Record<string, string | undefined>) =>
     request<any>(`/reports/summary${toQuery(params || {})}`),
   exportReport: async (type: string, params?: Record<string, string | undefined>) => {

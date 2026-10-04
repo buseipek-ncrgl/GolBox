@@ -21,6 +21,8 @@ const FieldDropsPage = lazy(() => import('./features/admin/fielddrops/FieldDrops
 const OrdersPage = lazy(() => import('./features/admin/orders/OrdersPage').then((m) => ({ default: m.OrdersPage })));
 const CampaignsPage = lazy(() => import('./features/admin/campaigns/CampaignsPage').then((m) => ({ default: m.CampaignsPage })));
 const ActivitiesPage = lazy(() => import('./features/admin/activities/ActivitiesPage').then((m) => ({ default: m.ActivitiesPage })));
+const EventCheckinPage = lazy(() => import('./features/admin/activities/EventCheckinPage').then((m) => ({ default: m.EventCheckinPage })));
+const MissionsPage = lazy(() => import('./features/admin/missions/MissionsPage').then((m) => ({ default: m.MissionsPage })));
 const NotificationsPage = lazy(() => import('./features/admin/notifications/NotificationsPage').then((m) => ({ default: m.NotificationsPage })));
 const ReportsPage = lazy(() => import('./features/admin/reports/ReportsPage').then((m) => ({ default: m.ReportsPage })));
 const RolesPage = lazy(() => import('./features/admin/roles/RolesPage').then((m) => ({ default: m.RolesPage })));
@@ -64,10 +66,13 @@ const MainApp = () => {
           <Route path="qr" element={<QrPage />} />
           <Route path="oduller" element={<RewardsPage />} />
           <Route path="saha-hediyeleri" element={<FieldDropsPage />} />
+          <Route path="siparisler" element={<OrdersPage />} />
           <Route path="ismarliyor" element={<OrdersPage />} />
           <Route path="icerikler" element={<HomeContentPage />} />
           <Route path="sosyal-medya" element={<SocialPage />} />
           <Route path="etkinlikler" element={<ActivitiesPage />} />
+          <Route path="etkinlik-checkin" element={<EventCheckinPage />} />
+          <Route path="gorevler" element={<MissionsPage />} />
           <Route path="kampanyalar" element={<CampaignsPage />} />
           <Route path="bildirimler" element={<NotificationsPage />} />
           <Route path="raporlar" element={<ReportsPage />} />

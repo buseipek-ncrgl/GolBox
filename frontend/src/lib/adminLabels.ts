@@ -116,14 +116,15 @@ export const qrResultLabel = (result: any): string => {
 };
 
 export const NAV_TARGETS: { id: string; label: string; targetType: string; targetId: string }[] = [
-  { id: 'none', label: 'Yönlendirme yok', targetType: 'None', targetId: '' },
-  { id: 'home', label: 'Ana Sayfa', targetType: 'Route', targetId: 'home' },
-  { id: 'activity', label: 'Etkinlik', targetType: 'Route', targetId: 'earn' },
-  { id: 'place', label: 'Tesis', targetType: 'Route', targetId: 'places' },
-  { id: 'cafe', label: 'Göl Kafe', targetType: 'Route', targetId: 'cafes' },
-  { id: 'coupons', label: 'Kuponlarım', targetType: 'Route', targetId: 'coupons' },
-  { id: 'map', label: 'GölBox Harita', targetType: 'Route', targetId: 'map' },
-  { id: 'profile', label: 'Profil', targetType: 'Route', targetId: 'profile' }
+  { id: 'none', label: 'Yönlendirme yok (Sadece Duyuru)', targetType: 'NONE', targetId: '' },
+  { id: 'active_order', label: 'Aktif Sipariş Ekranı (ORDER)', targetType: 'ORDER', targetId: 'active' },
+  { id: 'campaign_detail', label: 'Kampanyalar & Fırsatlar (CAMPAIGN)', targetType: 'CAMPAIGN', targetId: 'list' },
+  { id: 'event_detail', label: 'Belediye Etkinlikleri (EVENT)', targetType: 'EVENT', targetId: 'list' },
+  { id: 'rewards_catalog', label: 'Ödül Kataloğu (REWARD)', targetType: 'REWARD', targetId: 'catalog' },
+  { id: 'missions_center', label: 'Görev Merkezi (MISSION)', targetType: 'MISSION', targetId: 'center' },
+  { id: 'menu_catalog', label: 'Gel-Al Menüsü (MENU)', targetType: 'MENU', targetId: 'main' },
+  { id: 'branches_list', label: 'Şubeler & Tesisler (BRANCH)', targetType: 'BRANCH', targetId: 'all' },
+  { id: 'profile_notifications', label: 'Bildirim Kutusu (INBOX)', targetType: 'INBOX', targetId: 'inbox' }
 ];
 
 export const qrOperationLabel = (op?: string): string => {
