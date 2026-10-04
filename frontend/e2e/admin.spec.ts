@@ -26,7 +26,7 @@ test('2. rota yenileme oturumu korur', async ({ page }) => {
   await expect(page.getByTestId('admin-layout')).toBeVisible();
   await page.reload();
   await expect(page.getByTestId('admin-layout')).toBeVisible();
-  await expect(page.getByTestId('admin-page-title')).toHaveText('Vatandaşlar');
+  await expect(page.getByTestId('admin-page-title')).toHaveText('Vatandaş Hesabı Arama');
   await expect(page).toHaveURL(/\/admin\/vatandaslar/);
 });
 
