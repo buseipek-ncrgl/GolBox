@@ -18,7 +18,7 @@ test.describe.configure({ mode: 'serial' });
 test('1. yönetici girişi', async ({ page }) => {
   await page.goto('/admin');
   await expect(page.getByTestId('admin-layout')).toBeVisible();
-  await expect(page.getByTestId('admin-page-title')).toHaveText('Genel Bakış');
+  await expect(page.getByTestId('admin-page-title')).toHaveText('Dashboard');
 });
 
 test('2. rota yenileme oturumu korur', async ({ page }) => {
@@ -36,7 +36,7 @@ test('3. kenar menü gezintisi', async ({ page }) => {
   await expect(page.getByTestId('admin-page-title')).toHaveText('QR İşlemleri');
   await page.getByRole('link', { name: 'Ismarlıyor' }).click();
   await expect(page.getByTestId('admin-page-title')).toHaveText('Ismarlıyor');
-  await page.getByRole('link', { name: 'Genel Bakış' }).click();
+  await page.getByRole('link', { name: 'Dashboard' }).click();
   await expect(page.getByTestId('admin-page-title')).toHaveText('Dashboard');
 });
 
@@ -99,7 +99,7 @@ test('9. personel yasaklı rota', async ({ page }) => {
   await loginAs(page, 'staff@golbox.gov.tr', 'Staff123!');
   await page.goto('/admin/yetkilendirme');
   await expect(page).toHaveURL(/\/admin\/?$/);
-  await expect(page.getByTestId('admin-page-title')).toHaveText('Genel Bakış');
+  await expect(page.getByTestId('admin-page-title')).toHaveText('Dashboard');
   await expect(page.getByRole('link', { name: 'Yetkilendirme' })).toHaveCount(0);
 });
 
@@ -284,7 +284,7 @@ test('26. dashboard critical queue consistency', async ({ page }) => {
 
 test('27. sidebar keyboard focus', async ({ page }) => {
   await page.goto('/admin');
-  const link = page.getByTestId('admin-sidebar').getByRole('link', { name: 'Genel Bakış' });
+  const link = page.getByTestId('admin-sidebar').getByRole('link', { name: 'Dashboard' });
   await link.focus();
   await expect(link).toBeFocused();
   const outline = await link.evaluate((el) => getComputedStyle(el).outlineWidth);
