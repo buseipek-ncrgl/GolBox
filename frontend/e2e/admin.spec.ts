@@ -37,7 +37,7 @@ test('3. kenar menü gezintisi', async ({ page }) => {
   await page.getByRole('link', { name: 'Ismarlıyor' }).click();
   await expect(page.getByTestId('admin-page-title')).toHaveText('Ismarlıyor');
   await page.getByRole('link', { name: 'Genel Bakış' }).click();
-  await expect(page.getByTestId('admin-page-title')).toHaveText('Genel Bakış');
+  await expect(page.getByTestId('admin-page-title')).toHaveText('Dashboard');
 });
 
 test('4. vatandaş arama ve detay', async ({ page }) => {
