@@ -18,6 +18,8 @@ import { BranchesScreen } from "@/components/golbox/screens/branches-screen"
 import { CampaignsScreen } from "@/components/golbox/screens/campaigns-screen"
 import { EventsScreen } from "@/components/golbox/screens/events-screen"
 import { MissionsScreen } from "@/components/golbox/screens/missions-screen"
+import { OrdersHistoryScreen } from "@/components/golbox/screens/orders-history-screen"
+import { CartScreen } from "@/components/golbox/screens/cart-screen"
 import { useEffect } from "react"
 import { InAppNotificationToast } from "@/components/golbox/notifications/in-app-notification-toast"
 import { fetchMyNotifications, type CitizenNotification } from "@/lib/city-content-api"
@@ -33,6 +35,7 @@ export function AppShell() {
   const [showCampaigns, setShowCampaigns] = useState(false)
   const [showEvents, setShowEvents] = useState(false)
   const [showMissions, setShowMissions] = useState(false)
+  const [showOrders, setShowOrders] = useState(false)
   const [notifications, setNotifications] = useState<CitizenNotification[]>([])
   const [notificationsLoading, setNotificationsLoading] = useState(false)
   const [transientNotification, setTransientNotification] = useState<CitizenNotification | null>(null)
@@ -61,7 +64,7 @@ export function AppShell() {
   if (sessionReady && !token) {
     return (
       <div className="relative flex h-full flex-col justify-center p-5 bg-background">
-        <LoginScreen />
+        <LoginScreen onReplaySplash={() => setShowSplash(true)} />
       </div>
     )
   }
@@ -73,6 +76,7 @@ export function AppShell() {
     setShowCampaigns(false)
     setShowEvents(false)
     setShowMissions(false)
+    setShowOrders(false)
     setShowNotifications(false)
     setTab(next)
   }
@@ -130,6 +134,7 @@ export function AppShell() {
           onNotifications={() => void handleOpenNotifications()}
           onProfile={() => goto("profile")}
           onOpenBranches={() => setShowBranches(true)}
+          onReplaySplash={() => setShowSplash(true)}
           selectedBranchName={selectedBranch?.name}
           showGreeting={false}
         />
@@ -160,11 +165,29 @@ export function AppShell() {
           <ProfileScreen
             onOpenEvents={() => setShowEvents(true)}
             onOpenMissions={() => setShowMissions(true)}
+            onOpenOrders={() => setShowOrders(true)}
+          />
+        )}
+        {tab === "cart" && (
+          <CartScreen
+            onClose={() => goto("home")}
+            onNavigateToMenu={() => goto("menu")}
+            onNavigateToQr={() => goto("qr")}
           />
         )}
       </main>
 
       <BottomNav active={tab} onChange={goto} />
+
+      {showOrders && (
+        <OrdersHistoryScreen
+          onBack={() => setShowOrders(false)}
+          onNavigateToMenu={() => {
+            setShowOrders(false)
+            goto("menu")
+          }}
+        />
+      )}
 
       {showBranches && (
         <BranchesScreen

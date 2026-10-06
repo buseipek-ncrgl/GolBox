@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { api } from '../../services/api';
+import { BadgeCheck, Coins, Gift, MapPinCheck } from 'lucide-react';
 import { Button, NumberInput, Skeleton, UnsavedGuard } from '../../admin/components';
 
 const RULES = [
@@ -87,27 +88,28 @@ export function SettingsPanel({
 
   if (loading) return <Skeleton variant="detail" />;
 
+  const icons: Record<string, React.ReactNode> = {
+    rewardExpireDays: <Gift size={19} />,
+    visitBonusPoints: <MapPinCheck size={19} />,
+    pointsExchangeRate: <Coins size={19} />,
+    spendEarnRatePercent: <BadgeCheck size={19} />
+  };
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', maxWidth: 640 }}>
+    <div className="settings-page">
       <UnsavedGuard dirty={dirty} />
-      {RULES.map((rule) => (
-        <div key={rule.key} className="admin-card">
-          <NumberInput
-            label={rule.label}
-            helper={rule.hint}
-            step={rule.step}
-            min={rule.min}
-            max={rule.max}
-            value={values[rule.key] ?? ''}
-            onChange={(e) => setValues((prev) => ({ ...prev, [rule.key]: e.target.value }))}
-          />
-        </div>
-      ))}
-      <div className="admin-sticky-save">
+      <section className="settings-intro"><div><strong>Sadakat ve ödül kuralları</strong><p>Mobil uygulamadaki GölPuan kazanımı, ziyaret bonusu ve kupon süresini merkezi olarak yönetin.</p></div><span className={dirty ? 'is-dirty' : ''}>{dirty ? 'Kaydedilmemiş değişiklik' : 'Tüm ayarlar güncel'}</span></section>
+      <div className="settings-grid">{RULES.map((rule) => (
+        <section key={rule.key} className="settings-rule">
+          <div className="settings-rule-icon">{icons[rule.key]}</div>
+          <div className="settings-rule-content"><NumberInput label={rule.label} helper={rule.hint} step={rule.step} min={rule.min} max={rule.max} value={values[rule.key] ?? ''} onChange={(e) => setValues((prev) => ({ ...prev, [rule.key]: e.target.value }))} /></div>
+        </section>
+      ))}</div>
+      <div className="settings-save-bar">
+        <div><strong>Ayarları kaydet</strong><span>{dirty ? 'Değişiklikler henüz mobil uygulamaya yansımadı.' : 'Mevcut değerler mobil uygulama ile senkronize.'}</span></div>
         <Button onClick={() => void saveAll()} loading={saving} disabled={!dirty} data-testid="settings-save">
-          Değişiklikleri Kaydet
+          Değişiklikleri kaydet
         </Button>
-        {dirty ? <span className="admin-muted">Kaydedilmemiş değişiklik var.</span> : <span className="admin-muted">Güncel.</span>}
       </div>
     </div>
   );

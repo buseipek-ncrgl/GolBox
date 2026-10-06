@@ -28,6 +28,10 @@ public class RewardConfiguration : IEntityTypeConfiguration<Reward>
         builder.Property(r => r.ImageUrl)
             .HasMaxLength(1000);
 
+        builder.Property(r => r.PerUserLimit).HasDefaultValue(1);
+        builder.Property(r => r.RequiredEducation).HasMaxLength(100);
+        builder.HasIndex(r => new { r.OrganizationId, r.Status });
+
         // Soft delete index
         builder.HasIndex(r => r.IsDeleted)
             .HasFilter("IsDeleted = 0");

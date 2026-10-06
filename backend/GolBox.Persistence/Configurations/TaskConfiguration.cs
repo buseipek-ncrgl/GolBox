@@ -25,6 +25,13 @@ public class TaskConfiguration : IEntityTypeConfiguration<Task>
             .IsRequired()
             .HasMaxLength(50);
 
+        builder.Property(t => t.ShortDescription).HasMaxLength(300);
+        builder.Property(t => t.Category).HasMaxLength(50);
+        builder.Property(t => t.MissionType).HasMaxLength(50);
+        builder.Property(t => t.TargetAudience).HasMaxLength(50);
+        builder.Property(t => t.HowToCompleteJson).HasMaxLength(2000);
+        builder.HasIndex(t => new { t.OrganizationId, t.Status, t.StartDate, t.EndDate });
+
         // Soft delete index
         builder.HasIndex(t => t.IsDeleted)
             .HasFilter("IsDeleted = 0");

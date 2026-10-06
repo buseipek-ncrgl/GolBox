@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using GolBox.Application.Common;
 using GolBox.Application.Interfaces;
 using GolBox.Domain.Entities;
+using GolBox.Application.Features.Tasks;
 
 namespace GolBox.Application.Features.Tasks.Commands;
 
@@ -54,13 +55,12 @@ public class CompleteTaskCommandHandler : IRequestHandler<CompleteTaskCommand, R
             return Result.Fail("Görevin geçerlilik süresi dışında işlem yapılamaz.");
         }
 
-        var completedCount = await _context.UserTasks
-            .CountAsync(ut => ut.TaskId == task.Id && ut.UserId == user.Id, cancellationToken);
+        if (await _context.UserTasks.AnyAsync(ut => ut.TaskId == task.Id && ut.UserId == user.Id, cancellationToken))
+            return Result.Fail("Bu görevin ödülü daha önce hesabınıza aktarıldı.");
 
-        if (completedCount >= task.MaxCompletions)
-        {
-            return Result.Fail($"Bu görevi zaten maksimum sınırda tamamladınız. Sınır: {task.MaxCompletions}");
-        }
+        var progress = await MissionProgressEvaluator.EvaluateAsync(_context, user, task, cancellationToken);
+        if (!progress.Eligible || !progress.Completed)
+            return Result.Fail(progress.Reason ?? $"Görev ilerlemesi tamamlanmadı: {progress.Current}/{progress.Target}.");
 
         // 1. Log UserTask completion
         var userTask = new UserTask
@@ -84,7 +84,8 @@ public class CompleteTaskCommandHandler : IRequestHandler<CompleteTaskCommand, R
             Type = "Earn",
             Description = $"\"{task.Title}\" Görevi Tamamlandı",
             ReferenceType = "Task",
-            ReferenceId = task.Id
+            ReferenceId = task.Id,
+            BalanceAfter = user.PointsBalance
         };
         _context.PointTransactions.Add(transaction);
 

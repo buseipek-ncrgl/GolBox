@@ -21,7 +21,9 @@ export function DataTable<T>({
   onRetry,
   actions,
   caption,
-  stickyHeader
+  stickyHeader,
+  selectedIds,
+  onSelectionChange
 }: {
   columns: Column<T>[];
   rows: T[];
@@ -34,6 +36,8 @@ export function DataTable<T>({
   actions?: (row: T) => React.ReactNode;
   caption: string;
   stickyHeader?: boolean;
+  selectedIds?: string[];
+  onSelectionChange?: (ids: string[]) => void;
 }) {
   if (loading) return <Skeleton variant="table" />;
   if (error) return <ErrorState description={error} retry={onRetry} />;
@@ -45,6 +49,7 @@ export function DataTable<T>({
         <caption className="admin-sr-only">{caption}</caption>
         <thead>
           <tr>
+            {onSelectionChange ? <th className="admin-selection-column"><input aria-label="Sayfadaki tüm kayıtları seç" type="checkbox" checked={rows.length > 0 && rows.every((row) => selectedIds?.includes(getRowId(row)))} onChange={(event) => onSelectionChange(event.target.checked ? rows.map(getRowId) : [])} /></th> : null}
             {columns.map((col) => (
               <th key={col.key} scope="col" style={{ textAlign: col.align || 'left' }}>{col.header}</th>
             ))}
@@ -54,6 +59,7 @@ export function DataTable<T>({
         <tbody>
           {rows.map((row) => (
             <tr key={getRowId(row)}>
+              {onSelectionChange ? <td className="admin-selection-column"><input aria-label="Kaydı seç" type="checkbox" checked={selectedIds?.includes(getRowId(row)) || false} onChange={(event) => { const id = getRowId(row); onSelectionChange(event.target.checked ? [...(selectedIds || []), id] : (selectedIds || []).filter((value) => value !== id)); }} /></td> : null}
               {columns.map((col) => (
                 <td key={col.key} style={{ textAlign: col.align || 'left' }}>
                   {col.render ? col.render(row) : (row as any)[col.key]}

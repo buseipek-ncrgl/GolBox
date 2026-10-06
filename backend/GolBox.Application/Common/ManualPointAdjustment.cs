@@ -47,6 +47,7 @@ public static class ManualPointAdjustment
             Type = action == "Deduct" ? "ManualDeduction" : "ManualAddition",
             Description = $"[Manuel İşlem: {action}] Nedeni: {reason}. Açıklama: {description}",
             ReferenceType = "Admin",
+            BalanceAfter = user.PointsBalance,
             CreatedBy = actorId,
             CreatedDate = DateTime.UtcNow
         });

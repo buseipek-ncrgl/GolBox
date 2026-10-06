@@ -65,11 +65,30 @@ public class RewardsController : BaseApiController
                 r.RequiredPoints,
                 r.ImageUrl,
                 r.Status,
+                r.TotalStock,
+                r.IssuedCount,
+                remainingStock = r.TotalStock == null ? (int?)null : Math.Max(0, r.TotalStock.Value - r.IssuedCount),
+                r.PerUserLimit,
+                r.MinAge,
+                r.RequiredEducation,
+                claimedCount = r.UserRewards.Count,
+                redeemedCount = r.UserRewards.Count(ur => ur.Status == UserRewardStatuses.Redeemed),
                 r.CreatedDate,
                 r.UpdatedDate
             })
             .ToListAsync();
-        return Ok(Result<object>.Ok(new { items = rewards, page, pageSize, totalCount }));
+        var summaryRows = await _context.Rewards.Select(r => new { r.Status, r.TotalStock, r.IssuedCount }).ToListAsync();
+        var totalClaims = await _context.UserRewards.CountAsync();
+        var totalRedemptions = await _context.UserRewards.CountAsync(ur => ur.Status == UserRewardStatuses.Redeemed);
+        var summary = new
+        {
+            total = summaryRows.Count,
+            active = summaryRows.Count(r => r.Status == "Active"),
+            limitedStock = summaryRows.Count(r => r.TotalStock.HasValue),
+            totalClaims,
+            totalRedemptions
+        };
+        return Ok(Result<object>.Ok(new { items = rewards, page, pageSize, totalCount, summary }));
     }
 
     [HttpGet("my-claimed")]
@@ -103,6 +122,8 @@ public class RewardsController : BaseApiController
             return BadRequest(Result<object>.Fail(pointsCheck.Message));
         if (string.IsNullOrWhiteSpace(request.Title))
             return BadRequest(Result<object>.Fail("Ödül başlığı zorunludur."));
+        var ruleError = ValidateOperationalRules(request.TotalStock, request.PerUserLimit, request.MinAge);
+        if (ruleError != null) return BadRequest(Result<object>.Fail(ruleError));
 
         var reward = new Reward
         {
@@ -112,6 +133,10 @@ public class RewardsController : BaseApiController
             Description = request.Description?.Trim() ?? string.Empty,
             RequiredPoints = request.RequiredPoints,
             ImageUrl = request.ImageUrl,
+            TotalStock = request.TotalStock,
+            PerUserLimit = request.PerUserLimit,
+            MinAge = request.MinAge,
+            RequiredEducation = string.IsNullOrWhiteSpace(request.RequiredEducation) ? null : request.RequiredEducation.Trim(),
             Status = "Active"
         };
 
@@ -135,11 +160,19 @@ public class RewardsController : BaseApiController
             return BadRequest(Result<object>.Fail(pointsCheck.Message));
         if (string.IsNullOrWhiteSpace(request.Title))
             return BadRequest(Result<object>.Fail("Ödül başlığı zorunludur."));
+        var ruleError = ValidateOperationalRules(request.TotalStock, request.PerUserLimit, request.MinAge);
+        if (ruleError != null) return BadRequest(Result<object>.Fail(ruleError));
 
         var previous = $"{reward.Title} / {reward.RequiredPoints} GP / {reward.Status}";
         reward.Title = request.Title.Trim();
         reward.Description = request.Description?.Trim() ?? string.Empty;
         reward.RequiredPoints = request.RequiredPoints;
+        if (request.TotalStock.HasValue && request.TotalStock.Value < reward.IssuedCount)
+            return BadRequest(Result<object>.Fail($"Toplam kontenjan dağıtılmış {reward.IssuedCount} adetten düşük olamaz."));
+        reward.TotalStock = request.TotalStock;
+        reward.PerUserLimit = request.PerUserLimit;
+        reward.MinAge = request.MinAge;
+        reward.RequiredEducation = string.IsNullOrWhiteSpace(request.RequiredEducation) ? null : request.RequiredEducation.Trim();
         if (request.ImageUrl != null)
             reward.ImageUrl = request.ImageUrl;
         if (!string.IsNullOrWhiteSpace(request.Status))
@@ -209,6 +242,15 @@ public class RewardsController : BaseApiController
         await AuditLogsController.LogAsync(_context, "admin", "Admin", "Reward_Delete", "Rewards", "Reward", id.ToString(), reward.Title, null, null);
         return Ok(Result<object>.Ok(new { id }, "Ödül başarıyla silindi."));
     }
+
+    private static string? ValidateOperationalRules(int? totalStock, int perUserLimit, int? minAge)
+    {
+        if (totalStock.HasValue && totalStock.Value < 1) return "Toplam kontenjan en az 1 olmalıdır.";
+        if (perUserLimit is < 1 or > 20) return "Kişi başı limit 1 ile 20 arasında olmalıdır.";
+        if (totalStock.HasValue && perUserLimit > totalStock.Value) return "Kişi başı limit toplam kontenjandan büyük olamaz.";
+        if (minAge.HasValue && minAge.Value is < 6 or > 120) return "Minimum yaş 6 ile 120 arasında olmalıdır.";
+        return null;
+    }
 }
 
 public class CreateRewardRequest
@@ -218,6 +260,10 @@ public class CreateRewardRequest
     public string Description { get; set; } = string.Empty;
     public int RequiredPoints { get; set; }
     public string? ImageUrl { get; set; }
+    public int? TotalStock { get; set; }
+    public int PerUserLimit { get; set; } = 1;
+    public int? MinAge { get; set; }
+    public string? RequiredEducation { get; set; }
 }
 
 public class UpdateRewardRequest
@@ -227,4 +273,8 @@ public class UpdateRewardRequest
     public int RequiredPoints { get; set; }
     public string? ImageUrl { get; set; }
     public string? Status { get; set; }
+    public int? TotalStock { get; set; }
+    public int PerUserLimit { get; set; } = 1;
+    public int? MinAge { get; set; }
+    public string? RequiredEducation { get; set; }
 }

@@ -83,6 +83,7 @@ builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<ITokenDecoder, TokenDecoder>();
 builder.Services.AddSingleton<IDynamicQrService, DynamicQrService>();
 builder.Services.AddHostedService<ExpiredItemsCleanupService>();
+builder.Services.AddHostedService<GolBox.Api.Services.ScheduledNotificationDispatcher>();
 
 builder.Services.AddMediatR(cfg =>
     cfg.RegisterServicesFromAssembly(typeof(Result).Assembly));
@@ -208,13 +209,64 @@ using (var scope = app.Services.CreateScope())
     var context = services.GetRequiredService<AppDbContext>();
     var logger = services.GetRequiredService<ILoggerFactory>().CreateLogger("Startup");
     await context.Database.MigrateAsync();
+    if (context.Database.IsSqlite())
+    {
+        try
+        {
+            await context.Database.ExecuteSqlRawAsync("ALTER TABLE ProductOptionGroups DROP COLUMN MinSelect;");
+            await context.Database.ExecuteSqlRawAsync("ALTER TABLE ProductOptionGroups DROP COLUMN MaxSelect;");
+            await context.Database.ExecuteSqlRawAsync("ALTER TABLE ProductOptionGroups DROP COLUMN IsRequired;");
+        }
+        catch
+        {
+            try
+            {
+                await context.Database.ExecuteSqlRawAsync(@"
+                    PRAGMA foreign_keys=OFF;
+                    CREATE TABLE IF NOT EXISTS ProductOptionGroups_clean (
+                        Id TEXT NOT NULL PRIMARY KEY,
+                        MenuItemId TEXT NOT NULL,
+                        Name TEXT NOT NULL,
+                        SelectionType TEXT NOT NULL,
+                        Required INTEGER NOT NULL,
+                        MinSelections INTEGER NOT NULL,
+                        MaxSelections INTEGER NOT NULL,
+                        DisplayOrder INTEGER NOT NULL,
+                        IsDeleted INTEGER NOT NULL,
+                        CreatedAt TEXT NOT NULL,
+                        UpdatedAt TEXT NULL,
+                        CreatedBy TEXT NULL,
+                        UpdatedBy TEXT NULL,
+                        DeletedDate TEXT NULL,
+                        FOREIGN KEY (MenuItemId) REFERENCES MenuItems (Id) ON DELETE CASCADE
+                    );
+                    INSERT OR IGNORE INTO ProductOptionGroups_clean 
+                    SELECT Id, MenuItemId, Name, SelectionType, Required, MinSelections, MaxSelections, DisplayOrder, IsDeleted, CreatedAt, UpdatedAt, CreatedBy, UpdatedBy, DeletedDate 
+                    FROM ProductOptionGroups;
+                    DROP TABLE ProductOptionGroups;
+                    ALTER TABLE ProductOptionGroups_clean RENAME TO ProductOptionGroups;
+                    PRAGMA foreign_keys=ON;
+                ");
+            }
+            catch { }
+        }
+        try
+        {
+            await context.Database.ExecuteSqlRawAsync("ALTER TABLE ProductOptions DROP COLUMN PriceAdjustment;");
+            await context.Database.ExecuteSqlRawAsync("ALTER TABLE ProductOptions DROP COLUMN IsDefault;");
+            await context.Database.ExecuteSqlRawAsync("ALTER TABLE ProductOptions DROP COLUMN IsAvailable;");
+        }
+        catch { }
+    }
     logger.LogInformation("Database migrations applied.");
 
     var passwordHasher = services.GetRequiredService<IPasswordHasher>();
+    var forceRefresh = args.Contains("--reset-seed") || args.Contains("--seed-refresh") || builder.Configuration.GetValue<bool>("ResetSeedOnStartup");
     await DbInitializer.SeedAsync(
         context,
         passwordHasher,
         app.Environment.IsDevelopment(),
+        forceRefresh,
         app.Configuration["BootstrapAdmin:Email"],
         app.Configuration["BootstrapAdmin:Password"]);
 }

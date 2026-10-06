@@ -72,10 +72,25 @@ public class CheckoutCartCommandHandler : IRequestHandler<CheckoutCartCommand, R
         if (rewards.Any(r => r.Status != "Active"))
             return Result<CheckoutCartResultDto>.Fail("Sepette aktif olmayan bir ikram var.");
 
+        var existingClaims = await _context.UserRewards
+            .Where(ur => ur.UserId == user.Id && rewardIds.Contains(ur.RewardId) && ur.Status != "Cancelled")
+            .GroupBy(ur => ur.RewardId)
+            .Select(g => new { RewardId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.RewardId, x => x.Count, cancellationToken);
+
         var totalPoints = 0;
         foreach (var line in lines)
         {
             var reward = rewards.First(r => r.Id == line.RewardId);
+            if (reward.MinAge.HasValue && (!user.Age.HasValue || user.Age.Value < reward.MinAge.Value))
+                return Result<CheckoutCartResultDto>.Fail($"{reward.Title} için en az {reward.MinAge} yaş gereklidir.");
+            if (!string.IsNullOrWhiteSpace(reward.RequiredEducation) && !string.Equals(user.EducationLevel, reward.RequiredEducation, StringComparison.OrdinalIgnoreCase))
+                return Result<CheckoutCartResultDto>.Fail($"{reward.Title} için {reward.RequiredEducation} öğrenim koşulu gereklidir.");
+            var claimedCount = existingClaims.GetValueOrDefault(reward.Id);
+            if (claimedCount + line.Quantity > reward.PerUserLimit)
+                return Result<CheckoutCartResultDto>.Fail($"{reward.Title} için kişi başı en fazla {reward.PerUserLimit} adet alınabilir.");
+            if (reward.TotalStock.HasValue && reward.IssuedCount + line.Quantity > reward.TotalStock.Value)
+                return Result<CheckoutCartResultDto>.Fail($"{reward.Title} için yeterli kontenjan kalmadı.");
             totalPoints += reward.RequiredPoints * line.Quantity;
         }
 
@@ -127,6 +142,8 @@ public class CheckoutCartCommandHandler : IRequestHandler<CheckoutCartCommand, R
                     ));
                 }
 
+                reward.IssuedCount += line.Quantity;
+
                 _context.PointTransactions.Add(new PointTransaction
                 {
                     UserId = user.Id,
@@ -136,7 +153,8 @@ public class CheckoutCartCommandHandler : IRequestHandler<CheckoutCartCommand, R
                     Description = line.Quantity > 1
                         ? $"{reward.Title} ×{line.Quantity} sepetten alındı"
                         : $"{reward.Title} sepetten alındı",
-                    ReferenceType = "RewardCheckout"
+                    ReferenceType = "RewardCheckout",
+                    BalanceAfter = user.PointsBalance - totalPoints
                 });
             }
 

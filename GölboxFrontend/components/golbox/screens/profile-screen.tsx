@@ -2,13 +2,15 @@
 
 import { useEffect, useState } from "react"
 import { Screen } from "@/components/golbox/screen"
-import { Gift, Heart, LogIn, LogOut, Ticket, Award, ChevronRight, Bell } from "lucide-react"
+import { Gift, Heart, LogIn, LogOut, Ticket, Award, ChevronRight, Bell, Eye, EyeOff } from "lucide-react"
 import { useGolbox } from "@/lib/golbox-context"
 import { LoginScreen } from "@/components/golbox/screens/login-screen"
+import { AuthGate } from "@/components/golbox/auth-gate"
 import { RewardsScreen } from "@/components/golbox/screens/rewards-screen"
 import { CouponPass, isActiveCoupon } from "@/components/golbox/coupon-pass"
 import { FavoritesScreen } from "@/components/golbox/screens/favorites-screen"
 import { NotificationPreferencesSheet } from "@/components/golbox/notifications/notification-preferences-sheet"
+import { useGolToast } from "@/components/golbox/gol-toast"
 
 function formatWhen(iso: string) {
   const date = new Date(iso)
@@ -23,6 +25,8 @@ function ProfileUpdateSection() {
   const [email, setEmail] = useState(user?.email || "")
   const [oldPassword, setOldPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
+  const [showOldPassword, setShowOldPassword] = useState(false)
+  const [showNewPassword, setShowNewPassword] = useState(false)
   const [activeTab, setActiveTab] = useState<"info" | "password">("info")
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -126,26 +130,44 @@ function ProfileUpdateSection() {
         <form onSubmit={handleChangePassword} className="space-y-3">
           <div>
             <label className="block text-[11px] font-semibold text-muted-foreground mb-1">Mevcut Şifre</label>
-            <input
-              type="password"
-              value={oldPassword}
-              onChange={(e) => setOldPassword(e.target.value)}
-              required
-              placeholder="••••••••"
-              className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
-            />
+            <div className="relative">
+              <input
+                type={showOldPassword ? "text" : "password"}
+                value={oldPassword}
+                onChange={(e) => setOldPassword(e.target.value)}
+                required
+                placeholder="••••••••"
+                className="w-full rounded-xl border border-border bg-background pl-3 pr-10 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+              />
+              <button
+                type="button"
+                onClick={() => setShowOldPassword(!showOldPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                {showOldPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+              </button>
+            </div>
           </div>
 
           <div>
             <label className="block text-[11px] font-semibold text-muted-foreground mb-1">Yeni Şifre</label>
-            <input
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              required
-              placeholder="Yeni şifrenizi girin"
-              className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
-            />
+            <div className="relative">
+              <input
+                type={showNewPassword ? "text" : "password"}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                required
+                placeholder="Yeni şifrenizi girin"
+                className="w-full rounded-xl border border-border bg-background pl-3 pr-10 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+              />
+              <button
+                type="button"
+                onClick={() => setShowNewPassword(!showNewPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                {showNewPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+              </button>
+            </div>
           </div>
 
           <button
@@ -164,14 +186,17 @@ export function ProfileScreen({
   onNavigateToMenu,
   onNavigateToCart,
   onOpenEvents,
-  onOpenMissions
+  onOpenMissions,
+  onOpenOrders
 }: {
   onNavigateToMenu?: () => void
   onNavigateToCart?: () => void
   onOpenEvents?: () => void
   onOpenMissions?: () => void
+  onOpenOrders?: () => void
 }) {
   const { user, token, myCaptures, pointTransactions, claimedRewards, orders, logout, loadMyCaptures, favorites, toggleFavorite } = useGolbox()
+  const showToast = useGolToast()
   const [showLogin, setShowLogin] = useState(false)
   const [showRewards, setShowRewards] = useState(false)
   const [showFavorites, setShowFavorites] = useState(false)
@@ -222,59 +247,63 @@ export function ProfileScreen({
     return <LoginScreen onClose={() => setShowLogin(false)} closeLabel="Profile dön" />
   }
 
-  return (
-    <Screen>
-      <header className="flex items-center gap-4">
-        <div className="flex size-14 items-center justify-center rounded-full bg-primary font-serif text-2xl text-primary-foreground">
-          {displayName.charAt(0)}
-        </div>
-        <div className="min-w-0">
-          <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">Profil</p>
-          <h1 className="truncate font-serif text-2xl leading-tight text-foreground">{displayName}</h1>
-          <p className="text-sm text-muted-foreground">
-            {user ? user.email : "Misafir görünümü · giriş yapınca bakiyen gelir"}
+  if (!token) {
+    return (
+      <Screen fill className="justify-center">
+        <AuthGate
+          context="PROFILE"
+          onLogin={() => setShowLogin(true)}
+        />
+        <div className="max-w-lg mx-auto w-full px-4 pt-2 space-y-2.5">
+          <div className="rounded-3xl border border-border bg-card p-4 space-y-2">
+            <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block">
+              Kurumsal & Destek
+            </span>
+            <div className="divide-y divide-border/40 text-xs font-bold text-foreground">
+              <button
+                type="button"
+                onClick={() => showToast("GölBOX Destek Hattı: 0342 320 00 00")}
+                className="w-full flex items-center justify-between py-2.5 hover:text-primary transition"
+              >
+                <span>Yardım & Destek</span>
+                <ChevronRight className="size-4 text-muted-foreground" />
+              </button>
+              <button
+                type="button"
+                onClick={() => showToast("Gizlilik Politikası: Şehitkamil Belediyesi KVKK Uyumludur.")}
+                className="w-full flex items-center justify-between py-2.5 hover:text-primary transition"
+              >
+                <span>Gizlilik Politikası</span>
+                <ChevronRight className="size-4 text-muted-foreground" />
+              </button>
+              <button
+                type="button"
+                onClick={() => showToast("Kullanım Koşulları: GölBOX Dijital Hizmet Şartları.")}
+                className="w-full flex items-center justify-between py-2.5 hover:text-primary transition"
+              >
+                <span>Kullanım Koşulları</span>
+                <ChevronRight className="size-4 text-muted-foreground" />
+              </button>
+            </div>
+          </div>
+          <p className="text-center text-[10px] text-muted-foreground font-semibold">
+            T.C. ŞEHİTKAMİL BELEDİYESİ · GölBOX v1.4.0
           </p>
         </div>
+      </Screen>
+    )
+  }
+
+  return (
+    <Screen className="space-y-4 pb-32">
+      <header className="space-y-1">
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">Profilim</h1>
+        <p className="text-xs text-muted-foreground">
+          Hesap bilgilerinizi, siparişlerinizi ve kişisel tercihlerinizi yönetin.
+        </p>
       </header>
 
-      {token ? (
-        <button
-          type="button"
-          onClick={() => {
-            setRewardsTab("catalog")
-            setShowRewards(true)
-          }}
-          className="flex w-full items-center justify-between rounded-[var(--gol-card)] bg-primary px-5 py-4 text-left text-primary-foreground"
-        >
-          <div>
-            <p className="text-xs uppercase tracking-wide text-primary-foreground/70">GölPuan</p>
-            <p className="font-serif text-3xl leading-tight text-[color:var(--color-gold)]">{points}</p>
-          </div>
-          <p className="max-w-[9rem] text-pretty text-right text-sm text-primary-foreground/90">
-            Katalog ödülleri GölPuan ile alınır. Saha kutusu ayrıdır.
-          </p>
-        </button>
-      ) : (
-        <div className="rounded-[var(--gol-card)] bg-[color:var(--color-brand-900)] px-5 py-5 text-white">
-          <p className="text-xs uppercase tracking-wide text-white/70">GölPuan</p>
-          <p className="mt-1 font-serif text-2xl">Giriş yapınca bakiyen görünür</p>
-        </div>
-      )}
-
-      {!token && (
-        <button
-          type="button"
-          onClick={() => setShowLogin(true)}
-          className="flex w-full items-center justify-center gap-2 rounded-full bg-foreground py-3.5 text-sm font-semibold text-background"
-        >
-          <LogIn className="size-4.5" />
-          Giriş yap
-        </button>
-      )}
-
-      {token && (
-        <ProfileUpdateSection />
-      )}
+      <ProfileUpdateSection />
 
       {/* GÖREVLERİM SIK KULLANILAN AKSİYON (PRD SECTION 4: Profil -> Görevlerim) */}
       <button
@@ -444,8 +473,21 @@ export function ProfileScreen({
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-foreground">Ismarlıyor Siparişlerim</h2>
-        <p className="text-xs text-muted-foreground">Kafe ikram siparişlerin. Teslime Hazır olduğunda teslim kodunu göster.</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">Siparişlerim</h2>
+            <p className="text-xs text-muted-foreground">Geçmiş ve aktif Gel-Al siparişlerin.</p>
+          </div>
+          {token && onOpenOrders && (
+            <button
+              type="button"
+              onClick={onOpenOrders}
+              className="text-xs font-black text-primary hover:underline bg-primary/10 px-3 py-1 rounded-full"
+            >
+              Tümünü Gör
+            </button>
+          )}
+        </div>
         {!token ? (
           <button
             type="button"
@@ -456,23 +498,23 @@ export function ProfileScreen({
           </button>
         ) : orders.length === 0 ? (
           <div className="gol-card flex flex-col items-center gap-2 border-dashed px-4 py-6 text-center">
-            <p className="text-xs text-muted-foreground">Henüz Ismarlıyor siparişiniz bulunmuyor.</p>
+            <p className="text-xs text-muted-foreground">Henüz siparişiniz bulunmuyor.</p>
           </div>
         ) : (
           <ul className="gol-card divide-y divide-border">
             {orders.map((order) => {
               const statusMap: Record<string, { label: string; style: string }> = {
-                Pending: { label: "Hazırlanıyor", style: "bg-amber-500/10 text-amber-700" },
+                Pending: { label: "Sipariş Alındı", style: "bg-amber-500/10 text-amber-700" },
                 Preparing: { label: "Hazırlanıyor", style: "bg-amber-500/10 text-amber-700" },
                 Ready: { label: "Teslime Hazır", style: "bg-emerald-500/10 text-emerald-700" },
                 Completed: { label: "Teslim Edildi", style: "bg-muted text-muted-foreground" },
                 Cancelled: { label: "İptal Edildi", style: "bg-destructive/10 text-destructive" },
               }
               const st = statusMap[order.status] ?? { label: order.status, style: "bg-muted text-muted-foreground" }
-              const itemName = order.items?.[0]?.menuItemName || "İkram Siparişi"
+              const itemName = order.items?.[0]?.menuItemName || "GölBOX Siparişi"
 
               return (
-                <li key={order.id} className="space-y-2 px-4 py-3">
+                <li key={order.id} onClick={onOpenOrders} className="space-y-2 px-4 py-3 cursor-pointer hover:bg-accent/50 transition">
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <p className="font-medium text-card-foreground text-sm">{itemName}</p>
@@ -495,41 +537,6 @@ export function ProfileScreen({
         )}
       </section>
 
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-foreground">Toplanan kutular</h2>
-        <p className="text-xs text-muted-foreground">Saha hediyeleri. Ismarlıyor ve katalog ödülü buraya karışmaz.</p>
-        {!token ? (
-          <button
-            type="button"
-            onClick={() => setShowLogin(true)}
-            className="gol-card w-full border-dashed px-4 py-6 text-sm text-muted-foreground"
-          >
-            Toplanan kutuları görmek için giriş yapın.
-          </button>
-        ) : myCaptures.length === 0 ? (
-          <div className="gol-card flex flex-col items-center gap-2 border-dashed px-4 py-6 text-center">
-            <Gift className="size-6 text-muted-foreground" />
-            <p className="text-xs text-muted-foreground">Henüz sahada kutu toplamadınız.</p>
-            <p className="text-[11px] text-muted-foreground">Harita simgesine dokunarak yakınınızdaki hediyeleri keşfedin.</p>
-          </div>
-        ) : (
-          <ul className="gol-card divide-y divide-border">
-            {myCaptures.map((cap) => (
-              <li key={cap.id} className="flex items-center gap-3 px-4 py-3">
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-secondary text-primary">
-                  <Gift className="size-4" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-card-foreground">{cap.title}</p>
-                  <p className="text-xs text-muted-foreground">{formatWhen(cap.createdDate)}</p>
-                </div>
-                <span className="font-serif text-base text-accent-foreground">+{cap.pointsGranted} GP</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
       {gpRows.length > 0 ? (
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-foreground">Puan hareketleri</h2>
@@ -543,8 +550,8 @@ export function ProfileScreen({
               <span
                 className={
                   row.kind === "earn"
-                    ? "font-serif text-base text-accent-foreground"
-                    : "font-serif text-base text-muted-foreground"
+                    ? "font-sans text-base font-bold text-accent-foreground"
+                    : "font-sans text-base font-bold text-muted-foreground"
                 }
               >
                 {row.value}

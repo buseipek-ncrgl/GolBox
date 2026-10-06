@@ -135,7 +135,7 @@ import {
 export const DEFAULT_NOTIFICATIONS: CitizenNotification[] = [
   {
     id: "not-1",
-    title: "Siparişin Hazır! ☕",
+    title: "Siparişin Hazır!",
     body: "GölBOX Üniversite Şubesi'ne gelerek siparişini teslim alabilirsin. Ödemeni kasada QR ile yapacaksın.",
     type: "ORDER_READY",
     category: "TRANSACTIONAL",
@@ -147,7 +147,7 @@ export const DEFAULT_NOTIFICATIONS: CitizenNotification[] = [
   },
   {
     id: "not-2",
-    title: "Yarın Görüşüyoruz 👋",
+    title: "Yarın Görüşüyoruz",
     body: "Gençlik Teknoloji ve Yapay Zekâ Atölyesi yarın 14:00'te Gölbaşı Gençlik Merkezi'nde başlıyor.",
     type: "EVENT_REMINDER",
     category: "PERSONAL",
@@ -159,7 +159,7 @@ export const DEFAULT_NOTIFICATIONS: CitizenNotification[] = [
   },
   {
     id: "not-3",
-    title: "Görevi Tamamladın! 🎉",
+    title: "Görevi Tamamladın!",
     body: "GölBOX Kaşifi görevini tamamladın. +100 GölPuan hesabına aktarıldı.",
     type: "MISSION_COMPLETED",
     category: "PERSONAL",
@@ -171,7 +171,7 @@ export const DEFAULT_NOTIFICATIONS: CitizenNotification[] = [
   },
   {
     id: "not-4",
-    title: "+24 GölPuan Kazandın ☕",
+    title: "+24 GölPuan Kazandın",
     body: "Son siparişiniz başarıyla tamamlandı. Yeni bakiyeniz 340 GölPuan.",
     type: "LOYALTY_REWARD",
     category: "PERSONAL",
@@ -183,7 +183,7 @@ export const DEFAULT_NOTIFICATIONS: CitizenNotification[] = [
   },
   {
     id: "not-5",
-    title: "Haftanın GölPuan Fırsatları ⚡",
+    title: "Haftanın GölPuan Fırsatları",
     body: "Bu hafta seçili soğuk kahvelerde 2 kat GölPuan kazanma fırsatını kaçırmayın!",
     type: "CAMPAIGN_ANNOUNCEMENT",
     category: "MARKETING",
@@ -216,7 +216,7 @@ export function NotificationsSheet({
   const [notificationsList, setNotificationsList] = useState<CitizenNotification[]>([])
 
   useEffect(() => {
-    setNotificationsList(rawItems.length > 0 ? rawItems : DEFAULT_NOTIFICATIONS)
+    setNotificationsList(rawItems)
   }, [rawItems])
 
   const filteredItems = notificationsList.filter((item) => {
@@ -253,23 +253,23 @@ export function NotificationsSheet({
 
   const renderNotificationCard = (item: CitizenNotification) => {
     let icon = <Bell className="size-4 text-primary" />
-    let iconBg = "bg-primary/10 text-primary"
+    let iconBg = "bg-primary/10 border border-primary/20 text-primary"
 
     if (item.entityType === "ORDER" || item.type.startsWith("ORDER_")) {
-      icon = <Coffee className="size-4 text-emerald-600 dark:text-emerald-400" />
-      iconBg = "bg-emerald-100 dark:bg-emerald-950 border border-emerald-300 dark:border-emerald-800"
+      icon = <Coffee className="size-4 text-primary" />
+      iconBg = "bg-primary/10 border border-primary/20 text-primary"
     } else if (item.entityType === "EVENT" || item.type.startsWith("EVENT_")) {
-      icon = <Calendar className="size-4 text-sky-600 dark:text-sky-400" />
-      iconBg = "bg-sky-100 dark:bg-sky-950 border border-sky-300 dark:border-sky-800"
+      icon = <Calendar className="size-4 text-primary" />
+      iconBg = "bg-primary/10 border border-primary/20 text-primary"
     } else if (item.entityType === "MISSION" || item.type.startsWith("MISSION_")) {
-      icon = <Award className="size-4 text-amber-600 dark:text-amber-400" />
-      iconBg = "bg-amber-100 dark:bg-amber-950 border border-amber-300 dark:border-amber-800"
+      icon = <Award className="size-4 text-primary" />
+      iconBg = "bg-primary/10 border border-primary/20 text-primary"
     } else if (item.entityType === "REWARD" || item.type.startsWith("LOYALTY_")) {
-      icon = <Coins className="size-4 text-amber-500" />
-      iconBg = "bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800"
+      icon = <Coins className="size-4 text-[color:var(--color-gold)]" />
+      iconBg = "bg-[color:var(--color-gold)]/10 border border-[color:var(--color-gold)]/20 text-[color:var(--color-gold)]"
     } else if (item.entityType === "CAMPAIGN" || item.type.startsWith("CAMPAIGN_")) {
-      icon = <Zap className="size-4 text-purple-600 dark:text-purple-400" />
-      iconBg = "bg-purple-100 dark:bg-purple-950 border border-purple-300 dark:border-purple-800"
+      icon = <Zap className="size-4 text-primary" />
+      iconBg = "bg-primary/10 border border-primary/20 text-primary"
     }
 
     return (
@@ -282,10 +282,10 @@ export function NotificationsSheet({
           )
           onOpen(item)
         }}
-        className={`group flex w-full items-start gap-3 rounded-2xl border p-3.5 text-left transition hover:scale-[1.005] ${
+        className={`group flex w-full items-start gap-3 rounded-2xl border p-3.5 text-left transition ${
           item.isRead
             ? "border-border/60 bg-card/60 opacity-80"
-            : "border-primary/40 bg-card shadow-xs font-semibold"
+            : "border-primary/40 bg-card shadow-2xs"
         }`}
       >
         <div className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${iconBg} mt-0.5`}>
@@ -293,25 +293,34 @@ export function NotificationsSheet({
         </div>
         <div className="min-w-0 flex-1 space-y-1">
           <div className="flex items-center justify-between gap-2">
-            <h4 className="truncate text-xs font-black text-foreground group-hover:text-primary transition-colors">
+            <h4 className="truncate text-xs font-bold text-foreground group-hover:text-primary transition-colors">
               {item.title}
             </h4>
             {!item.isRead ? (
-              <button
-                type="button"
+              <span
+                role="button"
+                tabIndex={0}
                 onClick={(e) => {
                   e.stopPropagation()
                   setNotificationsList((prev) =>
                     prev.map((n) => (n.id === item.id ? { ...n, isRead: true } : n))
                   )
                 }}
-                className="flex items-center gap-1 rounded-md bg-emerald-100 dark:bg-emerald-950 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-200 transition"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.stopPropagation()
+                    setNotificationsList((prev) =>
+                      prev.map((n) => (n.id === item.id ? { ...n, isRead: true } : n))
+                    )
+                  }
+                }}
+                className="flex items-center gap-1 rounded-md bg-primary/10 border border-primary/20 px-2 py-0.5 text-[10px] font-bold text-primary hover:bg-primary/20 transition cursor-pointer"
                 title="Okundu olarak işaretle"
               >
-                <Check className="size-3" /> Okundu
-              </button>
+                <Check className="size-3" /> Okunmadı
+              </span>
             ) : (
-              <span className="text-[10px] font-semibold text-muted-foreground/60">Okundu ✓</span>
+              <span className="text-[10px] font-medium text-muted-foreground/60">Okundu ✓</span>
             )}
           </div>
           <p className="line-clamp-2 text-xs text-muted-foreground font-medium leading-relaxed">
@@ -529,7 +538,7 @@ export function EarnInfoSheet({
   return (
     <OverlaySheet title="GölPuan nasıl kazanılır?" onClose={onClose}>
       <p className="text-sm leading-relaxed text-muted-foreground">
-        GölPuan sadakat puanıdır. Katalog kuponu, saha hediyesi ve Ismarlıyor ikramı ayrı kanallardır.
+        GölPuan sadakat puanıdır. Katalog kuponları ve Ismarlıyor ikramları ayrı hak türleridir.
       </p>
       <ul className="mt-5 space-y-3">
         <li className="gol-card p-4">

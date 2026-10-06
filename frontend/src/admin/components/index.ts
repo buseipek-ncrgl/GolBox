@@ -12,3 +12,4 @@ export { FilterBar } from './FilterBar';
 export { StatusBadge } from './StatusBadge';
 export { DataTable, TableWrap } from './DataTable';
 export { UnsavedGuard } from './UnsavedGuard';
+export { BulkSelectionBar, SelectionCheckbox } from './BulkSelection';

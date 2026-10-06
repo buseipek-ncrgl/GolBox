@@ -7,13 +7,15 @@ export function Drawer({
   title,
   children,
   onClose,
-  labelledBy
+  labelledBy,
+  wide = false
 }: {
   open: boolean;
   title: string;
   children: React.ReactNode;
   onClose: () => void;
   labelledBy?: string;
+  wide?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const close = useCallback(() => onClose(), [onClose]);
@@ -27,7 +29,7 @@ export function Drawer({
         role="dialog"
         aria-modal="true"
         aria-labelledby={labelledBy || 'admin-drawer-title'}
-        className="admin-drawer"
+        className={`admin-drawer${wide ? ' admin-drawer-wide' : ''}`}
         tabIndex={-1}
         data-testid="citizen-drawer"
         onClick={(e) => e.stopPropagation()}

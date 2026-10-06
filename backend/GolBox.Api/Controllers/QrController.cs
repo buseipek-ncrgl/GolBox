@@ -8,8 +8,10 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using GolBox.Application.Authorization;
 using GolBox.Application.Common;
+using GolBox.Application.Features.Tasks;
 using GolBox.Application.Features.Qr.Commands;
 using GolBox.Application.Interfaces;
+using GolBox.Domain.Entities;
 
 namespace GolBox.Api.Controllers;
 
@@ -124,9 +126,121 @@ public class QrController : BaseApiController
         }).ToList();
         return Ok(Result<object>.Ok(new { items, page, pageSize, totalCount }));
     }
+
+    [HttpPost("orders/resolve")]
+    [Authorize(Policy = AuthorizationPolicies.StaffOrAdmin)]
+    [EnableRateLimiting("qr")]
+    public async Task<IActionResult> ResolveOrder([FromBody] ResolvePickupOrderRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Code))
+            return BadRequest(Result<object>.Fail("Teslim kodu boş bırakılamaz."));
+
+        var code = request.Code.Trim();
+        var hasId = Guid.TryParse(code, out var orderId);
+        var order = await _context.Orders.AsNoTracking()
+            .Include(o => o.User)
+            .Include(o => o.Cafe)
+            .Include(o => o.OrderItems)
+            .FirstOrDefaultAsync(o => o.CollectionCode == code || (hasId && o.Id == orderId));
+
+        if (order == null)
+            return NotFound(Result<object>.Fail("Bu teslim koduna ait sipariş bulunamadı."));
+        var scopeError = await ValidateBranchScope(order.CafeId, request.CafeId);
+        if (scopeError != null) return scopeError;
+
+        var status = OrderStatuses.Canonicalize(order.Status);
+        if (status == OrderStatuses.Completed)
+            return Conflict(Result<object>.Fail("Bu sipariş daha önce teslim edilmiş."));
+        if (status == OrderStatuses.Cancelled)
+            return BadRequest(Result<object>.Fail("İptal edilmiş sipariş teslim edilemez."));
+        if (status != OrderStatuses.Ready)
+            return BadRequest(Result<object>.Fail($"Sipariş henüz teslime hazır değil. Mevcut durum: {status}"));
+
+        return Ok(Result<object>.Ok(MapPickupOrder(order)));
+    }
+
+    [HttpPost("orders/{id:guid}/complete")]
+    [Authorize(Policy = AuthorizationPolicies.StaffOrAdmin)]
+    [EnableRateLimiting("qr")]
+    public async Task<IActionResult> CompleteOrder(Guid id, [FromBody] CompletePickupOrderRequest request)
+    {
+        var order = await _context.Orders
+            .Include(o => o.User).Include(o => o.Cafe).Include(o => o.OrderItems)
+            .FirstOrDefaultAsync(o => o.Id == id);
+        if (order == null) return NotFound(Result<object>.Fail("Sipariş bulunamadı."));
+
+        var scopeError = await ValidateBranchScope(order.CafeId, request.CafeId);
+        if (scopeError != null) return scopeError;
+        if (OrderStatuses.Canonicalize(order.Status) == OrderStatuses.Completed)
+            return Conflict(Result<object>.Fail("Bu sipariş daha önce teslim edilmiş."));
+        if (OrderStatuses.Canonicalize(order.Status) != OrderStatuses.Ready)
+            return BadRequest(Result<object>.Fail("Yalnızca teslime hazır siparişler teslim edilebilir."));
+
+        var paymentMethod = order.PaidWithPoints ? "POINTS" : request.PaymentMethod?.Trim().ToUpperInvariant();
+        if (paymentMethod is not ("POINTS" or "CASH" or "CARD"))
+            return BadRequest(Result<object>.Fail("Geçerli bir ödeme yöntemi seçin."));
+
+        var now = DateTime.UtcNow;
+        order.Status = OrderStatuses.Completed;
+        order.PaymentMethod = paymentMethod;
+        order.PaymentStatus = "PAID";
+        order.PaidAt ??= now;
+        order.CompletedAt ??= now;
+        order.UpdatedDate = now;
+        await _context.SaveChangesAsync();
+        await MissionAwardService.AwardEligibleAsync(_context, order.UserId);
+
+        await AuditLogsController.LogAsync(_context, _currentUser.Email ?? "staff", _currentUser.Role ?? "Staff",
+            "Order_Pickup_Complete", "Qr", "Order", order.Id.ToString(), OrderStatuses.Ready,
+            OrderStatuses.Completed, $"Cafe={order.Cafe.Name}; payment={paymentMethod}; code={order.CollectionCode}");
+
+        return Ok(Result<object>.Ok(MapPickupOrder(order), "Sipariş ödemesi onaylandı ve teslim edildi."));
+    }
+
+    private async Task<IActionResult?> ValidateBranchScope(Guid orderCafeId, Guid requestCafeId)
+    {
+        if (requestCafeId == Guid.Empty || orderCafeId != requestCafeId)
+            return BadRequest(Result<object>.Fail("Sipariş seçili şubeye ait değil."));
+        if (_currentUser.IsAdmin) return null;
+        var staff = await _context.StaffUsers.AsNoTracking().FirstOrDefaultAsync(s => s.UserId == _currentUser.UserId && s.IsActive);
+        if (staff == null) return StatusCode(403, Result<object>.Fail("Aktif personel kaydı bulunamadı."));
+        if (staff.Role is not ("BranchManager" or "BranchStaff" or "Cashier"))
+            return StatusCode(403, Result<object>.Fail("Göreviniz kasa ve teslim işlemlerine yetkili değil."));
+        if (!staff.BranchId.HasValue)
+            return StatusCode(403, Result<object>.Fail("Personel hesabınıza bir şube atanmamış."));
+        if (staff.BranchId.Value != orderCafeId)
+            return StatusCode(403, Result<object>.Fail("Bu şubenin siparişlerini teslim etme yetkiniz yok."));
+        return null;
+    }
+
+    private static object MapPickupOrder(Order order) => new
+    {
+        order.Id, order.CollectionCode, order.Status, order.CafeId, cafeName = order.Cafe.Name,
+        order.UserId, memberName = $"{order.User.FirstName} {order.User.LastName}".Trim(), order.User.Email,
+        order.TotalAmount, order.PaidWithPoints, order.PointsUsed, order.PaymentMethod, order.PaymentStatus,
+        order.CreatedDate, order.ReadyAt, order.CompletedAt,
+        items = order.OrderItems.Select(item => new
+        {
+            item.Id, item.Quantity, name = item.ProductName ?? "Ürün", item.UnitPrice,
+            item.OptionPricesSum, finalUnitPrice = item.FinalUnitPrice > 0 ? item.FinalUnitPrice : item.UnitPrice,
+            item.SelectedOptionsJson
+        })
+    };
 }
 
 public class VerifyDynamicQrRequest
 {
     public string QrToken { get; set; } = string.Empty;
+}
+
+public class ResolvePickupOrderRequest
+{
+    public string Code { get; set; } = string.Empty;
+    public Guid CafeId { get; set; }
+}
+
+public class CompletePickupOrderRequest
+{
+    public Guid CafeId { get; set; }
+    public string? PaymentMethod { get; set; }
 }

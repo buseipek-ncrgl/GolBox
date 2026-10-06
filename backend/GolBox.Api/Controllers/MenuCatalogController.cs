@@ -45,18 +45,21 @@ public class MenuCatalogController : BaseApiController
     }
 
     [HttpGet("admin")]
-    [Authorize(Policy = AuthorizationPolicies.StaffOrAdmin)]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
     public async Task<IActionResult> GetAdminMenuItems(
         [FromQuery] Guid? cafeId = null,
+        [FromQuery] Guid? categoryId = null,
         [FromQuery] bool? active = null,
         [FromQuery] string? search = null,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = AdminPaging.DefaultPageSize)
     {
         (page, pageSize) = AdminPaging.Normalize(page, pageSize);
-        var query = _context.MenuItems.Include(m => m.Cafe).AsQueryable();
+        var query = _context.MenuItems.Include(m => m.Cafe).Include(m => m.Category).AsQueryable();
         if (cafeId.HasValue)
             query = query.Where(m => m.CafeId == cafeId.Value);
+        if (categoryId.HasValue)
+            query = query.Where(m => m.CategoryId == categoryId.Value);
         if (active.HasValue)
             query = query.Where(m => m.IsActive == active.Value);
         if (!string.IsNullOrWhiteSpace(search))
@@ -83,6 +86,21 @@ public class MenuCatalogController : BaseApiController
                 m.MaxAge,
                 m.RequiredEducation,
                 m.IsActive
+                ,m.CategoryId
+                ,CategoryName = m.Category != null ? m.Category.Name : "Kategorisiz"
+                ,m.DisplayOrder
+                ,m.PublishedAt
+                ,m.UpdatedDate
+                ,IngredientIds = m.ProductIngredients.Select(x => x.IngredientId)
+                ,AllergenIds = m.ProductAllergens.Select(x => x.AllergenId)
+                ,OptionGroups = m.OptionGroups.OrderBy(x => x.DisplayOrder).Select(g => new
+                {
+                    g.Name, g.SelectionType, g.Required, g.MinSelections, g.MaxSelections, g.DisplayOrder,
+                    Options = g.Options.OrderBy(o => o.DisplayOrder).Select(o => new { o.Name, o.PriceModifier, o.DisplayOrder })
+                })
+                ,BranchAvailabilities = m.BranchAvailabilities.Select(x => new { x.CafeId, x.IsAvailable })
+                ,AvailableBranchCount = m.BranchAvailabilities.Count(x => x.IsAvailable)
+                ,BranchCount = _context.Cafes.Count(c => c.IsActive)
             })
             .ToListAsync();
         return Ok(Result<object>.Ok(new { items, page, pageSize, totalCount }));

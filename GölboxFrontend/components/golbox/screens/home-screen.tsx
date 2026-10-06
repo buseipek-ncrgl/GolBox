@@ -6,19 +6,13 @@ import {
   ShoppingBag,
   QrCode,
   Coins,
-  Sparkles,
   ChevronRight,
-  GraduationCap,
   RotateCcw,
-  Heart,
   Award,
   Zap,
   Flame,
   Utensils,
-  MapPin,
   Clock,
-  CheckCircle2,
-  Bell,
   Calendar
 } from "lucide-react"
 import { Screen } from "@/components/golbox/screen"
@@ -33,32 +27,34 @@ import { createPortal } from "react-dom"
 import { useGolbox } from "@/lib/golbox-context"
 import type { TabId } from "@/lib/golbox-data"
 import { ActiveOrderScreen } from "@/components/golbox/screens/active-order-screen"
+import { IsmarliyorCard } from "@/components/golbox/home/ismarliyor-card"
 
 export function HomeScreen({
   onNavigate,
-  onOpenCafe,
   onOpenCampaigns,
   onOpenEvents,
   onOpenMissions,
   hideHeader = false,
 }: {
   onNavigate: (tab: TabId) => void
-  onOpenCafe: (id: string) => void
+  onOpenCafe?: (id: string) => void
   onOpenCampaigns?: () => void
   onOpenEvents?: () => void
   onOpenMissions?: () => void
   hideHeader?: boolean
 }) {
-  const { token, user, unreadCount, orders, cafes, favorites, toggleFavorite } = useGolbox()
+  const { token, user, unreadCount, orders, selectedBranch } = useGolbox()
   const [showActiveOrderScreen, setShowActiveOrderScreen] = useState(false)
   const [heroItems, setHeroItems] = useState<CityContentItem[]>(DEFAULT_HERO_NEWS)
   const [heroError, setHeroError] = useState(false)
   const [heroLoading, setHeroLoading] = useState(true)
   const [showNotifications, setShowNotifications] = useState(false)
-  const [notifications, setNotifications] = useState<CitizenNotification[]>([])
-  const [notificationsLoading, setNotificationsLoading] = useState(false)
+  const [notifications] = useState<CitizenNotification[]>([])
+  const [notificationsLoading] = useState(false)
 
   const isLoggedIn = Boolean(token)
+  
+  // Filter authoritative active order
   const activeOrders = orders.filter(
     (o) =>
       o.status !== "Completed" &&
@@ -68,9 +64,13 @@ export function HomeScreen({
       o.status !== "NO_SHOW"
   )
   const latestActiveOrder = activeOrders.length > 0 ? activeOrders[0] : null
-  const selectedBranch = cafes.length > 0 ? cafes[0] : { name: "Şehitkamil Kitap Kafe", address: "Atatürk Mah. Bulvar No:42" }
-
   const isOrderReady = latestActiveOrder?.status === "READY" || latestActiveOrder?.status === "Ready"
+
+  // Filter completed past order candidate for Reorder preview
+  const pastCompletedOrders = orders.filter(
+    (o) => o.status === "Completed" || o.status === "COMPLETED"
+  )
+  const lastOrderCandidate = pastCompletedOrders.length > 0 ? pastCompletedOrders[0] : null
 
   const loadHomeContent = useCallback(async () => {
     setHeroLoading(true)
@@ -97,7 +97,7 @@ export function HomeScreen({
   }, [loadHomeContent])
 
   return (
-    <Screen className="space-y-4 pb-36">
+    <Screen className="space-y-4.5 pb-32">
       {!hideHeader ? (
         <AppHeader
           firstName={user?.firstName}
@@ -106,60 +106,75 @@ export function HomeScreen({
           unreadCount={unreadCount}
           onNotifications={() => setShowNotifications(true)}
           onProfile={() => onNavigate("profile")}
-          showGreeting={false}
         />
       ) : null}
 
-      {/* 1. AKTİF SİPARİŞ KARTI (TOP PRIORITY WHEN EXISTS - DYNAMIC STATE) */}
-      {latestActiveOrder && (
+      {/* 1. GREETING */}
+      <div className="pt-0.5">
+        <h1 className="text-xl font-bold tracking-tight text-foreground">
+          {isLoggedIn && user?.firstName ? `Merhaba ${user.firstName}` : "GölBOX'a Hoş Geldin"}
+        </h1>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          {isLoggedIn
+            ? "Bugün GölBOX'ta ne içmek istersin?"
+            : "Menüyü keşfet ve sana en yakın GölBOX şubesinden hızlıca sipariş ver."}
+        </p>
+      </div>
+
+      {/* 2. ACTIVE ORDER (HIGH DYNAMIC PRIORITY IF PRESENT) */}
+      {isLoggedIn && latestActiveOrder && (
         <div
           onClick={() => (isOrderReady ? onNavigate("qr") : setShowActiveOrderScreen(true))}
-          className={`cursor-pointer rounded-2xl border-2 p-4 shadow-sm transition hover:scale-[1.01] ${
+          className={`cursor-pointer rounded-2xl border p-3.5 shadow-2xs transition hover:scale-[1.01] ${
             isOrderReady
-              ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/50"
-              : "border-blue-500/40 bg-blue-50 dark:bg-blue-950/50"
+              ? "border-emerald-500 bg-emerald-50/90 dark:bg-emerald-950/60"
+              : "border-emerald-600/30 bg-card"
           }`}
         >
           <div className="flex items-center justify-between">
             <span
-              className={`flex items-center gap-1.5 rounded-md px-2.5 py-0.5 text-[10px] font-extrabold uppercase ${
+              className={`flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[10px] font-extrabold uppercase ${
                 isOrderReady
-                  ? "bg-emerald-200 dark:bg-emerald-800 text-emerald-900 dark:text-emerald-100 animate-pulse"
-                  : "bg-blue-200 dark:bg-blue-800 text-blue-900 dark:text-blue-100"
+                  ? "bg-emerald-600 text-white"
+                  : "bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200"
               }`}
             >
-              <Coffee className="size-3.5" />
-              {isOrderReady ? "SİPARİŞİN HAZIR!" : `SİPARİŞ #${latestActiveOrder.collectionCode || "GB1028"}`}
+              <Coffee className="size-3" />
+              {isOrderReady
+                ? "SİPARİŞİN HAZIR!"
+                : `SİPARİŞ #${latestActiveOrder.collectionCode || latestActiveOrder.id.substring(0, 6)}`}
             </span>
-            <span className="flex items-center gap-1 text-xs font-bold text-muted-foreground">
-              <Clock className="size-3.5" /> {isOrderReady ? "Teslim Alabilirsiniz" : "Tahmini: ~4-6 dk"}
+            <span className="flex items-center gap-1 text-[11px] font-semibold text-muted-foreground">
+              <Clock className="size-3" /> {isOrderReady ? "Teslim Alabilirsiniz" : "Hazırlanıyor"}
             </span>
           </div>
-          <div className="mt-2.5 flex items-center justify-between">
+
+          <div className="mt-2 flex items-center justify-between gap-2">
             <div>
-              <h3 className="text-base font-extrabold text-foreground">
+              <h2 className="text-sm font-bold text-foreground">
                 {isOrderReady
                   ? "Kahven Hazır! QR Göster Teslim Al"
                   : latestActiveOrder.status === "Pending" || latestActiveOrder.status === "PENDING"
-                  ? "Sipariş Alındı"
+                  ? "Sipariş İletildi"
                   : "Kahven Hazırlanıyor..."}
-              </h3>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {latestActiveOrder.cafeName || selectedBranch.name} · Kasa Kodu: {latestActiveOrder.collectionCode}
+              </h2>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                {latestActiveOrder.cafeName || selectedBranch.name} · Kasa Kodu: {latestActiveOrder.collectionCode || "GB-101"}
               </p>
             </div>
+
             <button
-              className={`flex items-center gap-1 rounded-xl px-3.5 py-1.5 text-xs font-bold text-white shadow transition ${
-                isOrderReady ? "bg-emerald-600 hover:bg-emerald-700" : "bg-blue-600 hover:bg-blue-700"
+              className={`flex shrink-0 items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-bold text-white shadow-xs transition ${
+                isOrderReady ? "bg-emerald-600 hover:bg-emerald-700" : "bg-emerald-700 hover:bg-emerald-800"
               }`}
             >
               {isOrderReady ? (
                 <>
-                  <QrCode className="size-4" /> QR'ımı Göster
+                  <QrCode className="size-3.5" /> QR'ımı Göster
                 </>
               ) : (
                 <>
-                  Takip Et <ChevronRight className="size-4" />
+                  Siparişi Gör <ChevronRight className="size-3.5" />
                 </>
               )}
             </button>
@@ -167,28 +182,264 @@ export function HomeScreen({
         </div>
       )}
 
-      {/* 2. KARŞILAMA + ŞUBE (UNIFIED CLEAN HEADER) */}
-      <div className="flex items-start justify-between pt-1">
-        <div>
-          <div className="flex items-center gap-1.5 text-[11px] font-extrabold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">
-            <MapPin className="size-3.5" /> Gaziantep Şehitkamil Belediyesi
-          </div>
-          <h1 className="flex items-center gap-2 text-2xl font-black tracking-tight text-foreground mt-0.5">
-            Merhaba {user ? user.firstName : "Değerli Üyemiz"}
-          </h1>
-          <p className="text-xs font-medium text-muted-foreground mt-0.5">Bugün GölBOX'ta ne içmek istersin?</p>
+      {/* 3. PRIMARY GEL-AL CTA */}
+      <button
+        type="button"
+        onClick={() => onNavigate("menu")}
+        className="group flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-700 dark:bg-emerald-600 py-3.5 text-center text-sm font-bold text-white shadow-sm transition hover:bg-emerald-800 active:scale-[0.99] cursor-pointer"
+      >
+        <ShoppingBag className="size-4.5 transition group-hover:scale-105" />
+        Gel-Al Sipariş Ver
+        <ChevronRight className="size-4" />
+      </button>
+
+      {/* 4. ISMARLIYOR KAMPANYASI (HIGH PRIORITY) */}
+      <IsmarliyorCard />
+
+      {/* 4. QUICK CATEGORIES SHORTCUTS */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-xs font-extrabold tracking-wider text-muted-foreground uppercase">
+            Hızlı Kategoriler
+          </h2>
+        </div>
+        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-0.5">
+          <button
+            type="button"
+            onClick={() => onNavigate("menu")}
+            className="flex items-center gap-1.5 whitespace-nowrap rounded-xl border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground hover:bg-accent/60 transition cursor-pointer"
+          >
+            <Coffee className="size-3.5 text-emerald-600 dark:text-emerald-400" /> Sıcak Kahveler
+          </button>
+          <button
+            type="button"
+            onClick={() => onNavigate("menu")}
+            className="flex items-center gap-1.5 whitespace-nowrap rounded-xl border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground hover:bg-accent/60 transition cursor-pointer"
+          >
+            <Flame className="size-3.5 text-emerald-600 dark:text-emerald-400" /> Soğuk Kahveler
+          </button>
+          <button
+            type="button"
+            onClick={() => onNavigate("menu")}
+            className="flex items-center gap-1.5 whitespace-nowrap rounded-xl border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground hover:bg-accent/60 transition cursor-pointer"
+          >
+            <Zap className="size-3.5 text-emerald-600 dark:text-emerald-400" /> Tatlılar
+          </button>
+          <button
+            type="button"
+            onClick={() => onNavigate("menu")}
+            className="flex items-center gap-1.5 whitespace-nowrap rounded-xl border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground hover:bg-accent/60 transition cursor-pointer"
+          >
+            <Utensils className="size-3.5 text-emerald-600 dark:text-emerald-400" /> Atıştırmalıklar
+          </button>
         </div>
       </div>
 
-      {/* GEL-AL ANA AKSİYON BUTONU */}
-      <button
-        onClick={() => onNavigate("menu")}
-        className="group flex w-full items-center justify-center gap-2.5 rounded-2xl bg-emerald-700 dark:bg-emerald-600 py-4 text-center text-base font-black text-white shadow-lg transition hover:bg-emerald-800 active:scale-[0.99]"
+      {/* 5. LAST ORDER / REORDER (ONLY IF PREVIOUS COMPLETED ORDER CANDIDATE EXISTS) */}
+      {isLoggedIn && lastOrderCandidate && (
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-xs font-extrabold tracking-wider text-muted-foreground uppercase">
+              Son Sipariş
+            </h2>
+          </div>
+          <div className="flex items-center justify-between rounded-2xl border border-border bg-card p-3 shadow-2xs">
+            <div className="flex items-center gap-3">
+              <div className="flex size-10 items-center justify-center rounded-xl bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
+                <Coffee className="size-5" />
+              </div>
+              <div>
+                <h3 className="text-xs font-bold text-foreground">
+                  {lastOrderCandidate.items?.[0]?.menuItemName || "GölBOX Filtre Kahve"}
+                </h3>
+                <p className="text-[11px] text-muted-foreground">
+                  {lastOrderCandidate.cafeName || selectedBranch.name} · {lastOrderCandidate.totalAmount ? `₺${lastOrderCandidate.totalAmount}` : ""}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => onNavigate("menu")}
+              className="flex items-center gap-1 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 px-3 py-1.5 text-xs font-bold text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 transition cursor-pointer"
+            >
+              <RotateCcw className="size-3" /> Tekrar Al
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 6. GÖLPUAN SUMMARY (AUTHENTICATED ONLY, CLEAN NO REDUNDANT USERNAME) */}
+      {isLoggedIn ? (
+        <div className="rounded-2xl border border-emerald-800/40 bg-gradient-to-br from-emerald-800 via-emerald-900 to-emerald-950 p-4 text-white shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-bold text-emerald-200 uppercase tracking-wider">
+                GölPuan Bakiyeniz
+              </p>
+              <div className="mt-0.5 flex items-baseline gap-1.5">
+                <span className="text-2xl font-black text-amber-400">{user?.pointsBalance ?? 0}</span>
+                <span className="text-xs font-bold text-amber-300">GP</span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => onNavigate("golpuan")}
+              className="flex items-center gap-1 rounded-xl bg-white/15 px-3 py-1.5 text-xs font-bold text-white hover:bg-white/25 active:scale-95 transition cursor-pointer"
+            >
+              Ödülleri Gör <ChevronRight className="size-3.5" />
+            </button>
+          </div>
+
+          <div className="mt-3">
+            <div className="flex justify-between text-[11px] font-medium text-emerald-100 mb-1">
+              <span>{user?.pointsBalance ?? 0} GP / 1.000 GP Target</span>
+              <span>Sonraki ödüle {Math.max(0, 1000 - (user?.pointsBalance ?? 0))} GP kaldı</span>
+            </div>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-black/30 p-0.5">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-amber-400 to-amber-500 transition-all duration-300"
+                style={{ width: `${Math.min(100, (((user?.pointsBalance ?? 0) / 1000) * 100))}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* 7. KASADA QR ACTION BAR */}
+      <div
+        onClick={() => onNavigate(isLoggedIn ? "qr" : "profile")}
+        className="flex cursor-pointer items-center justify-between rounded-2xl border border-border bg-card p-3 shadow-2xs transition hover:border-emerald-600/40 hover:bg-accent/40"
       >
-        <ShoppingBag className="size-5 transition group-hover:scale-110" />
-        Gel-Al Sipariş Ver
-        <ChevronRight className="size-5" />
-      </button>
+        <div className="flex items-center gap-3">
+          <div className="flex size-9 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 shrink-0">
+            <QrCode className="size-4.5" />
+          </div>
+          <div>
+            <h3 className="text-xs font-bold text-foreground">Kasada QR'ını göster, GölPuan kazan</h3>
+            <p className="text-[11px] text-muted-foreground">Fiziksel kasalarda okutup puan yükletmek için tıklayın.</p>
+          </div>
+        </div>
+        <ChevronRight className="size-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+      </div>
+
+      {/* 9. CAMPAIGNS & FIRSATLAR */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-xs font-extrabold tracking-wider text-muted-foreground uppercase">
+            Kampanyalar & Fırsatlar
+          </h2>
+          {onOpenCampaigns && (
+            <button
+              type="button"
+              onClick={onOpenCampaigns}
+              className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 hover:underline cursor-pointer"
+            >
+              Tümünü Gör
+            </button>
+          )}
+        </div>
+        {heroError ? (
+          <InlineError message="Kampanyalar yüklenemedi." onRetry={() => void loadHomeContent()} />
+        ) : heroLoading ? (
+          <SectionSkeleton lines={1} />
+        ) : (
+          <HomeHeroCarousel items={heroItems} onOpen={() => onNavigate("menu")} />
+        )}
+      </div>
+
+      {/* 9. DISCOVERY & EVENTS PREVIEW */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-xs font-extrabold tracking-wider text-muted-foreground uppercase">
+            Yaklaşan Etkinlikler
+          </h2>
+          {onOpenEvents && (
+            <button
+              type="button"
+              onClick={onOpenEvents}
+              className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 hover:underline cursor-pointer"
+            >
+              Tümünü Gör
+            </button>
+          )}
+        </div>
+
+        <div className="rounded-2xl border border-border bg-card p-3.5 shadow-2xs space-y-2.5">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <span className="text-[10px] font-bold uppercase text-emerald-700 dark:text-emerald-400 tracking-wider">
+                Teknoloji & Atölye
+              </span>
+              <h3 className="text-xs font-bold text-foreground mt-0.5">Gençlik Yapay Zekâ Atölyesi</h3>
+              <p className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-1">
+                <Calendar className="size-3" /> 18 Ekim · 14:00 | Gölbaşı Gençlik Merkezi
+              </p>
+            </div>
+            <span className="rounded-lg bg-amber-400/15 text-amber-700 dark:text-amber-300 px-2 py-0.5 text-[10px] font-black shrink-0">
+              +100 GP
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between border-t border-border/40 pt-2 text-xs">
+            <span className="text-[10px] text-muted-foreground font-medium">Sınırlı Kontenjan</span>
+            {onOpenEvents && (
+              <button
+                type="button"
+                onClick={onOpenEvents}
+                className="font-bold text-emerald-700 dark:text-emerald-400 hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                <span>İncele</span>
+                <ChevronRight className="size-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* 10. DISCOVERY & MISSIONS PREVIEW (AUTHENTICATED ONLY) */}
+      {isLoggedIn && (
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-xs font-extrabold tracking-wider text-muted-foreground uppercase">
+              Aktif Görev
+            </h2>
+            {onOpenMissions && (
+              <button
+                type="button"
+                onClick={onOpenMissions}
+                className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 hover:underline cursor-pointer"
+              >
+                Tümünü Gör
+              </button>
+            )}
+          </div>
+
+          <div
+            onClick={onOpenMissions}
+            className="cursor-pointer rounded-2xl border border-border bg-card p-3.5 shadow-2xs hover:border-emerald-600/40 transition group"
+          >
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">
+                <Award className="size-3" /> HAFTALIK GÖREV
+              </span>
+              <span className="text-xs font-bold text-amber-600 dark:text-amber-400">+150 GP</span>
+            </div>
+            <h3 className="mt-1 text-xs font-bold text-foreground group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors">
+              Bu Hafta 3 Kahve Al
+            </h3>
+            <p className="text-[11px] text-muted-foreground mt-0.5">3 adet kahve siparişi ver, 150 GölPuan kazan.</p>
+            <div className="mt-2">
+              <div className="flex justify-between text-[10px] text-muted-foreground mb-1 font-medium">
+                <span>İlerleme: 2 / 3 tamamlandı</span>
+                <span className="font-bold text-emerald-700 dark:text-emerald-400">%66</span>
+              </div>
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                <div className="h-full rounded-full bg-emerald-600" style={{ width: "66%" }} />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ACTIVE ORDER SCREEN PORTAL */}
       {showActiveOrderScreen && createPortal(
@@ -201,332 +452,6 @@ export function HomeScreen({
         />,
         document.body
       )}
-
-      {/* 4. KAMPANYALAR & FIRSATLAR (TOP PRIORITY HERO CAROUSEL) */}
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="flex items-center gap-1.5 text-sm font-extrabold text-foreground">
-            <Zap className="size-4 text-amber-500 fill-amber-500" />
-            Kampanyalar & Fırsatlar
-          </h2>
-          <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
-            Öne Çıkanlar
-          </span>
-        </div>
-        {heroError ? (
-          <InlineError message="Kampanyalar yüklenemedi." onRetry={() => void loadHomeContent()} />
-        ) : heroLoading ? (
-          <SectionSkeleton lines={1} />
-        ) : (
-          <HomeHeroCarousel items={heroItems} onOpen={() => onNavigate("menu")} />
-        )}
-      </div>
-
-      {/* 5. GÖLPUAN ÖZET KARTI & İLERLEME (SECTION 14 & 15) */}
-      <div className="rounded-2xl bg-gradient-to-br from-emerald-800 via-emerald-900 to-emerald-950 p-4.5 text-white shadow-md border border-emerald-700/40">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex size-11 items-center justify-center rounded-full bg-white/15 font-bold text-base border border-white/20">
-              {user ? user.firstName.charAt(0) : "A"}
-            </div>
-            <div>
-              <p className="text-[10px] font-semibold text-emerald-200 uppercase tracking-wider">Mevcut GölPuanınız</p>
-              <h2 className="text-base font-extrabold text-white">{user ? `${user.firstName} ${user.lastName}` : "Ahmet Yılmaz"}</h2>
-            </div>
-          </div>
-          <div className="text-right">
-            <span className="flex items-center justify-end gap-1 text-[9px] font-black text-amber-300 tracking-widest uppercase">
-              <Coins className="size-3" /> GÖLPUAN
-            </span>
-            <p className="text-2.5xl font-black text-amber-400">{user ? user.pointsBalance : 340}</p>
-          </div>
-        </div>
-
-        <div className="mt-3.5">
-          <div className="flex justify-between text-[11px] font-semibold text-emerald-100 mb-1.5">
-            <span>{user ? user.pointsBalance : 340} / 1.000 GölPuan</span>
-            <span>Bir sonraki ödülüne 660 puan kaldı.</span>
-          </div>
-          <div className="h-2.5 w-full overflow-hidden rounded-full bg-black/30 p-0.5">
-            <div className="h-full rounded-full bg-gradient-to-r from-amber-400 to-amber-500" style={{ width: `${Math.min(100, ((user?.pointsBalance ?? 340) / 1000) * 100)}%` }} />
-          </div>
-        </div>
-
-        <div className="mt-3 flex justify-end">
-          <button
-            onClick={() => onNavigate("golpuan")}
-            className="flex items-center gap-1 rounded-xl bg-white/15 px-3 py-1.5 text-xs font-bold text-white hover:bg-white/25 active:scale-95 transition"
-          >
-            Ödülleri Gör <ChevronRight className="size-3.5" />
-          </button>
-        </div>
-      </div>
-
-      {/* 6. KASADA QR HIZLI ERİŞİM (SECTION 16) */}
-      <div
-        onClick={() => onNavigate("qr")}
-        className="flex cursor-pointer items-center justify-between rounded-2xl border border-border bg-card p-3.5 shadow-xs transition hover:border-primary/40 hover:bg-accent/40"
-      >
-        <div className="flex items-center gap-3">
-          <div className="flex size-10 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
-            <QrCode className="size-5" />
-          </div>
-          <div>
-            <h3 className="text-xs font-bold text-foreground">Kasada QR'ını göster, GölPuan kazan.</h3>
-            <p className="text-[11px] text-muted-foreground">Fiziksel kasalarda anında puan yükletmek için tıkla.</p>
-          </div>
-        </div>
-        <ChevronRight className="size-5 text-emerald-600 dark:text-emerald-400" />
-      </div>
-
-      {/* 7. HIZLI MENÜ KATEGORİLERİ (SECTION 19) */}
-      <div>
-        <h2 className="flex items-center gap-1.5 mb-2 text-sm font-extrabold text-foreground">
-          <Zap className="size-4 text-emerald-600" /> Hızlı Kategoriler
-        </h2>
-        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-          <button onClick={() => onNavigate("menu")} className="flex items-center gap-1.5 whitespace-nowrap rounded-xl border border-border bg-card px-3.5 py-2 text-xs font-bold text-foreground hover:bg-accent">
-            <Coffee className="size-4 text-emerald-600" /> Sıcak Kahveler
-          </button>
-          <button onClick={() => onNavigate("menu")} className="flex items-center gap-1.5 whitespace-nowrap rounded-xl border border-border bg-card px-3.5 py-2 text-xs font-bold text-foreground hover:bg-accent">
-            <Flame className="size-4 text-sky-500" /> Soğuk Kahveler
-          </button>
-          <button onClick={() => onNavigate("menu")} className="flex items-center gap-1.5 whitespace-nowrap rounded-xl border border-border bg-card px-3.5 py-2 text-xs font-bold text-foreground hover:bg-accent">
-            <Sparkles className="size-4 text-amber-500" /> Tatlılar
-          </button>
-          <button onClick={() => onNavigate("menu")} className="flex items-center gap-1.5 whitespace-nowrap rounded-xl border border-border bg-card px-3.5 py-2 text-xs font-bold text-foreground hover:bg-accent">
-            <Utensils className="size-4 text-orange-500" /> Atıştırmalıklar
-          </button>
-        </div>
-      </div>
-
-      {/* 8. SON SİPARİŞ / TEKRAR SİPARİŞ (SECTION 21) */}
-      <div>
-        <h2 className="flex items-center gap-1.5 mb-2 text-sm font-extrabold text-foreground">
-          <RotateCcw className="size-4 text-emerald-600" />
-          Son Sipariş / Tekrar Sipariş
-        </h2>
-        <div className="flex items-center justify-between rounded-2xl border border-border bg-card p-3 shadow-xs">
-          <div className="flex items-center gap-3">
-            <div className="size-14 overflow-hidden rounded-xl bg-muted shrink-0">
-              <img
-                src="https://images.unsplash.com/photo-1517701604599-bb29b565090c?w=400&auto=format&fit=crop&q=60"
-                alt="Iced Latte"
-                className="size-full object-cover"
-              />
-            </div>
-            <div>
-              <h3 className="text-xs font-extrabold text-foreground">Iced Vanilla Latte</h3>
-              <p className="text-[11px] text-muted-foreground">Büyük Boy · Yulaf Sütü · Ekstra Shot</p>
-              <p className="text-xs font-extrabold text-emerald-700 dark:text-emerald-400 mt-0.5">70 TL</p>
-            </div>
-          </div>
-          <button onClick={() => onNavigate("menu")} className="flex items-center gap-1 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 px-3.5 py-2 text-xs font-extrabold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100">
-            + Tekrar Al
-          </button>
-        </div>
-      </div>
-
-      {/* 9. FAVORİLERİN (SECTION 20) */}
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="flex items-center gap-1.5 text-sm font-extrabold text-foreground">
-            <Heart className="size-4 text-rose-500 fill-rose-500" />
-            Favorilerin
-          </h2>
-          {favorites.length > 0 && (
-            <button onClick={() => onNavigate("menu")} className="text-[11px] font-bold text-primary hover:underline">
-              Tümünü Gör ({favorites.length})
-            </button>
-          )}
-        </div>
-
-        {favorites.length === 0 ? (
-          <div className="rounded-2xl border border-border bg-card p-5 text-center shadow-xs">
-            <Heart className="mx-auto size-9 text-muted-foreground/30" />
-            <h3 className="mt-2 text-xs font-extrabold text-foreground">Henüz favori ürünün yok</h3>
-            <p className="mt-1 text-[11px] text-muted-foreground">Favori ürünlerini eklediğinde burada hızlı erişim için görebilirsin.</p>
-            <button
-              onClick={() => onNavigate("menu")}
-              className="mt-3.5 inline-flex items-center gap-1 rounded-xl bg-primary px-4 py-2 text-xs font-extrabold text-primary-foreground hover:opacity-90 shadow-sm"
-            >
-              Menüyü Keşfet <ChevronRight className="size-4" />
-            </button>
-          </div>
-        ) : (
-          <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
-            {[
-              { id: "m-1", name: "GölBOX Özel Filtre Kahve", price: 35, imageUrl: "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=400&auto=format&fit=crop&q=60" },
-              { id: "m-2", name: "Karamel Macchiato", price: 65, imageUrl: "https://images.unsplash.com/photo-1485808191679-5f86510681a2?w=400&auto=format&fit=crop&q=60" },
-              { id: "m-3", name: "Caffè Latte", price: 55, imageUrl: "https://images.unsplash.com/photo-1534778101976-62847782c213?w=400&auto=format&fit=crop&q=60" },
-              { id: "m-4", name: "Iced Vanilla Latte", price: 70, imageUrl: "https://images.unsplash.com/photo-1517701604599-bb29b565090c?w=400&auto=format&fit=crop&q=60" },
-              { id: "m-5", name: "GölBOX Iced Cold Brew", price: 60, imageUrl: "https://images.unsplash.com/photo-1461023058943-07fcbe16d735?w=400&auto=format&fit=crop&q=60" },
-              { id: "m-6", name: "Bergamotlu Siyah Çay", price: 25, imageUrl: "https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=400&auto=format&fit=crop&q=60" },
-              { id: "m-7", name: "Belçika Çikolatalı Cheesecake", price: 85, imageUrl: "https://images.unsplash.com/photo-1533134242443-d4fd215305ad?w=400&auto=format&fit=crop&q=60" }
-            ].filter(p => favorites.includes(p.id)).map((p) => (
-              <div
-                key={p.id}
-                onClick={() => onNavigate("menu")}
-                className="group flex w-40 shrink-0 flex-col justify-between rounded-2xl border border-border bg-card p-2.5 shadow-xs transition hover:border-primary/40 hover:shadow-md cursor-pointer"
-              >
-                <div className="relative size-full aspect-square overflow-hidden rounded-xl bg-muted mb-2">
-                  <img src={p.imageUrl} alt={p.name} className="size-full object-cover group-hover:scale-105 transition" />
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      toggleFavorite(p.id)
-                    }}
-                    className="absolute right-1.5 top-1.5 flex size-7 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-xs hover:scale-110 transition"
-                  >
-                    <Heart className="size-4 fill-rose-500 text-rose-500" />
-                  </button>
-                </div>
-                <div>
-                  <h3 className="truncate text-xs font-black text-foreground">{p.name}</h3>
-                  <div className="mt-1 flex items-center justify-between">
-                    <span className="text-xs font-black text-primary">₺{p.price}</span>
-                    <span className="rounded-lg bg-primary/10 p-1 text-primary">
-                      <ChevronRight className="size-3.5" />
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* 10. HAFTALIK GÖL GÖREV & GENÇ FIRSATLAR (SECTION 25 & 26) */}
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="flex items-center gap-1.5 text-sm font-extrabold text-foreground">
-            <Award className="size-4 text-blue-600" />
-            Haftalık GölGörev
-          </h2>
-          {onOpenMissions && (
-            <button onClick={onOpenMissions} className="text-[11px] font-bold text-primary hover:underline flex items-center gap-0.5">
-              <span>Tüm Görevler</span>
-              <ChevronRight className="size-3.5" />
-            </button>
-          )}
-        </div>
-        <div
-          onClick={onOpenMissions}
-          className="cursor-pointer rounded-2xl border border-border bg-card p-4 shadow-xs hover:border-primary/40 transition group"
-        >
-          <div className="flex items-center justify-between">
-            <span className="flex items-center gap-1 text-[10px] font-extrabold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
-              <Award className="size-3" /> HAFTALIK GÖREV
-            </span>
-            <span className="text-xs font-black text-amber-600 dark:text-amber-400">+150 GP</span>
-          </div>
-          <h3 className="mt-1.5 text-xs font-bold text-foreground group-hover:text-primary transition-colors">Bu Hafta 3 Kahve Al</h3>
-          <p className="text-[11px] text-muted-foreground mt-0.5">GölBOX Kitap Kafelerden 3 adet kahve siparişi ver, 150 GölPuan kazan.</p>
-          <div className="mt-2.5">
-            <div className="flex justify-between text-[10px] text-muted-foreground mb-1 font-semibold">
-              <span>İlerleme: 2 / 3 tamamlandı</span>
-              <span className="font-extrabold text-emerald-600 dark:text-emerald-400">%66</span>
-            </div>
-            <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-              <div className="h-full rounded-full bg-emerald-500" style={{ width: "66%" }} />
-            </div>
-          </div>
-          <div className="mt-3 flex justify-end border-t border-border/40 pt-2">
-            <span className="text-xs font-black text-primary flex items-center gap-1">
-              <span>Görevi Gör</span>
-              <ChevronRight className="size-3.5" />
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* 11. REGISTERED UPCOMING EVENT BANNER (PRD SECTION 5) */}
-      <div className="rounded-2xl border border-amber-400/40 bg-gradient-to-br from-slate-900 to-slate-950 p-4 text-white shadow-md space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="inline-flex items-center gap-1 rounded-full bg-amber-400 text-amber-950 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider">
-            Yarın Etkinliğin Var 👋
-          </span>
-          <span className="text-[10px] font-bold text-amber-300 bg-amber-400/20 px-2 py-0.5 rounded-md">
-            Kayıtlısın ✓
-          </span>
-        </div>
-
-        <div>
-          <h3 className="text-sm font-black text-white">Gençlik Teknoloji ve Yapay Zekâ Atölyesi</h3>
-          <p className="text-[11px] text-slate-300 mt-0.5">18 Ekim 2026 · 14:00 – Gölbaşı Gençlik Merkezi</p>
-        </div>
-
-        <div className="flex items-center justify-between pt-1 border-t border-slate-800">
-          <span className="text-[11px] font-bold text-amber-400">+100 GölPuan Katılım Ödülü</span>
-          {onOpenEvents && (
-            <button
-              onClick={onOpenEvents}
-              className="flex items-center gap-1 rounded-xl bg-amber-400 px-3 py-1.5 text-xs font-black text-amber-950 shadow-2xs hover:bg-amber-300 transition active:scale-95"
-            >
-              <span>Etkinliği Gör</span>
-              <ChevronRight className="size-3.5" />
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* 12. ETKİNLİKLER SECTION (PRD SECTION 4, 72-74) */}
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="flex items-center gap-1.5 text-sm font-extrabold text-foreground">
-            <Calendar className="size-4 text-primary" /> Şehirde Etkinlikler & Atölyeler
-          </h2>
-          {onOpenEvents && (
-            <button onClick={onOpenEvents} className="text-[11px] font-bold text-primary hover:underline flex items-center gap-0.5">
-              <span>Tümünü Gör</span>
-              <ChevronRight className="size-3.5" />
-            </button>
-          )}
-        </div>
-
-        <div className="rounded-2xl border border-border bg-card p-4 shadow-xs space-y-3">
-          <div className="flex items-start justify-between">
-            <div>
-              <span className="text-[10px] font-black uppercase text-primary tracking-wider">Teknoloji & Eğitim</span>
-              <h3 className="text-xs font-black text-foreground mt-0.5">Gençlik Teknoloji ve Yapay Zekâ Atölyesi</h3>
-              <p className="text-[11px] text-muted-foreground mt-0.5">18 Ekim · 14:00 | Gölbaşı Gençlik Merkezi</p>
-            </div>
-            <span className="rounded-xl bg-amber-400/20 border border-amber-400/30 text-amber-700 dark:text-amber-300 px-2 py-1 text-[10px] font-black shrink-0">
-              +100 GP
-            </span>
-          </div>
-
-          <div className="flex items-center justify-between border-t border-border/40 pt-2 text-xs">
-            <span className="text-[10px] text-muted-foreground font-semibold">12 kişilik kontenjan kaldı</span>
-            {onOpenEvents && (
-              <button
-                onClick={onOpenEvents}
-                className="font-bold text-primary hover:underline flex items-center gap-1"
-              >
-                <span>İncele & Kayıt Ol</span>
-                <ChevronRight className="size-3.5" />
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* 11. SEÇİLİ ŞUBE KARTI (SECTION 12) */}
-      <div className="rounded-2xl border border-border bg-card p-4 shadow-xs">
-        <h2 className="flex items-center gap-1.5 text-xs font-extrabold text-foreground">
-          <MapPin className="size-4 text-emerald-600" /> Teslim Alınacak GölBOX Şubesi
-        </h2>
-        <p className="mt-1 text-sm font-black text-emerald-700 dark:text-emerald-400">{selectedBranch.name}</p>
-        <p className="text-[11px] text-muted-foreground mt-0.5">{selectedBranch.address}</p>
-        <div className="mt-2.5 flex gap-2">
-          <span className="flex items-center gap-1 rounded-md bg-muted px-2.5 py-1 text-[10px] font-bold text-muted-foreground">
-            <Clock className="size-3" /> Açık · 07:30 - 23:00
-          </span>
-          <span className="flex items-center gap-1 rounded-md bg-emerald-100 dark:bg-emerald-950 px-2.5 py-1 text-[10px] font-extrabold text-emerald-700 dark:text-emerald-300">
-            <CheckCircle2 className="size-3" /> Gel-Al Aktif
-          </span>
-        </div>
-      </div>
 
       {showNotifications && (
         <NotificationsSheet
@@ -544,3 +469,4 @@ export function HomeScreen({
     </Screen>
   )
 }
+

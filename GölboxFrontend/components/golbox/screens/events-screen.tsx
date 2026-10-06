@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useEffect, useState } from "react"
 import { createPortal } from "react-dom"
 import {
   Calendar,
@@ -28,6 +28,7 @@ import {
 import { useGolbox } from "@/lib/golbox-context"
 import { useGolToast } from "@/components/golbox/gol-toast"
 import { Screen } from "@/components/golbox/screen"
+import { cancelPublicActivity, fetchPublicActivities, joinPublicActivity } from "@/lib/city-content-api"
 
 export interface FullEventItem {
   id: string
@@ -48,6 +49,7 @@ export interface FullEventItem {
   whoCanAttend: string
   isFeatured?: boolean
   registrationRequired: boolean
+  checkedInAt?: string | null
 }
 
 export const GOLBOX_EVENTS_CATALOG: FullEventItem[] = [
@@ -140,21 +142,40 @@ export function EventsScreen({
   onBack?: () => void
   onOpenQrScreen?: () => void
 }) {
-  const { user } = useGolbox()
+  const { user, token, refreshData } = useGolbox()
   const showToast = useGolToast()
 
   const [activeTab, setActiveTab] = useState<"discover" | "my_events">("discover")
   const [selectedCategory, setSelectedCategory] = useState<string>("Tümü")
   const [search, setSearch] = useState("")
 
-  const [registeredEventIds, setRegisteredEventIds] = useState<string[]>(["evt-1"])
+  const [eventsCatalog, setEventsCatalog] = useState<FullEventItem[]>(GOLBOX_EVENTS_CATALOG)
+  const [registeredEventIds, setRegisteredEventIds] = useState<string[]>([])
   const [checkedInEventIds, setCheckedInEventIds] = useState<string[]>([])
   const [selectedEventForDetail, setSelectedEventForDetail] = useState<FullEventItem | null>(null)
   const [showSuccessModal, setShowSuccessModal] = useState<FullEventItem | null>(null)
 
   const categories = ["Tümü", "Teknoloji", "Kültür ve Sanat", "Eğitim", "Spor"]
 
-  const filteredEvents = GOLBOX_EVENTS_CATALOG.filter((item) => {
+  useEffect(() => {
+    void fetchPublicActivities(token, 1, 50).then((response) => {
+      const mapped = response.items.map((item: any): FullEventItem => ({
+        id: item.id, title: item.title, category: "Gençlik", date: new Date(item.startDate).toLocaleDateString("tr-TR", { day: "2-digit", month: "long", year: "numeric" }),
+        time: `${new Date(item.startDate).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })} – ${new Date(item.endDate).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}`,
+        venueName: item.placeName || item.location, fullAddress: item.placeAddress || item.location,
+        latitude: item.placeLatitude || 0, longitude: item.placeLongitude || 0, imageUrl: item.imageUrl || "",
+        pointsGranted: item.rewardPoints || 0, capacityTotal: item.capacity || 0,
+        capacityRemaining: item.capacity ? Math.max(0, item.capacity - item.joinedCount) : 0,
+        organizer: "Şehitkamil Belediyesi", description: item.description, whoCanAttend: "GölBOX üyeleri",
+        registrationRequired: true, checkedInAt: item.checkedInAt,
+      }))
+      setEventsCatalog(mapped)
+      setRegisteredEventIds(response.items.filter((item: any) => item.isJoined).map((item: any) => item.id))
+      setCheckedInEventIds(response.items.filter((item: any) => item.checkedInAt).map((item: any) => item.id))
+    }).catch(() => undefined)
+  }, [token])
+
+  const filteredEvents = eventsCatalog.filter((item) => {
     const matchesCat = selectedCategory === "Tümü" || item.category === selectedCategory
     const q = search.toLowerCase().trim()
     const matchesSearch =
@@ -165,35 +186,26 @@ export function EventsScreen({
     return matchesCat && matchesSearch
   })
 
-  const registeredEventsList = GOLBOX_EVENTS_CATALOG.filter((e) => registeredEventIds.includes(e.id))
-  const featuredEvent = GOLBOX_EVENTS_CATALOG.find((e) => e.isFeatured)
+  const registeredEventsList = eventsCatalog.filter((e) => registeredEventIds.includes(e.id))
+  const featuredEvent = eventsCatalog.find((e) => e.isFeatured) || eventsCatalog[0]
 
   // HANDLER: REGISTER TO EVENT (PRD SECTIONS 57-61, 66)
-  const handleRegisterToEvent = (event: FullEventItem) => {
+  const handleRegisterToEvent = async (event: FullEventItem) => {
     if (registeredEventIds.includes(event.id)) {
       showToast("Bu etkinliğe zaten kayıtlısınız.")
       return
     }
 
-    setRegisteredEventIds((prev) => [...prev, event.id])
-    setShowSuccessModal(event)
+    if (!token) { showToast("Etkinliğe kayıt olmak için giriş yapın."); return }
+    try { await joinPublicActivity(event.id, token); setRegisteredEventIds((prev) => [...prev, event.id]); setShowSuccessModal(event); await refreshData() }
+    catch (error: any) { showToast(error.message || "Etkinlik kaydı oluşturulamadı.") }
   }
 
   // HANDLER: CANCEL REGISTRATION (PRD SECTION 63)
-  const handleCancelRegistration = (eventId: string, eventTitle: string) => {
-    setRegisteredEventIds((prev) => prev.filter((id) => id !== eventId))
-    showToast(`"${eventTitle}" kaydınız iptal edildi.`)
-  }
-
-  // HANDLER: SIMULATE QR CHECK-IN AT EVENT (PRD SECTIONS 13-17, 80-82)
-  const handleSimulateCheckIn = (eventId: string, points: number, eventTitle: string) => {
-    if (checkedInEventIds.includes(eventId)) {
-      showToast("Bu etkinlik için katılım check-in işleminiz zaten yapılmıştır ✓")
-      return
-    }
-
-    setCheckedInEventIds((prev) => [...prev, eventId])
-    showToast(`GölBOX QR Katılım Doğrulandı! 🎉 +${points} GölPuan hesabınıza eklendi! (${eventTitle})`)
+  const handleCancelRegistration = async (eventId: string, eventTitle: string) => {
+    if (!token) return
+    try { await cancelPublicActivity(eventId, token); setRegisteredEventIds((prev) => prev.filter((id) => id !== eventId)); showToast(`"${eventTitle}" kaydınız iptal edildi.`) }
+    catch (error: any) { showToast(error.message || "Etkinlik kaydı iptal edilemedi.") }
   }
 
   // EVENT DETAIL MODAL SCREEN (PRD SECTIONS 65-66)
@@ -341,8 +353,13 @@ export function EventsScreen({
     )
   }
 
+  const containerClass = onBack
+    ? "fixed inset-0 z-[80] flex flex-col bg-background overflow-y-auto no-scrollbar animate-in fade-in duration-200"
+    : "w-full flex-1 space-y-4 px-4 py-3 pb-36 overflow-y-auto no-scrollbar max-w-lg mx-auto"
+
   return (
-    <Screen className="space-y-4 pb-48 min-h-full">
+    <div className={containerClass}>
+      <div className={onBack ? "flex-1 space-y-4 px-4 py-3 pb-36 max-w-lg mx-auto w-full" : "space-y-4"}>
       {/* 1. HEADER */}
       <header className="space-y-2">
         <div className="flex items-center justify-between">
@@ -361,12 +378,12 @@ export function EventsScreen({
               <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-primary">
                 Belediye & Gençlik Programları
               </p>
-              <h1 className="font-serif text-2xl font-bold text-foreground">Etkinlikler</h1>
+              <h1 className="text-2xl font-bold tracking-tight text-foreground">Etkinlikler</h1>
             </div>
           </div>
 
-          <span className="inline-flex items-center gap-1.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 px-3 py-1.5 text-xs font-black text-amber-900 dark:text-amber-200">
-            <Award className="size-4 text-amber-500" />
+          <span className="inline-flex items-center gap-1.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950 border border-emerald-200 dark:border-emerald-800 px-3 py-1.5 text-xs font-black text-emerald-800 dark:text-emerald-300">
+            <Award className="size-4 text-emerald-600 dark:text-emerald-400" />
             <span>GölPuan Katılım Ödüllü</span>
           </span>
         </div>
@@ -379,7 +396,7 @@ export function EventsScreen({
               activeTab === "discover" ? "bg-primary text-primary-foreground shadow-sm" : "text-foreground/70 hover:text-foreground font-bold"
             }`}
           >
-            Keşfet ({GOLBOX_EVENTS_CATALOG.length})
+            Keşfet ({eventsCatalog.length})
           </button>
           <button
             onClick={() => setActiveTab("my_events")}
@@ -428,35 +445,36 @@ export function EventsScreen({
           {featuredEvent && selectedCategory === "Tümü" && !search && (
             <div
               onClick={() => setSelectedEventForDetail(featuredEvent)}
-              className="cursor-pointer overflow-hidden rounded-3xl border border-amber-400/40 bg-gradient-to-br from-slate-900 to-slate-950 p-5 text-white shadow-xl space-y-3 relative group"
+              className="cursor-pointer overflow-hidden rounded-3xl border border-emerald-700/60 bg-gradient-to-br from-emerald-900 via-emerald-850 to-emerald-950 p-5 text-white shadow-xl space-y-3 relative group"
             >
               <div className="flex items-center justify-between">
-                <span className="rounded-xl bg-amber-400 text-amber-950 px-3 py-1 text-[10px] font-black uppercase tracking-wider">
-                  Öne Çıkan Etkinlik ⭐
+                <span className="rounded-xl bg-emerald-700/80 border border-emerald-500/40 text-emerald-100 px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider flex items-center gap-1">
+                  <Sparkles className="size-3 text-amber-300" />
+                  Öne Çıkan Etkinlik
                 </span>
-                <span className="rounded-xl bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 px-2.5 py-1 text-xs font-black">
+                <span className="rounded-xl bg-emerald-950/80 border border-emerald-400/40 text-emerald-300 px-2.5 py-1 text-xs font-black">
                   +{featuredEvent.pointsGranted} GP
                 </span>
               </div>
 
               <div>
-                <h2 className="text-lg font-black text-white leading-tight group-hover:text-amber-300 transition-colors">
+                <h2 className="text-lg font-black text-white leading-tight group-hover:text-emerald-200 transition-colors">
                   {featuredEvent.title}
                 </h2>
-                <p className="text-xs text-slate-300 font-medium mt-1 line-clamp-2">{featuredEvent.description}</p>
+                <p className="text-xs text-emerald-100/80 font-medium mt-1 line-clamp-2">{featuredEvent.description}</p>
               </div>
 
-              <div className="flex flex-wrap items-center justify-between border-t border-slate-800 pt-3 text-xs text-slate-300">
+              <div className="flex flex-wrap items-center justify-between border-t border-emerald-800/80 pt-3 text-xs text-emerald-200">
                 <div className="flex items-center gap-3">
                   <span className="flex items-center gap-1 font-bold">
-                    <Calendar className="size-3.5 text-amber-400" /> {featuredEvent.date}
+                    <Calendar className="size-3.5 text-emerald-400" /> {featuredEvent.date}
                   </span>
                   <span className="flex items-center gap-1 font-bold">
-                    <MapPin className="size-3.5 text-amber-400" /> {featuredEvent.venueName.split(" ")[0]}
+                    <MapPin className="size-3.5 text-emerald-400" /> {featuredEvent.venueName.split(" ")[0]}
                   </span>
                 </div>
 
-                <span className="font-black text-amber-300 flex items-center gap-1">
+                <span className="font-black text-emerald-300 flex items-center gap-1">
                   <span>Detay & Katıl</span>
                   <ArrowRight className="size-3.5" />
                 </span>
@@ -479,7 +497,7 @@ export function EventsScreen({
                       <span className="text-[10px] font-black uppercase tracking-wider text-primary">{evt.category}</span>
                       <h3 className="text-sm font-black text-foreground group-hover:text-primary transition-colors mt-0.5">{evt.title}</h3>
                     </div>
-                    <span className="shrink-0 rounded-xl bg-amber-400/10 border border-amber-400/30 px-2.5 py-1 text-xs font-black text-amber-700 dark:text-amber-300">
+                    <span className="shrink-0 rounded-xl bg-emerald-50 dark:bg-emerald-950 border border-emerald-200 dark:border-emerald-800 px-2.5 py-1 text-xs font-black text-emerald-800 dark:text-emerald-300">
                       +{evt.pointsGranted} GP
                     </span>
                   </div>
@@ -581,13 +599,6 @@ export function EventsScreen({
                             <QrCode className="size-3.5" />
                             <span>GölBOX QR'ını Göster</span>
                           </button>
-                          <button
-                            onClick={() => handleSimulateCheckIn(evt.id, evt.pointsGranted, evt.title)}
-                            className="rounded-2xl bg-amber-400 px-3.5 py-3 text-xs font-black text-amber-950 shadow-2xs hover:bg-amber-300"
-                            title="Check-in Simülasyonu"
-                          >
-                            Check-in Yap (Demo)
-                          </button>
                         </div>
                       )}
 
@@ -663,6 +674,7 @@ export function EventsScreen({
         </div>,
         document.body
       )}
-    </Screen>
+      </div>
+    </div>
   )
 }

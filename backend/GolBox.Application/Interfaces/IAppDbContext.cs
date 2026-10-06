@@ -24,6 +24,16 @@ public interface IAppDbContext
     DbSet<Activity> Activities { get; }
     DbSet<UserActivity> UserActivities { get; }
     DbSet<MenuItem> MenuItems { get; }
+    DbSet<Ingredient> Ingredients { get; }
+    DbSet<Allergen> Allergens { get; }
+    DbSet<ProductIngredient> ProductIngredients { get; }
+    DbSet<ProductAllergen> ProductAllergens { get; }
+    DbSet<ProductOptionGroup> ProductOptionGroups { get; }
+    DbSet<ProductOption> ProductOptions { get; }
+    DbSet<ProductRelation> ProductRelations { get; }
+    DbSet<BranchProduct> BranchProducts { get; }
+    DbSet<BranchHours> BranchHours { get; }
+    DbSet<BranchSpecialHours> BranchSpecialHours { get; }
     DbSet<Order> Orders { get; }
     DbSet<OrderItem> OrderItems { get; }
     DbSet<AuditLog> AuditLogs { get; }

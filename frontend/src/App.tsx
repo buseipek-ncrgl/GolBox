@@ -13,15 +13,15 @@ const HomeContentPage = lazy(() => import('./features/admin/wrappers').then((m) 
 const SocialPage = lazy(() => import('./features/admin/social/SocialPage').then((m) => ({ default: m.SocialPage })));
 const SettingsPage = lazy(() => import('./features/admin/wrappers').then((m) => ({ default: m.SettingsPage })));
 const CafesPage = lazy(() => import('./features/admin/cafes/CafesPage').then((m) => ({ default: m.CafesPage })));
-const MenuPage = lazy(() => import('./features/admin/menu/MenuPage').then((m) => ({ default: m.MenuPage })));
+const MenuPage = lazy(() => import('./features/admin/menu/CatalogMenuPage').then((m) => ({ default: m.CatalogMenuPage })));
 const LedgerPage = lazy(() => import('./features/admin/points/LedgerPage').then((m) => ({ default: m.LedgerPage })));
-const QrPage = lazy(() => import('./features/admin/qr/QrPage').then((m) => ({ default: m.QrPage })));
+const QrPage = lazy(() => import('./features/admin/qr/QrOperationsPage').then((m) => ({ default: m.QrOperationsPage })));
 const RewardsPage = lazy(() => import('./features/admin/rewards/RewardsPage').then((m) => ({ default: m.RewardsPage })));
-const FieldDropsPage = lazy(() => import('./features/admin/fielddrops/FieldDropsPage').then((m) => ({ default: m.FieldDropsPage })));
-const OrdersPage = lazy(() => import('./features/admin/orders/OrdersPage').then((m) => ({ default: m.OrdersPage })));
+const OrdersPage = lazy(() => import('./features/admin/orders/OrdersOperationsPage').then((m) => ({ default: m.OrdersOperationsPage })));
+const IsmarliyorPage = lazy(() => import('./features/admin/orders/IsmarliyorPage').then((m) => ({ default: m.IsmarliyorPage })));
 const CampaignsPage = lazy(() => import('./features/admin/campaigns/CampaignsPage').then((m) => ({ default: m.CampaignsPage })));
 const ActivitiesPage = lazy(() => import('./features/admin/activities/ActivitiesPage').then((m) => ({ default: m.ActivitiesPage })));
-const EventCheckinPage = lazy(() => import('./features/admin/activities/EventCheckinPage').then((m) => ({ default: m.EventCheckinPage })));
+const EventCheckinPage = lazy(() => import('./features/admin/activities/EventCheckinOperationsPage').then((m) => ({ default: m.EventCheckinOperationsPage })));
 const MissionsPage = lazy(() => import('./features/admin/missions/MissionsPage').then((m) => ({ default: m.MissionsPage })));
 const NotificationsPage = lazy(() => import('./features/admin/notifications/NotificationsPage').then((m) => ({ default: m.NotificationsPage })));
 const ReportsPage = lazy(() => import('./features/admin/reports/ReportsPage').then((m) => ({ default: m.ReportsPage })));
@@ -65,9 +65,8 @@ const MainApp = () => {
           <Route path="golpuan" element={<LedgerPage />} />
           <Route path="qr" element={<QrPage />} />
           <Route path="oduller" element={<RewardsPage />} />
-          <Route path="saha-hediyeleri" element={<FieldDropsPage />} />
           <Route path="siparisler" element={<OrdersPage />} />
-          <Route path="ismarliyor" element={<OrdersPage />} />
+          <Route path="ismarliyor" element={<IsmarliyorPage />} />
           <Route path="icerikler" element={<HomeContentPage />} />
           <Route path="sosyal-medya" element={<SocialPage />} />
           <Route path="etkinlikler" element={<ActivitiesPage />} />

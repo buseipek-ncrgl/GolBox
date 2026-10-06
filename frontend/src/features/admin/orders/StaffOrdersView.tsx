@@ -36,8 +36,8 @@ export function StaffOrdersView() {
   // Load Branch Scope & Active Orders
   const loadBranchData = async () => {
     try {
-      const cafesRes = await api.getCafes();
-      const list = Array.isArray(cafesRes) ? cafesRes : [];
+      const cafesRes = await api.getAdminCafes({ page: 1, pageSize: 100 });
+      const list = pagedMeta(cafesRes).items;
       setBranches(list);
 
       // Default to first assigned branch

@@ -28,7 +28,6 @@ public class DashboardController : BaseApiController
         var (todayFrom, todayTo) = AdminDateRange.Today();
         var thirtyDaysAgo = now.AddDays(-30);
         var criticalBefore = now.AddMinutes(-AdminSafetyRules.CriticalOrderMinutes);
-        var expiringBefore = now.AddHours(AdminSafetyRules.ExpiringFieldDropHours);
         var isAdmin = HttpContext?.User?.IsInRole("Admin") == true;
 
         var registeredCitizensCount = await _context.Users.CountAsync(u => u.Role == "User" || u.Role == "Citizen");
@@ -56,8 +55,6 @@ public class DashboardController : BaseApiController
 
         var pendingApprovalsCount = await _context.ApprovalRequests.CountAsync(ar => ar.Status == "Pending");
 
-        var activeFieldDropsCount = await _context.FieldDrops.CountAsync(d =>
-            d.IsActive && d.StartsAt <= now && d.EndsAt >= now);
         var todayActivities = await _context.Activities
             .Where(a => a.Status == "Active" && a.StartDate < todayTo && a.EndDate >= todayFrom)
             .OrderBy(a => a.StartDate)
@@ -119,30 +116,6 @@ public class DashboardController : BaseApiController
                 .ToListAsync()
             : new List<object>().Select(x => new { Id = Guid.Empty, RequestType = "", Reason = "", RequesterEmail = "", CreatedDate = now }).Take(0).ToList();
 
-        var activeFieldDrops = await _context.FieldDrops
-            .Where(d => d.IsActive && d.StartsAt <= now && d.EndsAt >= now)
-            .OrderBy(d => d.EndsAt)
-            .Select(d => new
-            {
-                d.Id,
-                d.Title,
-                remainingStock = d.TotalStock == null ? (int?)null : d.TotalStock.Value - d.CapturedCount,
-                d.CapturedCount,
-                d.TotalStock,
-                d.EndsAt
-            })
-            .Take(8)
-            .ToListAsync();
-
-        var lowStockFieldDrops = activeFieldDrops
-            .Where(d => d.remainingStock != null && d.remainingStock <= 5)
-            .Take(5)
-            .ToList();
-
-        var expiringFieldDrops = activeFieldDrops
-            .Where(d => d.EndsAt <= expiringBefore)
-            .Take(5)
-            .ToList();
 
         var highValuePointTransactions = isAdmin
             ? await _context.PointTransactions
@@ -165,10 +138,6 @@ public class DashboardController : BaseApiController
         var operationAlerts = new List<object>();
         foreach (var o in longPendingOrders)
             operationAlerts.Add(new { id = o.Id, kind = "order", text = $"Uzun bekleyen Ismarlıyor {o.CollectionCode}", href = "/admin/ismarliyor" });
-        foreach (var d in lowStockFieldDrops)
-            operationAlerts.Add(new { id = d.Id, kind = "fielddrop-stock", text = $"Düşük stok: {d.Title}", href = "/admin/saha-hediyeleri" });
-        foreach (var d in expiringFieldDrops)
-            operationAlerts.Add(new { id = d.Id, kind = "fielddrop-expiring", text = $"Bitmek üzere: {d.Title}", href = "/admin/saha-hediyeleri" });
         foreach (var a in todayActivities)
             operationAlerts.Add(new { id = a.Id, kind = "activity", text = $"Bugünkü etkinlik: {a.Title}", href = isAdmin ? "/admin/etkinlikler" : "/admin" });
         if (isAdmin)
@@ -203,9 +172,6 @@ public class DashboardController : BaseApiController
                 highValuePointTransactions,
                 pendingIsmarliyor,
                 todayActivities,
-                activeFieldDrops,
-                lowStockFieldDrops,
-                expiringFieldDrops,
                 operationAlerts
             },
             totalUsers = registeredCitizensCount,
@@ -216,7 +182,6 @@ public class DashboardController : BaseApiController
             criticalOrders = longPendingOrders.Count,
             todayEarnedPoints,
             todaySpentPoints,
-            activeFieldDropsCount,
             todayActivitiesCount = todayActivities.Count,
             operationAlertCount = operationAlerts.Count,
             timezone = "Europe/Istanbul",

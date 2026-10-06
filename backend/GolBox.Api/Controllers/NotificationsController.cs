@@ -76,6 +76,7 @@ public class NotificationsController : BaseApiController
                 n.Status,
                 n.SentCount,
                 n.SentDate,
+                n.ScheduledDate,
                 n.CreatedDate,
                 n.TargetType,
                 n.TargetId
@@ -182,6 +183,8 @@ public class NotificationsController : BaseApiController
             return BadRequest(Result<object>.Fail(targetCheck.Message));
         if (!NotificationTargetTypes.IsKnown(request.TargetType))
             return BadRequest(Result<object>.Fail("Geçersiz yönlendirme hedefi."));
+        if (request.ScheduledDate.HasValue && request.ScheduledDate.Value <= DateTime.UtcNow.AddMinutes(1))
+            return BadRequest(Result<object>.Fail("Planlı gönderim zamanı en az 1 dakika ileride olmalıdır."));
 
         var org = await _context.Organizations.OrderBy(o => o.CreatedDate).FirstOrDefaultAsync(cancellationToken);
         var orgId = org?.Id ?? KnownOrganizations.Sehitkamil;
@@ -206,6 +209,8 @@ public class NotificationsController : BaseApiController
             return BadRequest(Result<object>.Fail(targetCheck.Message));
         if (!NotificationTargetTypes.IsKnown(request.TargetType))
             return BadRequest(Result<object>.Fail("Geçersiz yönlendirme hedefi."));
+        if (request.ScheduledDate.HasValue && request.ScheduledDate.Value <= DateTime.UtcNow.AddMinutes(1))
+            return BadRequest(Result<object>.Fail("Planlı gönderim zamanı en az 1 dakika ileride olmalıdır."));
 
         var org = await _context.Organizations.OrderBy(o => o.CreatedDate).FirstOrDefaultAsync(cancellationToken);
         var orgId = org?.Id ?? KnownOrganizations.Sehitkamil;
@@ -275,7 +280,10 @@ public class NotificationsController : BaseApiController
             }
         }
 
-        return Ok(Result<object>.Ok(new { notificationId = notification.Id, recipientCount }, $"Bildirim {recipientCount} vatandaşa başarıyla gönderildi."));
+        var responseMessage = request.ScheduledDate.HasValue
+            ? $"Bildirim {recipientCount} uygun alıcı için planlandı."
+            : $"Bildirim {recipientCount} vatandaşa başarıyla gönderildi.";
+        return Ok(Result<object>.Ok(new { notificationId = notification.Id, recipientCount, notification.Status, notification.ScheduledDate }, responseMessage));
     }
 
     private async Task<List<Guid>> ResolveRecipientsAsync(Guid orgId, SendCitizenNotificationRequest request, CancellationToken cancellationToken)

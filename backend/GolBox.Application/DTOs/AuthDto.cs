@@ -13,5 +13,7 @@ public record UserDto(
     string LastName,
     string Email,
     int PointsBalance,
-    System.Collections.Generic.List<string> Roles
+    System.Collections.Generic.List<string> Roles,
+    System.Guid? BranchId = null,
+    string? Duty = null
 );

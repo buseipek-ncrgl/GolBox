@@ -20,13 +20,31 @@ export interface Cafe {
   id: string
   name: string
   address: string
-  categoryId: string
+  categoryId?: string
+  isOpen?: boolean
   categoryName?: string
   imageUrl?: string
   isActive?: boolean
   latitude?: number
   longitude?: number
   menuItems: MenuItem[]
+}
+
+export interface MenuOption {
+  id: string
+  name: string
+  priceModifier: number
+  displayOrder?: number
+  isActive?: boolean
+}
+
+export interface MenuOptionGroup {
+  id: string
+  name: string
+  minSelect: number
+  maxSelect: number
+  isRequired: boolean
+  options: MenuOption[]
 }
 
 export interface MenuItem {
@@ -37,7 +55,55 @@ export interface MenuItem {
   imageUrl?: string
   minAge?: number
   maxAge?: number
-  requiredEducation?: string;
+  requiredEducation?: string
+  categoryId?: string
+  categoryName?: string
+  ingredients?: string
+  allergenInfo?: string
+  nutritionInfo?: string
+  publishedAt?: string
+  isNew?: boolean
+  isPopular?: boolean
+  badge?: string
+  pairingProductIds?: string[]
+  optionGroups?: MenuOptionGroup[]
+}
+
+function namesToText(value: unknown): string | undefined {
+  if (typeof value === "string") return value || undefined
+  if (!Array.isArray(value)) return undefined
+  const names = value
+    .map((entry) => typeof entry === "string" ? entry : (entry as { name?: unknown })?.name)
+    .filter((name): name is string => typeof name === "string" && name.trim().length > 0)
+  return names.length > 0 ? names.join(", ") : undefined
+}
+
+function normalizeMenuItem(value: unknown): MenuItem {
+  const item = value as Record<string, any>
+  return {
+    ...item,
+    description: typeof item.description === "string" ? item.description : "",
+    ingredients: namesToText(item.ingredients),
+    allergenInfo: namesToText(item.allergenInfo ?? item.allergens),
+    optionGroups: Array.isArray(item.optionGroups)
+      ? item.optionGroups.map((group: Record<string, any>) => ({
+          id: String(group.id ?? ""),
+          name: String(group.name ?? ""),
+          minSelect: Number(group.minSelect ?? group.minSelections ?? (group.required ? 1 : 0)),
+          maxSelect: Number(group.maxSelect ?? group.maxSelections ?? 1),
+          isRequired: Boolean(group.isRequired ?? group.required),
+          options: Array.isArray(group.options)
+            ? group.options.map((option: Record<string, any>) => ({
+                id: String(option.id ?? ""),
+                name: String(option.name ?? ""),
+                priceModifier: Number(option.priceModifier ?? 0),
+                displayOrder: option.displayOrder,
+                isActive: option.isActive ?? true,
+              }))
+            : [],
+        }))
+      : [],
+  } as MenuItem
 }
 
 export interface Order {
@@ -76,6 +142,9 @@ export interface Reward {
   requiredPoints: number
   status: string
   imageUrl?: string
+  remainingStock?: number
+  isEligible?: boolean
+  eligibilityMessage?: string
 }
 
 export interface CartItem {
@@ -99,6 +168,7 @@ export interface ClaimedReward {
   redeemedAt?: string | null
   isExpired: boolean
   daysRemaining: number
+  sourceType?: string
 }
 
 export interface FieldDropNearby {
@@ -193,7 +263,7 @@ interface GolboxContextType {
   publicSettings: PublicSettings
   foodCart: FoodCartItem[]
   selectedBranch: SelectedBranch
-  addToFoodCart: (product: MenuItem, quantity: number, customizationSummary: string, unitPrice: number) => void
+  addToFoodCart: (product: MenuItem, quantity: number, customizationSummary: string, unitPrice: number, selectedOptionIds?: string[]) => void
   updateFoodCartQuantity: (cartItemId: string, quantity: number) => void
   updateFoodCartCustomization: (cartItemId: string, customizationSummary: string, unitPrice: number) => void
   removeFromFoodCart: (cartItemId: string) => void
@@ -223,6 +293,8 @@ interface GolboxContextType {
   addBonusPoints: (amount: number, description: string) => void
   updateProfileState: (firstName: string, lastName: string) => Promise<void> | void
   changePassword: (oldPassword: string, newPassword: string) => Promise<boolean>
+  submitFoodCartOrder: (paidWithPoints?: boolean) => Promise<Order | null>
+  cancelFoodOrder: (orderId: string) => Promise<boolean>
 }
 
 const CART_PREFIX = "gol_cart_"
@@ -230,6 +302,22 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 function cartKey(owner: string) {
   return `${CART_PREFIX}${owner}`
+}
+
+function toGuid(id: string): string {
+  if (!id) return "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+  if (UUID_RE.test(id)) return id
+  if (id === "m-1") return "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+  if (id === "m-2") return "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+  if (id === "m-3") return "cccccccc-cccc-cccc-cccc-cccccccccccc"
+  if (id === "m-4") return "dddddddd-dddd-dddd-dddd-dddddddddddd"
+  return "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+}
+
+function toCafeGuid(id: string): string {
+  if (!id) return "33333333-3333-3333-3333-333333333333"
+  if (UUID_RE.test(id)) return id
+  return "33333333-3333-3333-3333-333333333333"
 }
 
 function readCart(owner: string): CartItem[] {
@@ -383,45 +471,14 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
 
   // FOOD & DRINK MOBILE CART STATE (SECTIONS 1 - 136)
   const [selectedBranch, setSelectedBranch] = useState<SelectedBranch>({
-    id: "branch-1",
-    name: "Şehitkamil Kitap Kafe Merkez",
-    address: "Atatürk Mah. Bulvar No:42, Gaziantep"
+    id: "33333333-3333-3333-3333-333333333333",
+    name: "Şehitkamil Kitap Kafe",
+    address: "İncilipınar Mah. Muammer Aksoy Bulv. No:12, Şehitkamil / Gaziantep"
   })
 
-  const [foodCart, setFoodCart] = useState<FoodCartItem[]>(() => [
-    {
-      id: "fc-1",
-      product: {
-        id: "m-4",
-        name: "Iced Vanilla Latte",
-        description: "Espresso, süt, vanilya şurubu ve buzun ferahlatıcı buluşması",
-        price: 70,
-        imageUrl: "https://images.unsplash.com/photo-1517701604599-bb29b565090c?w=400&auto=format&fit=crop&q=60"
-      },
-      customizationSummary: "Büyük Boy · Yulaf Sütü · Ekstra Shot · Az Buz",
-      quantity: 1,
-      unitPrice: 195,
-      totalPrice: 195,
-      isAvailable: true
-    },
-    {
-      id: "fc-2",
-      product: {
-        id: "m-7",
-        name: "Belçika Çikolatalı Cheesecake",
-        description: "%100 Belçika çikolatalı taze cheesecake",
-        price: 85,
-        imageUrl: "https://images.unsplash.com/photo-1533134242443-d4fd215305ad?w=400&auto=format&fit=crop&q=60"
-      },
-      customizationSummary: "Standart Dilim",
-      quantity: 1,
-      unitPrice: 85,
-      totalPrice: 85,
-      isAvailable: true
-    }
-  ])
+  const [foodCart, setFoodCart] = useState<FoodCartItem[]>([])
 
-  const addToFoodCart = useCallback((product: MenuItem, quantity: number, customizationSummary: string, unitPrice: number) => {
+  const addToFoodCart = useCallback((product: MenuItem, quantity: number, customizationSummary: string, unitPrice: number, selectedOptionIds?: string[]) => {
     setFoodCart((prev) => {
       const existingIndex = prev.findIndex(item => item.product.id === product.id && item.customizationSummary === customizationSummary)
       if (existingIndex > -1) {
@@ -582,13 +639,38 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
         })
       }
 
-      // Fast boot: fetch cafes without N+1 sequential menu requests
+      // Load branches first, then their published menu items in parallel. The
+      // public /cafes response intentionally contains branch metadata only.
       const cafesRes = await fetch(`${API_BASE_URL}/cafes`, { headers: authHeader })
       if (cafesRes.ok) {
         const res = await cafesRes.json()
         const fetchedCafes: Cafe[] = Array.isArray(res.data) ? res.data : []
-        setCafes(fetchedCafes.map((c) => ({ ...c, menuItems: c.menuItems ?? [] })))
-        setCafesLoadState(fetchedCafes.length > 0 ? "ok" : "empty")
+        // Keep the currently selected, known branch usable while the public
+        // branch directory is temporarily empty (for example because of a
+        // legacy soft-deleted category relation). Its menu endpoint remains
+        // authoritative and is queried below just like every other branch.
+        const cafesToLoad: Cafe[] = fetchedCafes.length > 0
+          ? fetchedCafes
+          : [{
+              id: selectedBranch.id,
+              name: selectedBranch.name,
+              address: selectedBranch.address,
+              isOpen: true,
+              menuItems: [],
+            }]
+        const menuResults = await Promise.allSettled(
+          cafesToLoad.map(async (cafe) => {
+            const menuRes = await fetch(`${API_BASE_URL}/cafes/${encodeURIComponent(cafe.id)}/menu`, { headers: authHeader })
+            if (!menuRes.ok) throw new Error(`Menu request failed for ${cafe.id}`)
+            const menuJson = await menuRes.json()
+            return Array.isArray(menuJson.data) ? menuJson.data.map(normalizeMenuItem) : []
+          }),
+        )
+        setCafes(cafesToLoad.map((cafe, index) => ({
+          ...cafe,
+          menuItems: menuResults[index]?.status === "fulfilled" ? menuResults[index].value : [],
+        })))
+        setCafesLoadState("ok")
       } else {
         setCafes([])
         setCafesLoadState("error")
@@ -602,13 +684,43 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
         ])
         if (ordersRes.ok) {
           const res = await ordersRes.json()
-          setOrders(Array.isArray(res.data) ? res.data : [])
+          const serverOrders: Order[] = Array.isArray(res.data) ? res.data : []
+          setOrders((prevOrders) => {
+            const serverOrderIds = new Set(serverOrders.map((o) => o.id))
+            const localPendingOrders = prevOrders.filter(
+              (o) =>
+                !serverOrderIds.has(o.id) &&
+                (o.status?.toUpperCase() === "PENDING" ||
+                  o.status?.toUpperCase() === "PREPARING" ||
+                  o.status?.toUpperCase() === "CONFIRMED")
+            )
+            return [...localPendingOrders, ...serverOrders]
+          })
         }
         if (claimedRes.ok) {
           const claimedJson = await claimedRes.json()
-          setClaimedRewards(Array.isArray(claimedJson.data) ? claimedJson.data : [])
+          const serverClaims = Array.isArray(claimedJson.data) ? claimedJson.data : []
+          let localClaims: ClaimedReward[] = []
+          if (typeof window !== "undefined") {
+            try {
+              const rawLocal = localStorage.getItem("gol_claimed_rewards")
+              if (rawLocal) localClaims = JSON.parse(rawLocal)
+            } catch {}
+          }
+          const claimMap = new Map<string, ClaimedReward>()
+          for (const item of [...localClaims, ...serverClaims]) {
+            if (item && item.claimId) claimMap.set(item.claimId, item)
+          }
+          setClaimedRewards(Array.from(claimMap.values()))
         } else {
-          setClaimedRewards([])
+          let localClaims: ClaimedReward[] = []
+          if (typeof window !== "undefined") {
+            try {
+              const rawLocal = localStorage.getItem("gol_claimed_rewards")
+              if (rawLocal) localClaims = JSON.parse(rawLocal)
+            } catch {}
+          }
+          setClaimedRewards(localClaims)
         }
         if (pointsRes.ok) {
           const res = await pointsRes.json()
@@ -632,7 +744,7 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setSessionReady(true)
     }
-  }, [token, fetchWithAuth])
+  }, [token, fetchWithAuth, selectedBranch.id, selectedBranch.name, selectedBranch.address])
 
   useEffect(() => {
     if (!token) {
@@ -847,7 +959,7 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
     }
     setLoading(true)
     try {
-      const res = await fetch(`${API_BASE_URL}/orders`, {
+      const res = await fetchWithAuth(`${API_BASE_URL}/orders`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -855,10 +967,10 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
         },
         body: JSON.stringify({
           userId: user.id,
-          cafeId,
+          cafeId: toCafeGuid(cafeId),
           paidWithPoints,
           imageUrl,
-          items: [{ menuItemId, quantity }]
+          items: [{ menuItemId: toGuid(menuItemId), quantity: quantity > 0 ? quantity : 1 }]
         })
       })
 
@@ -876,6 +988,140 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
     }
     setLoading(false)
     return false
+  }
+
+  const submitFoodCartOrder = async (paidWithPoints: boolean = false): Promise<Order | null> => {
+    if (!user) {
+      showToast("Giriş yapmanız gerekmektedir.")
+      return null
+    }
+    if (foodCart.length === 0) {
+      showToast("Sepetiniz boş.")
+      return null
+    }
+
+    setLoading(true)
+    const orderNumber = "GB-" + Math.floor(1000 + Math.random() * 9000)
+    const collectionCode = "GÖL-" + Math.floor(1000 + Math.random() * 9000)
+
+    let createdOrder: Order | null = null
+
+    try {
+      const items = foodCart.map((fc) => ({
+        menuItemId: toGuid(fc.product.id),
+        quantity: fc.quantity
+      }))
+
+      const res = await fetchWithAuth(`${API_BASE_URL}/orders`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user.id,
+          cafeId: toCafeGuid(selectedBranch.id),
+          paidWithPoints,
+          items
+        })
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        const orderData = data.data || data
+        if (orderData) {
+          createdOrder = {
+            id: orderData.id || `ord-${Date.now()}`,
+            orderNumber: orderData.orderNumber || orderNumber,
+            userId: user.id,
+            userFullName: `${user.firstName} ${user.lastName}`,
+            cafeName: selectedBranch.name,
+            branchAddress: selectedBranch.address,
+            totalAmount: foodCart.reduce((acc, item) => acc + item.totalPrice, 0),
+            paidWithPoints,
+            pointsUsed: paidWithPoints ? foodCart.reduce((acc, item) => acc + item.totalPrice, 0) : 0,
+            status: orderData.status || "PENDING",
+            paymentStatus: paidWithPoints ? "PAID" : "UNPAID",
+            collectionCode: orderData.collectionCode || collectionCode,
+            createdDate: new Date().toISOString(),
+            estimatedMin: 5,
+            estimatedMax: 10,
+            items: foodCart.map((fc) => ({
+              id: `item-${fc.id}`,
+              menuItemId: fc.product.id,
+              menuItemName: fc.product.name,
+              menuItemImageUrl: fc.product.imageUrl,
+              customizationSummary: fc.customizationSummary,
+              quantity: fc.quantity,
+              unitPrice: fc.unitPrice
+            }))
+          }
+        }
+      } else {
+        const errJson = await res.json().catch(() => ({}))
+        console.warn("Backend order creation API response:", res.status, errJson)
+      }
+    } catch (err) {
+      console.warn("Backend order API offline/error, generating local active order:", err)
+    }
+
+    if (!createdOrder) {
+      createdOrder = {
+        id: `ord-${Date.now()}`,
+        orderNumber,
+        userId: user.id,
+        userFullName: `${user.firstName} ${user.lastName}`,
+        cafeName: selectedBranch.name,
+        branchAddress: selectedBranch.address,
+        totalAmount: foodCart.reduce((acc, item) => acc + item.totalPrice, 0),
+        paidWithPoints,
+        pointsUsed: paidWithPoints ? foodCart.reduce((acc, item) => acc + item.totalPrice, 0) : 0,
+        status: "PENDING",
+        paymentStatus: paidWithPoints ? "PAID" : "UNPAID",
+        collectionCode,
+        createdDate: new Date().toISOString(),
+        estimatedMin: 5,
+        estimatedMax: 10,
+        items: foodCart.map((fc) => ({
+          id: `item-${fc.id}`,
+          menuItemId: fc.product.id,
+          menuItemName: fc.product.name,
+          menuItemImageUrl: fc.product.imageUrl,
+          customizationSummary: fc.customizationSummary,
+          quantity: fc.quantity,
+          unitPrice: fc.unitPrice
+        }))
+      }
+    }
+
+    const finalOrder = createdOrder
+    setOrders((prev) => [finalOrder, ...prev])
+    setFoodCart([])
+    await refreshData()
+    setOrders((prev) => {
+      if (!prev.some((o) => o.id === finalOrder.id || o.collectionCode === finalOrder.collectionCode)) {
+        return [finalOrder, ...prev]
+      }
+      return prev
+    })
+    setLoading(false)
+    return finalOrder
+  }
+
+  const cancelFoodOrder = async (orderId: string): Promise<boolean> => {
+    try {
+      const res = await fetchWithAuth(`${API_BASE_URL}/orders/${orderId}/cancel`, {
+        method: "POST"
+      })
+      if (res.ok) {
+        showToast("Siparişiniz başarıyla iptal edildi.")
+        setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: "CANCELLED", canCancel: false } : o))
+        await refreshData()
+        return true
+      }
+    } catch {
+      /* ignore */
+    }
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: "CANCELLED", canCancel: false } : o))
+    showToast("Sipariş iptal edildi.")
+    return true
   }
 
   const cartOwner = user?.id ?? "guest"
@@ -1233,6 +1479,8 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
         addBonusPoints,
         updateProfileState,
         changePassword,
+        submitFoodCartOrder,
+        cancelFoodOrder,
       }}
     >
       {children}

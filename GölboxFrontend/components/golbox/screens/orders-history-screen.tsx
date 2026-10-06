@@ -30,6 +30,31 @@ import { useGolbox, type Order } from "@/lib/golbox-context"
 import { useGolToast } from "@/components/golbox/gol-toast"
 import { ActiveOrderScreen } from "@/components/golbox/screens/active-order-screen"
 
+function formatOrderNumber(ord: Order): string {
+  const num = ord.orderNumber || ""
+  if (num && !num.includes("-2026") && !num.includes("T") && !num.includes("ord-")) {
+    return num.startsWith("GB-") ? num : `GB-${num}`
+  }
+  if (ord.collectionCode) return ord.collectionCode
+  if (ord.id) {
+    const cleanId = ord.id.replace(/[^a-zA-Z0-9]/g, "")
+    return `GB-${cleanId.slice(-4).toUpperCase()}`
+  }
+  return "GB-1042"
+}
+
+function formatOrderDate(dateStr?: string): string {
+  if (!dateStr) return "Bugün"
+  if (dateStr.includes("·")) return dateStr
+  try {
+    const d = new Date(dateStr)
+    if (isNaN(d.getTime())) return dateStr
+    return d.toLocaleDateString("tr-TR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })
+  } catch {
+    return dateStr
+  }
+}
+
 export function OrdersHistoryScreen({
   onBack,
   onNavigateToMenu,
@@ -177,10 +202,16 @@ export function OrdersHistoryScreen({
     }
   ]
 
-  // Combine real context orders with demo orders for complete UI testing
-  const allOrdersList = orders.length > 0 ? orders : demoOrders
-  const activeOrdersList = allOrdersList.filter((o) => o.status === "PENDING" || o.status === "CONFIRMED" || o.status === "PREPARING" || o.status === "READY")
-  const pastOrdersList = allOrdersList.filter((o) => o.status === "COMPLETED" || o.status === "CANCELLED" || o.status === "NO_SHOW")
+  // Use real context orders with case-insensitive status matching
+  const allOrdersList = orders
+  const activeOrdersList = allOrdersList.filter((o) => {
+    const s = (o.status || "").toUpperCase()
+    return s === "PENDING" || s === "CONFIRMED" || s === "PREPARING" || s === "READY"
+  })
+  const pastOrdersList = allOrdersList.filter((o) => {
+    const s = (o.status || "").toUpperCase()
+    return s === "COMPLETED" || s === "CANCELLED" || s === "NO_SHOW"
+  })
 
   // SMART REORDER ENGINE (PRD SECTIONS 55-80, 160-163)
   const handleInitiateReorder = (targetOrder: Order) => {
@@ -327,8 +358,8 @@ export function OrdersHistoryScreen({
                 >
                   <div className="flex items-center justify-between border-b border-border/40 pb-3">
                     <div>
-                      <span className="text-xs font-black text-foreground">#{ord.orderNumber}</span>
-                      <p className="text-[10px] text-muted-foreground font-semibold">{ord.createdDate}</p>
+                      <span className="text-xs font-black text-foreground">{formatOrderNumber(ord)}</span>
+                      <p className="text-[10px] text-muted-foreground font-semibold">{formatOrderDate(ord.createdDate)}</p>
                     </div>
                     {ord.status === "READY" ? (
                       <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600 text-white px-3 py-1 text-xs font-black shadow-xs">
@@ -402,8 +433,8 @@ export function OrdersHistoryScreen({
                     {/* TOP HEADER */}
                     <div className="flex items-center justify-between border-b border-border/40 pb-2.5">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-black text-foreground">#{ord.orderNumber}</span>
-                        <span className="text-[10px] text-muted-foreground font-semibold">· {ord.createdDate}</span>
+                        <span className="text-xs font-black text-foreground">{formatOrderNumber(ord)}</span>
+                        <span className="text-[10px] text-muted-foreground font-semibold">· {formatOrderDate(ord.createdDate)}</span>
                       </div>
 
                       {/* HUMAN-READABLE STATUS MAPPING (PRD SECTION 17-18) */}

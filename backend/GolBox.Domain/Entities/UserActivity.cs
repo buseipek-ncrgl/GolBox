@@ -10,6 +10,10 @@ public class UserActivity : BaseEntity
     public DateTime JoinedAt { get; set; } = DateTime.UtcNow;
     public int PointsEarned { get; set; }
     public Guid OrganizationId { get; set; }
+    public DateTime? CheckedInAt { get; set; }
+    public Guid? CheckedInBy { get; set; }
+    public DateTime? PointsAwardedAt { get; set; }
+    public string? CheckInNotes { get; set; }
 
     // Navigations
     public virtual User User { get; set; } = null!;

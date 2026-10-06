@@ -236,7 +236,7 @@ public class AdminWorkflowPhase2Tests
         Assert.Equal(200, ActionResultAssert.Status(updated));
         Assert.False((await db.MenuItems.FindAsync(item.Id))!.IsActive);
 
-        var list = await new MenuCatalogController(db).GetAdminMenuItems(cafe.Id, false, "kahve", 1, 25);
+        var list = await new MenuCatalogController(db).GetAdminMenuItems(cafeId: cafe.Id, active: false, search: "kahve", page: 1, pageSize: 25);
         Assert.Equal(1, PagedData.TotalCount(ActionResultAssert.Body(list).Data));
     }
 

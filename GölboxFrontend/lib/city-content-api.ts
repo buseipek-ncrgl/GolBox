@@ -28,6 +28,7 @@ export interface PublicActivity {
 }
 
 export interface CitizenNotification {
+  // Notification contract is intentionally separate from campaign content.
   id: string
   title: string
   body: string
@@ -121,6 +122,15 @@ export async function fetchPublicActivities(
   }
 }
 
+export async function fetchPublicCampaigns(page = 1, pageSize = 20): Promise<Paged<PublicCampaign>> {
+  const res = await fetch(`${API_BASE_URL}/campaigns/public?page=${page}&pageSize=${pageSize}`, { cache: "no-store" })
+  if (!res.ok) throw new Error("campaigns")
+  const json = await readJson(res)
+  const data = json?.data
+  const items = Array.isArray(data?.items) ? data.items : []
+  return { items, page: Number(data?.page ?? page), pageSize: Number(data?.pageSize ?? pageSize), totalCount: Number(data?.totalCount ?? items.length) }
+}
+
 export async function fetchPublicActivity(id: string, token?: string | null): Promise<PublicActivity> {
   const res = await fetch(`${API_BASE_URL}/activities/${id}/public`, {
     headers: authHeaders(token),
@@ -139,6 +149,28 @@ export async function joinPublicActivity(id: string, token: string) {
   })
   const json = await readJson(res)
   if (!res.ok || json?.success === false) throw new Error(json?.message || "join")
+  return json
+}
+
+export interface PublicCampaign {
+  id: string
+  title: string
+  description: string
+  imageUrl?: string | null
+  campaignType: string
+  startDate: string
+  endDate: string
+  targetUserGroup: string
+  cafeId?: string | null
+  menuItemId?: string | null
+  cafeName?: string | null
+  menuItemName?: string | null
+}
+
+export async function cancelPublicActivity(id: string, token: string) {
+  const res = await fetch(`${API_BASE_URL}/activities/${id}/join`, { method: "DELETE", headers: authHeaders(token) })
+  const json = await readJson(res)
+  if (!res.ok || json?.success === false) throw new Error(json?.message || "cancel")
   return json
 }
 

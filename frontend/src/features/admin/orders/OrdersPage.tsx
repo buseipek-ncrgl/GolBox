@@ -148,8 +148,10 @@ export function OrdersPage() {
             {cafes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </Select>
           <Select required label="Ürün" value={form.menuItemId} onChange={(e) => setForm({ ...form, menuItemId: e.target.value })}>
-            <option value="">Ürün</option>
-            {menu.filter((m) => !form.cafeId || m.cafeId === form.cafeId).map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+            <option value="">Ürün Seçiniz...</option>
+            {menu.filter((m) => !form.cafeId || !m.cafeId || m.cafeId === form.cafeId).map((m) => (
+              <option key={m.id} value={m.id}>{m.name} ({m.price} ₺)</option>
+            ))}
           </Select>
         </form>
       </Modal>

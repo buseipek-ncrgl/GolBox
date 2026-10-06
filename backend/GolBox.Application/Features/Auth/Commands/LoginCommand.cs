@@ -100,7 +100,9 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, Result<AuthDto>
             user.LastName,
             user.Email,
             user.PointsBalance,
-            new List<string> { string.IsNullOrWhiteSpace(user.Role) ? "User" : user.Role }
+            new List<string> { string.IsNullOrWhiteSpace(user.Role) ? "User" : user.Role },
+            staffProfile?.BranchId,
+            staffProfile?.Role
         );
 
         var authDto = new AuthDto(

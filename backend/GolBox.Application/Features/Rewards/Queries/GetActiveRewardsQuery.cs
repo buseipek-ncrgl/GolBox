@@ -29,7 +29,11 @@ public record RewardDto(
     string Title,
     string Description,
     int RequiredPoints,
-    string? ImageUrl
+    string? ImageUrl,
+    int? RemainingStock,
+    int PerUserLimit,
+    bool IsEligible,
+    string? EligibilityMessage
 );
 
 public class GetActiveRewardsQueryHandler : IRequestHandler<GetActiveRewardsQuery, Result<PagedRewardsResult>>
@@ -47,13 +51,14 @@ public class GetActiveRewardsQueryHandler : IRequestHandler<GetActiveRewardsQuer
     {
         var organizationId = KnownOrganizations.Sehitkamil;
         var currentUserId = _currentUserService.UserId;
+        GolBox.Domain.Entities.User? currentUser = null;
         if (currentUserId != null && currentUserId != Guid.Empty)
         {
-            var user = await _context.Users
+            currentUser = await _context.Users
                 .AsNoTracking()
                 .FirstOrDefaultAsync(u => u.Id == currentUserId.Value, cancellationToken);
-            if (user != null)
-                organizationId = user.OrganizationId;
+            if (currentUser != null)
+                organizationId = currentUser.OrganizationId;
         }
 
         var query = _context.Rewards
@@ -66,18 +71,23 @@ public class GetActiveRewardsQueryHandler : IRequestHandler<GetActiveRewardsQuer
 
         var totalCount = await query.CountAsync(cancellationToken);
 
-        var items = await query
+        var rows = await query
             .OrderBy(r => r.RequiredPoints)
             .Skip((request.Page - 1) * request.PageSize)
             .Take(request.PageSize)
-            .Select(r => new RewardDto(
-                r.Id,
-                r.Title,
-                r.Description,
-                r.RequiredPoints,
-                r.ImageUrl
-            ))
+            .Select(r => new { r.Id, r.Title, r.Description, r.RequiredPoints, r.ImageUrl, r.TotalStock, r.IssuedCount, r.PerUserLimit, r.MinAge, r.RequiredEducation })
             .ToListAsync(cancellationToken);
+
+        var items = rows.Select(r =>
+        {
+            string? eligibilityMessage = null;
+            if (r.TotalStock.HasValue && r.IssuedCount >= r.TotalStock.Value) eligibilityMessage = "Kontenjan tükendi.";
+            else if (currentUser != null && r.MinAge.HasValue && (!currentUser.Age.HasValue || currentUser.Age.Value < r.MinAge.Value)) eligibilityMessage = $"En az {r.MinAge} yaş gereklidir.";
+            else if (currentUser != null && !string.IsNullOrWhiteSpace(r.RequiredEducation) && !string.Equals(currentUser.EducationLevel, r.RequiredEducation, StringComparison.OrdinalIgnoreCase)) eligibilityMessage = $"{r.RequiredEducation} öğrenim koşulu gereklidir.";
+            return new RewardDto(r.Id, r.Title, r.Description, r.RequiredPoints, r.ImageUrl,
+                r.TotalStock.HasValue ? Math.Max(0, r.TotalStock.Value - r.IssuedCount) : null,
+                r.PerUserLimit, eligibilityMessage == null, eligibilityMessage);
+        }).ToList();
 
         var totalPages = (int)Math.Ceiling((double)totalCount / request.PageSize);
 

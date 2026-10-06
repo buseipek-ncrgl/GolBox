@@ -35,48 +35,19 @@ export function ActiveOrderScreen({
   onClose?: () => void
   onNavigateToMenu: () => void
 }) {
-  const { user, selectedBranch, orders, toggleFavorite } = useGolbox()
+  const { user, selectedBranch, orders, cancelFoodOrder } = useGolbox()
   const showToast = useGolToast()
 
-  // DEMO SIMULATED ACTIVE ORDER IF NOT PASSED
-  const fallbackOrder: Order = {
-    id: "ord-demo-1042",
-    orderNumber: "GB-1042",
-    userId: user?.id || "u-demo",
-    userFullName: user ? `${user.firstName} ${user.lastName}` : "GölBOX Misafiri",
-    cafeName: selectedBranch?.name || "Şehitkamil Kitap Kafe Merkez",
-    branchAddress: selectedBranch?.address || "Atatürk Mah. Bulvar No:42, Gaziantep",
-    totalAmount: 240,
-    paidWithPoints: false,
-    pointsUsed: 0,
-    status: "PREPARING",
-    paymentStatus: "UNPAID",
-    collectionCode: "GÖL-8492",
-    createdDate: new Date().toISOString(),
-    estimatedMin: 6,
-    estimatedMax: 9,
-    canCancel: true,
-    items: [
-      {
-        id: "item-1",
-        menuItemId: "m-4",
-        menuItemName: "Iced Vanilla Latte",
-        customizationSummary: "Büyük Boy · Yulaf Sütü · Ekstra Shot · Az Buz",
-        quantity: 1,
-        unitPrice: 195
-      },
-      {
-        id: "item-2",
-        menuItemId: "m-7",
-        menuItemName: "Belçika Çikolatalı Cheesecake",
-        customizationSummary: "Standart Dilim",
-        quantity: 1,
-        unitPrice: 85
-      }
-    ]
-  }
+  // Find actual active order from context if initialOrder is not explicitly passed
+  const activeOrderFromContext = orders.find(
+    (o) =>
+      o.status?.toUpperCase() === "PENDING" ||
+      o.status?.toUpperCase() === "CONFIRMED" ||
+      o.status?.toUpperCase() === "PREPARING" ||
+      o.status?.toUpperCase() === "READY"
+  )
 
-  const [activeOrder, setActiveOrder] = useState<Order>(initialOrder || fallbackOrder)
+  const [activeOrder, setActiveOrder] = useState<Order | null>(initialOrder || activeOrderFromContext || orders[0] || null)
   const [showQrModal, setShowQrModal] = useState(false)
   const [showSummaryDetails, setShowSummaryDetails] = useState(false)
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
@@ -84,9 +55,22 @@ export function ActiveOrderScreen({
   const [qrTimeRemaining, setQrTimeRemaining] = useState(120) // 2 min expiration timer
   const [qrModalImage, setQrModalImage] = useState<string | null>(null)
 
+  // Keep activeOrder synchronized with context orders update
+  useEffect(() => {
+    if (initialOrder) {
+      const updated = orders.find((o) => o.id === initialOrder.id)
+      if (updated) setActiveOrder(updated)
+      else setActiveOrder(initialOrder)
+    } else if (activeOrderFromContext) {
+      setActiveOrder(activeOrderFromContext)
+    } else if (orders.length > 0) {
+      setActiveOrder(orders[0])
+    }
+  }, [initialOrder, orders, activeOrderFromContext])
+
   // DYNAMIC QR IMAGE GENERATION FOR PICKUP MODAL
   useEffect(() => {
-    if (!showQrModal) return
+    if (!showQrModal || !activeOrder) return
     let isMounted = true
     const qrPayload = `GOLBOX-ORDER-${activeOrder.orderNumber}-${activeOrder.collectionCode}-${qrToken}`
     QRCode.toDataURL(qrPayload, {
@@ -104,7 +88,7 @@ export function ActiveOrderScreen({
     return () => {
       isMounted = false
     }
-  }, [showQrModal, qrToken, activeOrder.orderNumber, activeOrder.collectionCode])
+  }, [showQrModal, qrToken, activeOrder?.orderNumber, activeOrder?.collectionCode])
 
   // QR TOKEN EXPIRATION TIMER (SECTION 28 - 30)
   useEffect(() => {
@@ -121,28 +105,50 @@ export function ActiveOrderScreen({
     return () => clearInterval(interval)
   }, [showQrModal])
 
-  // STATUS CHANGE DEMO SWITCHER HANDLER
-  const handleSetStatus = (newStatus: Order["status"]) => {
-    setActiveOrder((prev) => ({
-      ...prev,
-      status: newStatus,
-      canCancel: newStatus === "PENDING" || newStatus === "CONFIRMED"
-    }))
-    showToast(`Sipariş durumu: ${newStatus}`)
-  }
-
   // CANCEL ORDER HANDLER (SECTION 57 - 63)
-  const handleCancelOrder = () => {
-    setActiveOrder((prev) => ({
-      ...prev,
-      status: "CANCELLED",
-      canCancel: false
-    }))
+  const handleCancelOrder = async () => {
+    if (!activeOrder) return
+    if (cancelFoodOrder) {
+      await cancelFoodOrder(activeOrder.id)
+    }
+    setActiveOrder((prev) => (prev ? { ...prev, status: "CANCELLED", canCancel: false } : null))
     setShowCancelConfirm(false)
     showToast("Siparişiniz iptal edildi.")
   }
 
-  const currentStatus = activeOrder.status.toUpperCase()
+  if (!activeOrder) {
+    return (
+      <div className="fixed inset-0 z-[95] flex flex-col bg-background overflow-y-auto no-scrollbar animate-in fade-in duration-200">
+        <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-border/40 bg-background/95 px-4 py-3 backdrop-blur-md">
+          <button
+            onClick={onClose || onNavigateToMenu}
+            aria-label="Geri Dön"
+            className="flex size-9 items-center justify-center rounded-xl border border-border/80 bg-card text-foreground shadow-2xs hover:bg-accent transition active:scale-95"
+          >
+            <ArrowLeft className="size-4" />
+          </button>
+          <h1 className="text-base font-black text-foreground">Sipariş Takibi</h1>
+        </header>
+        <div className="flex-1 flex flex-col items-center justify-center p-6 text-center space-y-4">
+          <div className="flex size-16 items-center justify-center rounded-full bg-muted text-muted-foreground">
+            <Clock className="size-8" />
+          </div>
+          <h2 className="text-base font-bold text-foreground">Aktif Siparişiniz Bulunmuyor</h2>
+          <p className="text-xs text-muted-foreground max-w-xs">
+            GölBOX lezzetlerini keşfetmek ve sipariş vermek için menüye göz atabilirsiniz.
+          </p>
+          <button
+            onClick={onNavigateToMenu}
+            className="rounded-2xl bg-emerald-700 px-6 py-3 text-xs font-bold text-white shadow-md hover:bg-emerald-800 transition active:scale-95 cursor-pointer"
+          >
+            Menüyü Keşfet
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  const currentStatus = (activeOrder.status || "PENDING").toUpperCase()
 
   return (
     <div className="fixed inset-0 z-[95] flex flex-col bg-background overflow-y-auto no-scrollbar animate-in fade-in duration-200">
@@ -163,7 +169,7 @@ export function ActiveOrderScreen({
         </div>
 
         <span className="rounded-xl bg-primary/10 border border-primary/20 px-3 py-1 text-xs font-black text-primary">
-          {currentStatus === "READY" ? "Teslime Hazır" : currentStatus === "PREPARING" ? "Hazırlanıyor" : currentStatus === "CONFIRMED" ? "Onaylandı" : "İşleniyor"}
+          {currentStatus === "READY" ? "Teslime Hazır" : currentStatus === "PREPARING" ? "Hazırlanıyor" : currentStatus === "CONFIRMED" ? "Onaylandı" : currentStatus === "PENDING" ? "Sipariş Alındı" : "İşleniyor"}
         </span>
       </header>
 

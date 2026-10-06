@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using GolBox.Application.Authorization;
 using GolBox.Application.Common;
+using GolBox.Application.Features.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
@@ -42,6 +43,15 @@ public class OrdersController : BaseApiController
         var query = _context.Orders.AsQueryable();
         if (!_currentUserService.IsStaffOrAdmin)
             query = query.Where(o => o.UserId == currentUserId.Value);
+        else if (_currentUserService.IsStaff && HttpContext?.User?.Identity?.IsAuthenticated == true)
+        {
+            var staffBranchId = await GetStaffBranchId();
+            if (!staffBranchId.HasValue)
+                return StatusCode(403, Result<object>.Fail("Personel hesabınıza aktif bir şube atanmamış."));
+            if (cafeId.HasValue && cafeId.Value != staffBranchId.Value)
+                return StatusCode(403, Result<object>.Fail("Başka bir şubenin siparişlerini görüntüleyemezsiniz."));
+            query = query.Where(o => o.CafeId == staffBranchId.Value);
+        }
 
         if (!string.IsNullOrWhiteSpace(status) && status != "All")
         {
@@ -112,6 +122,15 @@ public class OrdersController : BaseApiController
         var order = await _context.Orders.FindAsync(id);
         if (order == null)
             return NotFound(Result<object>.Fail("Sipariş bulunamadı."));
+        if (_currentUserService.IsStaff && HttpContext?.User?.Identity?.IsAuthenticated == true)
+        {
+            var staffBranchId = await GetStaffBranchId();
+            if (!staffBranchId.HasValue || staffBranchId.Value != order.CafeId)
+                return StatusCode(403, Result<object>.Fail("Bu sipariş atandığınız şubeye ait değil."));
+            var duty = await _context.StaffUsers.AsNoTracking().Where(s => s.UserId == _currentUserService.UserId && s.IsActive).Select(s => s.Role).FirstOrDefaultAsync();
+            if (duty is not ("BranchManager" or "BranchStaff" or "OrderPreparer"))
+                return StatusCode(403, Result<object>.Fail("Göreviniz sipariş durumunu değiştirmeye yetkili değil."));
+        }
 
         var currentStatus = OrderStatuses.Canonicalize(order.Status);
         var newStatus = OrderStatuses.Canonicalize(request.Status);
@@ -139,7 +158,9 @@ public class OrdersController : BaseApiController
 
         try
         {
-            await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync();
+        if (newStatus == OrderStatuses.Completed)
+            await MissionAwardService.AwardEligibleAsync(_context, order.UserId);
         }
         catch (DbUpdateConcurrencyException)
         {
@@ -170,6 +191,11 @@ public class OrdersController : BaseApiController
 
         return Ok(Result<object>.Ok(new { id = order.Id, status = order.Status }, "Sipariş durumu güncellendi."));
     }
+
+    private async Task<Guid?> GetStaffBranchId() => await _context.StaffUsers.AsNoTracking()
+        .Where(s => s.UserId == _currentUserService.UserId && s.IsActive)
+        .Select(s => s.BranchId)
+        .FirstOrDefaultAsync();
 
     [HttpPost]
     public async Task<IActionResult> CreateOrder([FromBody] CreateOrderRequest request)
@@ -214,7 +240,34 @@ public class OrdersController : BaseApiController
                 return BadRequest(Result<object>.Fail($"Bu ürün ('{menuItem.Name}') yalnızca {menuItem.RequiredEducation} öğrencilerine sunulmaktadır (Sizin durumunuz: {user.EducationLevel ?? "Belirtilmemiş"})."));
             }
 
-            totalAmount += menuItem.Price * itemRequest.Quantity;
+            decimal itemOptionsSum = 0;
+            var selectedOptionSnapshots = new System.Collections.Generic.List<object>();
+
+            if (itemRequest.SelectedOptionIds != null && itemRequest.SelectedOptionIds.Count > 0)
+            {
+                var validOptionGroupIds = await _context.ProductOptionGroups
+                    .Where(og => og.MenuItemId == menuItem.Id)
+                    .Select(og => og.Id)
+                    .ToListAsync();
+
+                var selectedOptions = await _context.ProductOptions
+                    .Where(o => itemRequest.SelectedOptionIds.Contains(o.Id))
+                    .ToListAsync();
+
+                foreach (var optId in itemRequest.SelectedOptionIds)
+                {
+                    var opt = selectedOptions.FirstOrDefault(o => o.Id == optId);
+                    if (opt == null || !validOptionGroupIds.Contains(opt.OptionGroupId))
+                    {
+                        return BadRequest(Result<object>.Fail($"Seçilen opsiyon bu ürün için geçerli değildir."));
+                    }
+                    itemOptionsSum += opt.PriceModifier;
+                    selectedOptionSnapshots.Add(new { id = opt.Id, name = opt.Name, price = opt.PriceModifier });
+                }
+            }
+
+            decimal finalUnitPrice = menuItem.Price + itemOptionsSum;
+            totalAmount += finalUnitPrice * itemRequest.Quantity;
 
             orderItems.Add(new OrderItem
             {
@@ -222,7 +275,11 @@ public class OrdersController : BaseApiController
                 OrderId = orderId,
                 MenuItemId = itemRequest.MenuItemId,
                 Quantity = itemRequest.Quantity,
-                UnitPrice = menuItem.Price
+                UnitPrice = menuItem.Price,
+                ProductName = menuItem.Name,
+                OptionPricesSum = itemOptionsSum,
+                FinalUnitPrice = finalUnitPrice,
+                SelectedOptionsJson = System.Text.Json.JsonSerializer.Serialize(selectedOptionSnapshots)
             });
         }
 
@@ -304,4 +361,5 @@ public class CreateOrderItemRequest
 {
     public Guid MenuItemId { get; set; }
     public int Quantity { get; set; }
+    public System.Collections.Generic.List<Guid>? SelectedOptionIds { get; set; } = new();
 }

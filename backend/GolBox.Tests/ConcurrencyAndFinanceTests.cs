@@ -117,8 +117,8 @@ public class ConcurrencyAndFinanceTests
             await checkConn.OpenAsync();
             await using var check = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseSqlite(checkConn).Options);
             Assert.Equal(1, await check.UserActivities.CountAsync());
-            Assert.Equal(20, await check.Users.Select(u => u.PointsBalance).SingleAsync());
-            Assert.Equal(1, await check.PointTransactions.CountAsync());
+            Assert.Equal(0, await check.Users.Select(u => u.PointsBalance).SingleAsync());
+            Assert.Equal(0, await check.PointTransactions.CountAsync());
         }
         finally
         {

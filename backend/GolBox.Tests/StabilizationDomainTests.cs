@@ -125,7 +125,7 @@ public class StabilizationDomainTests
         Assert.True(await db.Organizations.AnyAsync());
         Assert.True(await db.Settings.AnyAsync());
 
-        await DbInitializer.SeedAsync(db, new StubPasswordHasher(), isDevelopment: false, "pilot@sehitkamil.bel.tr", "SuperSecretAdminPass1");
+        await DbInitializer.SeedAsync(db, new StubPasswordHasher(), isDevelopment: false, forceRefresh: false, bootstrapAdminEmail: "pilot@sehitkamil.bel.tr", bootstrapAdminPassword: "SuperSecretAdminPass1");
         var admin = Assert.Single(await db.Users.ToListAsync());
         Assert.Equal("pilot@sehitkamil.bel.tr", admin.Email);
         Assert.Equal("Admin", admin.Role);
@@ -170,7 +170,11 @@ public class StabilizationDomainTests
         }
         finally
         {
-            if (File.Exists(path)) File.Delete(path);
+            SqliteConnection.ClearAllPools();
+            if (File.Exists(path))
+            {
+                try { File.Delete(path); } catch { }
+            }
         }
     }
 

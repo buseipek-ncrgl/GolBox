@@ -14,6 +14,7 @@ namespace GolBox.Api.Controllers;
 [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
 public class StaffController : BaseApiController
 {
+    private static readonly string[] AllowedDuties = { "BranchManager", "BranchStaff", "Cashier", "OrderPreparer", "EventCoordinator", "ReportingUser" };
     private readonly IAppDbContext _context;
     private readonly ICurrentUserService _currentUserService;
 
@@ -67,11 +68,16 @@ public class StaffController : BaseApiController
         if (user == null) return NotFound(Result<object>.Fail("Kullanıcı bulunamadı. Lütfen önce vatandaşı sisteme kaydedin."));
 
         var appRole = CanonicalAppRole(request.Role);
+        var duty = CanonicalDuty(request.Duty ?? request.Role, appRole);
+        if (appRole == "Staff" && (!request.BranchId.HasValue || request.BranchId == Guid.Empty))
+            return BadRequest(Result<object>.Fail("Şube personeli için şube seçimi zorunludur."));
+        if (request.BranchId.HasValue && request.BranchId != Guid.Empty && !await _context.Cafes.AnyAsync(c => c.Id == request.BranchId.Value && c.IsActive))
+            return BadRequest(Result<object>.Fail("Seçilen şube bulunamadı veya aktif değil."));
         var existing = await _context.StaffUsers.FirstOrDefaultAsync(s => s.UserId == user.Id);
         if (existing != null)
         {
             existing.IsActive = true;
-            existing.Role = string.IsNullOrWhiteSpace(request.Role) ? existing.Role : request.Role;
+            existing.Role = duty;
             existing.RegistrationNumber = string.IsNullOrWhiteSpace(request.RegistrationNumber)
                 ? existing.RegistrationNumber
                 : request.RegistrationNumber;
@@ -85,7 +91,7 @@ public class StaffController : BaseApiController
                 Id = Guid.NewGuid(),
                 UserId = user.Id,
                 RegistrationNumber = request.RegistrationNumber,
-                Role = string.IsNullOrWhiteSpace(request.Role) ? appRole : request.Role,
+                Role = duty,
                 BranchId = request.BranchId,
                 IsActive = true,
                 CreatedDate = DateTime.UtcNow
@@ -110,6 +116,30 @@ public class StaffController : BaseApiController
         );
 
         return Ok(Result<object>.Ok(user.Id, "Personel yetkisi başarıyla tanımlandı."));
+    }
+
+    [HttpPut("{userId:guid}/assignment")]
+    public async Task<IActionResult> UpdateAssignment(Guid userId, [FromBody] UpdateStaffAssignmentRequest request)
+    {
+        var user = await _context.Users.FindAsync(userId);
+        if (user == null || user.Role is not ("Admin" or "Staff"))
+            return NotFound(Result<object>.Fail("Personel bulunamadı."));
+
+        var staff = await EnsureStaffRowAsync(user);
+        var duty = CanonicalDuty(request.Duty, user.Role);
+        if (user.Role == "Staff" && (!request.BranchId.HasValue || request.BranchId == Guid.Empty))
+            return BadRequest(Result<object>.Fail("Şube personeli için şube seçimi zorunludur."));
+        if (request.BranchId.HasValue && request.BranchId != Guid.Empty && !await _context.Cafes.AnyAsync(c => c.Id == request.BranchId.Value && c.IsActive))
+            return BadRequest(Result<object>.Fail("Seçilen şube bulunamadı veya aktif değil."));
+
+        var previous = $"{staff.Role}/{staff.BranchId}";
+        staff.Role = duty;
+        staff.BranchId = user.Role == "Admin" ? request.BranchId : request.BranchId!.Value;
+        staff.RegistrationNumber = request.RegistrationNumber?.Trim() ?? staff.RegistrationNumber;
+        staff.UpdatedDate = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+        await AuditLogsController.LogAsync(_context, _currentUserService.Email ?? "admin", "Admin", "Staff_Assignment", "Staff", "User", userId.ToString(), previous, $"{staff.Role}/{staff.BranchId}", "Personel görevi ve şube kapsamı güncellendi.");
+        return Ok(Result<object>.Ok(new { userId, duty = staff.Role, branchId = staff.BranchId }, "Personel ataması güncellendi."));
     }
 
     [HttpPost("{userId:guid}/role")]
@@ -232,12 +262,29 @@ public class StaffController : BaseApiController
         return "Staff";
     }
 
+    private static string CanonicalDuty(string? duty, string appRole)
+    {
+        if (appRole == "Admin") return "MunicipalManager";
+        var value = string.IsNullOrWhiteSpace(duty) || duty == "Staff" ? "BranchStaff" : duty.Trim();
+        return AllowedDuties.Contains(value, StringComparer.OrdinalIgnoreCase)
+            ? AllowedDuties.First(x => string.Equals(x, value, StringComparison.OrdinalIgnoreCase))
+            : "BranchStaff";
+    }
+
     public class AddStaffRequest
     {
         public string Email { get; set; } = string.Empty;
         public string RegistrationNumber { get; set; } = string.Empty;
         public string Role { get; set; } = "Staff";
         public Guid? BranchId { get; set; }
+        public string? Duty { get; set; }
+    }
+
+    public class UpdateStaffAssignmentRequest
+    {
+        public string Duty { get; set; } = "BranchStaff";
+        public Guid? BranchId { get; set; }
+        public string? RegistrationNumber { get; set; }
     }
 
     public class ChangeStaffRoleRequest

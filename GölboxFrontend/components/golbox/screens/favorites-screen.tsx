@@ -25,7 +25,7 @@ import {
 } from "lucide-react"
 import { useGolbox, type SavedConfiguration, type MenuItem } from "@/lib/golbox-context"
 import { useGolToast } from "@/components/golbox/gol-toast"
-import { ProductDetailScreen } from "@/components/golbox/screens/product-detail-screen"
+import { ProductDetailScreen } from "@/components/golbox/screens/catalog-product-detail-screen"
 
 // SAMPLE CATALOG DATA FOR FAVORITE PRODUCTS DISPLAY
 const DEMO_CATALOG_PRODUCTS: (MenuItem & { category: string; startingPrice: number; isAvailable: boolean })[] = [

@@ -13,6 +13,7 @@ using GolBox.Application.Features.Activities.Queries;
 using GolBox.Application.Interfaces;
 using GolBox.Domain.Entities;
 using GolBox.Application.Common;
+using GolBox.Application.Features.Tasks;
 
 namespace GolBox.Api.Controllers;
 
@@ -22,12 +23,14 @@ public class ActivitiesController : BaseApiController
     private readonly IMediator _mediator;
     private readonly IAppDbContext _context;
     private readonly ICurrentUserService _currentUser;
+    private readonly IDynamicQrService? _qrService;
 
-    public ActivitiesController(IMediator mediator, IAppDbContext context, ICurrentUserService currentUser)
+    public ActivitiesController(IMediator mediator, IAppDbContext context, ICurrentUserService currentUser, IDynamicQrService? qrService = null)
     {
         _mediator = mediator;
         _context = context;
         _currentUser = currentUser;
+        _qrService = qrService;
     }
 
     [HttpGet]
@@ -53,18 +56,19 @@ public class ActivitiesController : BaseApiController
 
         var total = await query.CountAsync(cancellationToken);
         var userId = _currentUser.IsAuthenticated ? _currentUser.UserId : null;
-        var joined = userId.HasValue
+        var registrations = userId.HasValue
             ? await _context.UserActivities.AsNoTracking()
                 .Where(ua => ua.UserId == userId.Value)
-                .Select(ua => ua.ActivityId)
+                .Select(ua => new { ua.ActivityId, ua.CheckedInAt })
                 .ToListAsync(cancellationToken)
             : [];
 
-        var items = await query
+        var activityRows = await query
             .OrderBy(a => a.StartDate)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .Select(a => new PublicActivityDto(
+            .Select(a => new
+            {
                 a.Id,
                 a.Title,
                 a.Description,
@@ -73,16 +77,39 @@ public class ActivitiesController : BaseApiController
                 a.StartDate,
                 a.EndDate,
                 a.Capacity,
-                a.UserActivities.Count,
+                JoinedCount = a.UserActivities.Count,
                 a.PointsReward,
-                userId.HasValue && joined.Contains(a.Id),
                 a.PlaceId,
-                a.Place != null ? a.Place.Name : null,
-                a.Place != null ? a.Place.Address : null,
-                a.Place != null ? a.Place.Latitude : null,
-                a.Place != null ? a.Place.Longitude : null
-            ))
+                PlaceName = a.Place != null ? a.Place.Name : null,
+                PlaceAddress = a.Place != null ? a.Place.Address : null,
+                PlaceLatitude = a.Place != null ? a.Place.Latitude : null,
+                PlaceLongitude = a.Place != null ? a.Place.Longitude : null
+            })
             .ToListAsync(cancellationToken);
+
+        var registrationByActivity = registrations.ToDictionary(r => r.ActivityId);
+        var items = activityRows.Select(a =>
+        {
+            registrationByActivity.TryGetValue(a.Id, out var registration);
+            return new PublicActivityDto(
+                a.Id,
+                a.Title,
+                a.Description,
+                a.ImageUrl,
+                a.Location,
+                a.StartDate,
+                a.EndDate,
+                a.Capacity,
+                a.JoinedCount,
+                a.PointsReward,
+                registration != null,
+                registration?.CheckedInAt,
+                a.PlaceId,
+                a.PlaceName,
+                a.PlaceAddress,
+                a.PlaceLatitude,
+                a.PlaceLongitude);
+        }).ToList();
 
         return Ok(Result<object>.Ok(new PagedResult<PublicActivityDto>(items, page, pageSize, total)));
     }
@@ -118,10 +145,14 @@ public class ActivitiesController : BaseApiController
             return NotFound(Result<object>.Fail("Etkinlik bulunamadı."));
 
         var isJoined = false;
+        DateTime? checkedInAt = null;
         if (_currentUser.IsAuthenticated && _currentUser.UserId.HasValue)
         {
-            isJoined = await _context.UserActivities.AsNoTracking()
-                .AnyAsync(ua => ua.ActivityId == id && ua.UserId == _currentUser.UserId.Value, cancellationToken);
+            var registration = await _context.UserActivities.AsNoTracking()
+                .Where(ua => ua.ActivityId == id && ua.UserId == _currentUser.UserId.Value)
+                .Select(ua => new { ua.CheckedInAt }).FirstOrDefaultAsync(cancellationToken);
+            isJoined = registration != null;
+            checkedInAt = registration?.CheckedInAt;
         }
 
         return Ok(Result<object>.Ok(new PublicActivityDto(
@@ -136,6 +167,7 @@ public class ActivitiesController : BaseApiController
             activity.JoinedCount,
             activity.PointsReward,
             isJoined,
+            checkedInAt,
             activity.PlaceId,
             activity.PlaceName,
             activity.PlaceAddress,
@@ -200,6 +232,7 @@ public class ActivitiesController : BaseApiController
                 a.EndDate,
                 a.Capacity,
                 joinedCount = a.UserActivities.Count,
+                checkedInCount = a.UserActivities.Count(ua => ua.CheckedInAt != null),
                 a.PointsReward,
                 a.Status,
                 a.PlaceId,
@@ -210,11 +243,96 @@ public class ActivitiesController : BaseApiController
         return Ok(Result<object>.Ok(new { items, page, pageSize, totalCount = total }));
     }
 
+    [HttpGet("{id:guid}/check-ins")]
+    [Authorize(Policy = AuthorizationPolicies.StaffOrAdmin)]
+    public async Task<IActionResult> GetCheckIns(Guid id, CancellationToken cancellationToken)
+    {
+        var activity = await _context.Activities.AsNoTracking().FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
+        if (activity == null) return NotFound(Result<object>.Fail("Etkinlik bulunamadı."));
+        var registrations = await _context.UserActivities.AsNoTracking()
+            .Where(ua => ua.ActivityId == id).Include(ua => ua.User)
+            .OrderByDescending(ua => ua.CheckedInAt ?? ua.JoinedAt)
+            .Select(ua => new { ua.Id, ua.UserId, userFullName = ua.User.FirstName + " " + ua.User.LastName,
+                ua.User.Email, ua.JoinedAt, ua.CheckedInAt, ua.PointsEarned, ua.PointsAwardedAt, ua.CheckInNotes })
+            .ToListAsync(cancellationToken);
+        return Ok(Result<object>.Ok(new { activityId = id, activity.Title, activity.Capacity, activity.PointsReward,
+            registeredCount = registrations.Count, checkedInCount = registrations.Count(x => x.CheckedInAt != null), items = registrations }));
+    }
+
+    [HttpPost("{id:guid}/check-in")]
+    [Authorize(Policy = AuthorizationPolicies.StaffOrAdmin)]
+    public async Task<IActionResult> CheckIn(Guid id, [FromBody] EventCheckInRequest request, CancellationToken cancellationToken)
+    {
+        if (_qrService == null) return StatusCode(503, Result<object>.Fail("QR doğrulama servisi kullanılamıyor."));
+        var validation = _qrService.ValidateDynamicQrToken(request.QrToken?.Trim() ?? string.Empty);
+        if (!validation.IsValid || validation.UserId == null)
+            return BadRequest(Result<object>.Fail(validation.ErrorMessage ?? "Geçersiz veya süresi dolmuş GölBOX QR kodu."));
+
+        var activity = await _context.Activities.FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
+        if (activity == null || activity.Status != "Active")
+            return NotFound(Result<object>.Fail("Aktif etkinlik bulunamadı."));
+        var now = DateTime.UtcNow;
+        if (now < activity.StartDate.AddHours(-2))
+            return BadRequest(Result<object>.Fail("Check-in etkinlik başlangıcından 2 saat önce açılır."));
+        if (now > activity.EndDate.AddHours(4))
+            return BadRequest(Result<object>.Fail("Etkinliğin check-in süresi sona ermiş."));
+
+        var registration = await _context.UserActivities.Include(ua => ua.User)
+            .FirstOrDefaultAsync(ua => ua.ActivityId == id && ua.UserId == validation.UserId.Value, cancellationToken);
+        if (registration == null)
+            return BadRequest(Result<object>.Fail("Vatandaş bu etkinliğe kayıtlı değil."));
+        if (registration.CheckedInAt.HasValue)
+            return Conflict(Result<object>.Fail($"Katılım daha önce {registration.CheckedInAt.Value.ToLocalTime():dd.MM.yyyy HH:mm} tarihinde doğrulanmış."));
+
+        var pointsToAward = registration.PointsEarned > 0 ? 0 : activity.PointsReward;
+        registration.CheckedInAt = now;
+        registration.CheckedInBy = _currentUser.UserId;
+        registration.CheckInNotes = string.IsNullOrWhiteSpace(request.Notes) ? null : request.Notes.Trim();
+        if (pointsToAward > 0)
+        {
+            registration.PointsEarned = pointsToAward;
+            registration.PointsAwardedAt = now;
+            registration.User.PointsBalance += pointsToAward;
+            _context.PointTransactions.Add(new PointTransaction { Id = Guid.NewGuid(), UserId = registration.UserId,
+                OrganizationId = registration.OrganizationId, Amount = pointsToAward, Type = "Earn",
+                Description = $"{activity.Title} doğrulanmış katılım ödülü", ReferenceType = "ActivityCheckIn", ReferenceId = registration.Id,
+                BalanceAfter = registration.User.PointsBalance,
+                CreatedDate = now });
+        }
+
+        try { await _context.SaveChangesAsync(cancellationToken); }
+        catch (DbUpdateConcurrencyException) { return Conflict(Result<object>.Fail("Puan bakiyesi başka bir işlemle değişti. Tekrar deneyin.")); }
+
+        var missionPoints = await MissionAwardService.AwardEligibleAsync(_context, registration.UserId, cancellationToken);
+
+        await AuditLogsController.LogAsync(_context, _currentUser.Email ?? "staff", _currentUser.Role ?? "Staff", "Event_CheckIn",
+            "Activities", "UserActivity", registration.Id.ToString(), null, "CheckedIn", $"Activity={activity.Title}; Points={pointsToAward}");
+        return Ok(Result<object>.Ok(new { registration.Id, registration.UserId,
+            userFullName = $"{registration.User.FirstName} {registration.User.LastName}".Trim(), registration.User.Email,
+            registration.CheckedInAt, pointsEarned = pointsToAward, missionPointsEarned = missionPoints, newPointsBalance = registration.User.PointsBalance,
+            activityId = activity.Id, activityTitle = activity.Title }, "Katılım doğrulandı ve etkinlik puanı hesaba eklendi."));
+    }
+
     [HttpPost("{id}/join")]
     public async Task<IActionResult> JoinActivity(Guid id)
     {
         var result = await _mediator.Send(new JoinActivityCommand(id));
         return HandleResult(result);
+    }
+
+    [HttpDelete("{id:guid}/join")]
+    public async Task<IActionResult> CancelJoin(Guid id, CancellationToken cancellationToken)
+    {
+        if (!_currentUser.UserId.HasValue) return Unauthorized(Result<object>.Fail("Oturum doğrulanamadı."));
+        var registration = await _context.UserActivities.FirstOrDefaultAsync(
+            ua => ua.ActivityId == id && ua.UserId == _currentUser.UserId.Value, cancellationToken);
+        if (registration == null) return NotFound(Result<object>.Fail("Etkinlik kaydı bulunamadı."));
+        if (registration.CheckedInAt.HasValue)
+            return BadRequest(Result<object>.Fail("Doğrulanmış katılım kaydı iptal edilemez."));
+        registration.IsDeleted = true;
+        registration.DeletedDate = DateTime.UtcNow;
+        await _context.SaveChangesAsync(cancellationToken);
+        return Ok(Result<object>.Ok(new { activityId = id }, "Etkinlik kaydınız iptal edildi."));
     }
 
     [HttpPost]
@@ -372,10 +490,17 @@ public class ActivitiesController : BaseApiController
         if (activity == null)
             return NotFound(Result<object>.Fail("Etkinlik bulunamadı."));
 
+        var hasRegistrations = await _context.UserActivities.AnyAsync(x => x.ActivityId == id);
+        if (hasRegistrations)
+            return Conflict(Result<object>.Fail("Katılım kaydı bulunan etkinlik silinemez. Geçmişi korumak için etkinliği arşivleyin."));
+
+        var previous = activity.Title;
         activity.IsDeleted = true;
+        activity.Status = "Archived";
         activity.DeletedDate = DateTime.UtcNow;
-        
+        activity.UpdatedDate = DateTime.UtcNow;
         await _context.SaveChangesAsync();
+        await AuditLogsController.LogAsync(_context, "admin", "Admin", "Activity_Delete", "Activities", "Activity", id.ToString(), previous, null, "Katılım kaydı olmayan etkinlik silindi.");
         return Ok(Result<object>.Ok(new { id }, "Etkinlik başarıyla silindi."));
     }
 
@@ -401,12 +526,19 @@ public record PublicActivityDto(
     int JoinedCount,
     int RewardPoints,
     bool IsJoined,
+    DateTime? CheckedInAt,
     Guid? PlaceId = null,
     string? PlaceName = null,
     string? PlaceAddress = null,
     decimal? PlaceLatitude = null,
     decimal? PlaceLongitude = null
 );
+
+public class EventCheckInRequest
+{
+    public string QrToken { get; set; } = string.Empty;
+    public string? Notes { get; set; }
+}
 
 public class CreateActivityRequest
 {

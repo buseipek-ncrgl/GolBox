@@ -16,21 +16,44 @@ namespace GolBox.Api.Controllers;
 public class CafesController : BaseApiController
 {
     private readonly IAppDbContext _context;
+    private readonly ICurrentUserService _currentUser;
 
-    public CafesController(IAppDbContext context)
+    public CafesController(IAppDbContext context, ICurrentUserService currentUser)
     {
         _context = context;
+        _currentUser = currentUser;
     }
 
     [HttpGet]
     [AllowAnonymous]
     public async Task<IActionResult> GetCafes()
     {
+        // Avoid including required, soft-deletable navigations here. A legacy
+        // category or place can be soft deleted while the cafe itself remains
+        // active; EF then turns the include into an inner join and silently
+        // removes the cafe from the public/mobile response.
         var cafes = await _context.Cafes
-            .Include(c => c.Category)
-            .Include(c => c.Place)
+            .AsNoTracking()
+            .Where(c => c.IsActive)
             .OrderBy(c => c.Name)
             .ToListAsync();
+
+        var categoryIds = cafes.Select(c => c.CategoryId).Distinct().ToList();
+        var categoryNames = await _context.CafeCategories
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .Where(c => categoryIds.Contains(c.Id))
+            .ToDictionaryAsync(c => c.Id, c => c.Name);
+
+        var placeIds = cafes.Where(c => c.PlaceId.HasValue)
+            .Select(c => c.PlaceId!.Value)
+            .Distinct()
+            .ToList();
+        var places = await _context.Places
+            .AsNoTracking()
+            .Where(p => placeIds.Contains(p.Id))
+            .Select(p => new { p.Id, p.Name, p.Address })
+            .ToDictionaryAsync(p => p.Id);
 
         var dtoList = cafes.Select(c => new
         {
@@ -42,11 +65,11 @@ public class CafesController : BaseApiController
             c.IsActive,
             c.ImageUrl,
             CategoryId = c.CategoryId,
-            CategoryName = c.Category?.Name ?? "Genel",
+            CategoryName = categoryNames.TryGetValue(c.CategoryId, out var categoryName) ? categoryName : "Genel",
             c.OrganizationId,
             c.PlaceId,
-            PlaceName = c.Place != null ? c.Place.Name : null,
-            PlaceAddress = c.Place != null ? c.Place.Address : null
+            PlaceName = c.PlaceId.HasValue && places.TryGetValue(c.PlaceId.Value, out var place) ? place.Name : null,
+            PlaceAddress = c.PlaceId.HasValue && places.TryGetValue(c.PlaceId.Value, out var linkedPlace) ? linkedPlace.Address : null
         }).ToList();
 
         return Ok(Result<object>.Ok(dtoList));
@@ -61,7 +84,19 @@ public class CafesController : BaseApiController
         [FromQuery] int pageSize = AdminPaging.DefaultPageSize)
     {
         (page, pageSize) = AdminPaging.Normalize(page, pageSize);
-        var query = _context.Cafes.Include(c => c.Place).Include(c => c.Category).AsQueryable();
+        // Do not Include soft-deletable required navigations here. EF can turn those
+        // includes into inner joins: CountAsync still reports cafes while the paged
+        // query silently drops every row whose legacy category was soft deleted.
+        var query = _context.Cafes.AsNoTracking().AsQueryable();
+        if (!_currentUser.IsAdmin)
+        {
+            var branchId = await _context.StaffUsers.AsNoTracking()
+                .Where(s => s.UserId == _currentUser.UserId && s.IsActive)
+                .Select(s => s.BranchId).FirstOrDefaultAsync();
+            if (!branchId.HasValue)
+                return StatusCode(403, Result<object>.Fail("Personel hesabınıza aktif bir şube atanmamış."));
+            query = query.Where(c => c.Id == branchId.Value);
+        }
         if (active.HasValue)
             query = query.Where(c => c.IsActive == active.Value);
         if (!string.IsNullOrWhiteSpace(search))
@@ -72,6 +107,15 @@ public class CafesController : BaseApiController
         var totalCount = await query.CountAsync();
         var rows = await query.OrderBy(c => c.Name).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
         var ids = rows.Select(c => c.Id).ToList();
+        var categoryIds = rows.Select(c => c.CategoryId).Distinct().ToList();
+        var categoryNames = await _context.CafeCategories.IgnoreQueryFilters().AsNoTracking()
+            .Where(c => categoryIds.Contains(c.Id))
+            .ToDictionaryAsync(c => c.Id, c => c.Name);
+        var placeIds = rows.Where(c => c.PlaceId.HasValue).Select(c => c.PlaceId!.Value).Distinct().ToList();
+        var places = await _context.Places.AsNoTracking()
+            .Where(p => placeIds.Contains(p.Id))
+            .Select(p => new { p.Id, p.Name, p.Address })
+            .ToDictionaryAsync(p => p.Id);
         var menuCounts = await _context.MenuItems.Where(m => ids.Contains(m.CafeId))
             .GroupBy(m => m.CafeId)
             .Select(g => new { CafeId = g.Key, Count = g.Count() })
@@ -91,12 +135,15 @@ public class CafesController : BaseApiController
             c.Longitude,
             c.IsActive,
             c.ImageUrl,
+            c.PickupStatus,
+            c.PickupPausedAt,
+            c.PickupPauseReason,
             CategoryId = c.CategoryId,
-            CategoryName = c.Category?.Name ?? "Genel",
+            CategoryName = categoryNames.TryGetValue(c.CategoryId, out var categoryName) ? categoryName : "Genel",
             c.OrganizationId,
             c.PlaceId,
-            PlaceName = c.Place != null ? c.Place.Name : null,
-            PlaceAddress = c.Place != null ? c.Place.Address : null,
+            PlaceName = c.PlaceId.HasValue && places.TryGetValue(c.PlaceId.Value, out var place) ? place.Name : null,
+            PlaceAddress = c.PlaceId.HasValue && places.TryGetValue(c.PlaceId.Value, out var linkedPlace) ? linkedPlace.Address : null,
             menuCount = menuCounts.TryGetValue(c.Id, out var mc) ? mc : 0,
             pendingOrders = pendingCounts.TryGetValue(c.Id, out var pc) ? pc : 0
         }).ToList();
@@ -104,7 +151,7 @@ public class CafesController : BaseApiController
     }
 
     [HttpPost]
-    [Authorize(Policy = AuthorizationPolicies.StaffOrAdmin)]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
     public async Task<IActionResult> CreateCafe([FromBody] CreateCafeRequest request)
     {
         var categoryId = request.CategoryId;
@@ -147,7 +194,7 @@ public class CafesController : BaseApiController
     }
 
     [HttpPut("{id}")]
-    [Authorize(Policy = AuthorizationPolicies.StaffOrAdmin)]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
     public async Task<IActionResult> UpdateCafe(Guid id, [FromBody] UpdateCafeRequest request)
     {
         var cafe = await _context.Cafes.FindAsync(id);
@@ -180,7 +227,7 @@ public class CafesController : BaseApiController
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Policy = AuthorizationPolicies.StaffOrAdmin)]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
     public async Task<IActionResult> DeleteCafe(Guid id)
     {
         var cafe = await _context.Cafes.FindAsync(id);

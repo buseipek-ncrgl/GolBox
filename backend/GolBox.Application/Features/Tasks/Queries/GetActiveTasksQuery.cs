@@ -7,6 +7,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using GolBox.Application.Common;
 using GolBox.Application.Interfaces;
+using GolBox.Application.Features.Tasks;
 
 namespace GolBox.Application.Features.Tasks.Queries;
 
@@ -21,7 +22,16 @@ public record ActiveTaskDto(
     DateTime EndDate,
     int MaxCompletions,
     int CompletedCount,
-    bool IsCompleted
+    bool IsCompleted,
+    string ShortDescription,
+    string Category,
+    string MissionType,
+    int TargetProgress,
+    int CurrentProgress,
+    string TargetAudience,
+    string? HowToCompleteJson,
+    bool IsEligible,
+    string? EligibilityMessage
 );
 
 public class GetActiveTasksQueryHandler : IRequestHandler<GetActiveTasksQuery, Result<List<ActiveTaskDto>>>
@@ -60,11 +70,12 @@ public class GetActiveTasksQueryHandler : IRequestHandler<GetActiveTasksQuery, R
             .Where(ut => ut.UserId == user.Id)
             .ToListAsync(cancellationToken);
 
-        var result = activeTasks.Select(t =>
+        var result = new List<ActiveTaskDto>();
+        foreach (var t in activeTasks)
         {
             var completedCount = userTasks.Count(ut => ut.TaskId == t.Id);
-            var isCompleted = completedCount >= t.MaxCompletions;
-            return new ActiveTaskDto(
+            var progress = await MissionProgressEvaluator.EvaluateAsync(_context, user, t, cancellationToken);
+            result.Add(new ActiveTaskDto(
                 t.Id,
                 t.Title,
                 t.Description,
@@ -73,9 +84,18 @@ public class GetActiveTasksQueryHandler : IRequestHandler<GetActiveTasksQuery, R
                 t.EndDate,
                 t.MaxCompletions,
                 completedCount,
-                isCompleted
-            );
-        }).ToList();
+                completedCount > 0,
+                t.ShortDescription,
+                t.Category,
+                t.MissionType,
+                Math.Max(1, t.TargetProgress),
+                progress.Current,
+                t.TargetAudience,
+                t.HowToCompleteJson,
+                progress.Eligible,
+                progress.Reason
+            ));
+        }
 
         return Result<List<ActiveTaskDto>>.Ok(result, "Aktif görevler başarıyla listelendi.");
     }

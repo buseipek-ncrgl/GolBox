@@ -44,7 +44,7 @@ export function NotificationPreferencesSheet({
           {/* 1. SİPARİŞ BİLDİRİMLERİ */}
           <div className="flex items-center justify-between rounded-2xl border border-border bg-card p-3.5 shadow-2xs">
             <div className="flex items-center gap-3">
-              <div className="flex size-9 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-950 text-emerald-600">
+              <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
                 <Coffee className="size-4" />
               </div>
               <div>
@@ -69,7 +69,7 @@ export function NotificationPreferencesSheet({
           {/* 2. ETKİNLİK BİLDİRİMLERİ */}
           <div className="flex items-center justify-between rounded-2xl border border-border bg-card p-3.5 shadow-2xs">
             <div className="flex items-center gap-3">
-              <div className="flex size-9 items-center justify-center rounded-xl bg-sky-100 dark:bg-sky-950 text-sky-600">
+              <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
                 <Calendar className="size-4" />
               </div>
               <div>
@@ -94,7 +94,7 @@ export function NotificationPreferencesSheet({
           {/* 3. GÖLPUAN BİLDİRİMLERİ */}
           <div className="flex items-center justify-between rounded-2xl border border-border bg-card p-3.5 shadow-2xs">
             <div className="flex items-center gap-3">
-              <div className="flex size-9 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-950 text-amber-600">
+              <div className="flex size-9 items-center justify-center rounded-xl bg-[color:var(--color-gold)]/10 text-[color:var(--color-gold)]">
                 <Coins className="size-4" />
               </div>
               <div>
@@ -119,7 +119,7 @@ export function NotificationPreferencesSheet({
           {/* 4. GÖREV BİLDİRİMLERİ */}
           <div className="flex items-center justify-between rounded-2xl border border-border bg-card p-3.5 shadow-2xs">
             <div className="flex items-center gap-3">
-              <div className="flex size-9 items-center justify-center rounded-xl bg-indigo-100 dark:bg-indigo-950 text-indigo-600">
+              <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
                 <Award className="size-4" />
               </div>
               <div>
@@ -144,7 +144,7 @@ export function NotificationPreferencesSheet({
           {/* 5. KAMPANYA BİLDİRİMLERİ */}
           <div className="flex items-center justify-between rounded-2xl border border-border bg-card p-3.5 shadow-2xs">
             <div className="flex items-center gap-3">
-              <div className="flex size-9 items-center justify-center rounded-xl bg-purple-100 dark:bg-purple-950 text-purple-600">
+              <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
                 <Zap className="size-4" />
               </div>
               <div>

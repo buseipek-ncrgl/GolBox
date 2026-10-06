@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useEffect, useState } from "react"
 import { createPortal } from "react-dom"
 import {
   ArrowLeft,
@@ -22,6 +22,7 @@ import {
 } from "lucide-react"
 import { useGolbox } from "@/lib/golbox-context"
 import { useGolToast } from "@/components/golbox/gol-toast"
+import { fetchPublicCampaigns } from "@/lib/city-content-api"
 
 export interface CampaignData {
   id: string
@@ -29,7 +30,7 @@ export interface CampaignData {
   shortDescription: string
   fullDescription: string
   imageUrl: string
-  campaignType: "POINT_MULTIPLIER" | "BONUS_POINTS" | "PERCENTAGE_DISCOUNT" | "BUNDLE" | "YOUTH_OFFER"
+  campaignType: "POINT_MULTIPLIER" | "BONUS_POINTS" | "PERCENTAGE_DISCOUNT" | "BUNDLE" | "YOUTH_OFFER" | "ANNOUNCEMENT"
   badgeText: string
   validUntil: string
   targetAudience: "ALL" | "GOLBOX_YOUTH" | "GOLBOX_MEMBERS" | "NEW_USERS"
@@ -129,8 +130,36 @@ export function CampaignsScreen({
 
   const [selectedCampaign, setSelectedCampaign] = useState<CampaignData | null>(null)
   const [activeTab, setActiveTab] = useState<"all" | "personalized" | "youth">("all")
+  const [campaigns, setCampaigns] = useState<CampaignData[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
-  const filteredCampaigns = DEMO_CAMPAIGNS.filter((c) => {
+  useEffect(() => {
+    let active = true
+    fetchPublicCampaigns().then(({ items }) => {
+      if (!active) return
+      setCampaigns(items.map((item) => ({
+        id: item.id,
+        title: item.title,
+        shortDescription: item.description,
+        fullDescription: item.description,
+        imageUrl: item.imageUrl || "/placeholder.jpg",
+        campaignType: "ANNOUNCEMENT",
+        badgeText: "Kampanya",
+        validUntil: new Intl.DateTimeFormat("tr-TR", { day: "2-digit", month: "long", year: "numeric" }).format(new Date(item.endDate)),
+        targetAudience: item.targetUserGroup === "HighSchool" || item.targetUserGroup === "University" ? "GOLBOX_YOUTH" : "ALL",
+        isPersonalized: item.targetUserGroup !== "All",
+        isEndingSoon: new Date(item.endDate).getTime() - Date.now() < 3 * 24 * 60 * 60 * 1000,
+        applicableProducts: item.menuItemName ? [item.menuItemName] : [],
+        applicableBranches: [item.cafeName || "Tüm GölBOX şubeleri"],
+        howToUseSteps: item.menuItemName
+          ? ["Kampanya detaylarını inceleyin.", `${item.menuItemName} ürününü menüden seçin.`, "Siparişinizi uygulama veya şube üzerinden tamamlayın."]
+          : ["Kampanya detaylarını inceleyin.", "Geçerlilik tarihleri içinde ilgili şubeyi ziyaret edin."]
+      })))
+    }).catch(() => { if (active) setCampaigns([]) }).finally(() => { if (active) setIsLoading(false) })
+    return () => { active = false }
+  }, [])
+
+  const filteredCampaigns = campaigns.filter((c) => {
     if (activeTab === "personalized") return c.isPersonalized
     if (activeTab === "youth") return c.targetAudience === "GOLBOX_YOUTH"
     return true
@@ -160,7 +189,11 @@ export function CampaignsScreen({
             className="size-full object-cover opacity-90"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent" />
-          <span className="absolute bottom-4 left-4 rounded-2xl bg-amber-400 text-amber-950 font-black px-3.5 py-1.5 text-xs shadow-lg">
+          <span className={`absolute bottom-4 left-4 rounded-xl px-3.5 py-1.5 text-xs font-black shadow-md border ${
+            selectedCampaign.campaignType === "POINT_MULTIPLIER" || selectedCampaign.campaignType === "BONUS_POINTS"
+              ? "bg-[color:var(--color-gold)] text-amber-950 border-amber-300"
+              : "bg-primary text-primary-foreground border-primary/40"
+          }`}>
             {selectedCampaign.badgeText}
           </span>
         </div>
@@ -265,7 +298,7 @@ export function CampaignsScreen({
               activeTab === "all" ? "bg-primary text-primary-foreground shadow-2xs" : "text-muted-foreground"
             }`}
           >
-            Tüm Kampanyalar ({DEMO_CAMPAIGNS.length})
+            Tüm Kampanyalar ({campaigns.length})
           </button>
           <button
             onClick={() => setActiveTab("personalized")}
@@ -273,7 +306,7 @@ export function CampaignsScreen({
               activeTab === "personalized" ? "bg-primary text-primary-foreground shadow-2xs" : "text-muted-foreground"
             }`}
           >
-            Sana Özel ⭐
+            Sana Özel
           </button>
           <button
             onClick={() => setActiveTab("youth")}
@@ -287,6 +320,8 @@ export function CampaignsScreen({
 
         {/* 3. CAMPAIGN CARDS LIST */}
         <div className="space-y-4">
+          {isLoading && <div className="rounded-2xl border border-border bg-card p-5 text-center text-xs font-semibold text-muted-foreground">Kampanyalar yükleniyor</div>}
+          {!isLoading && filteredCampaigns.length === 0 && <div className="rounded-2xl border border-border bg-card p-5 text-center"><p className="text-sm font-bold text-foreground">Aktif kampanya bulunmuyor</p><p className="mt-1 text-xs text-muted-foreground">Yeni kampanyalar yayımlandığında burada görüntülenecek.</p></div>}
           {filteredCampaigns.map((cmp) => (
             <div
               key={cmp.id}
@@ -302,12 +337,16 @@ export function CampaignsScreen({
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
 
                 <div className="absolute top-3 left-3 flex items-center gap-1.5">
-                  <span className="rounded-xl bg-amber-400 text-amber-950 px-3 py-1 text-xs font-black shadow-md">
+                  <span className={`rounded-xl px-3 py-1 text-xs font-black shadow-2xs border ${
+                    cmp.campaignType === "POINT_MULTIPLIER" || cmp.campaignType === "BONUS_POINTS"
+                      ? "bg-[color:var(--color-gold)]/20 border-[color:var(--color-gold)]/40 text-[color:var(--color-gold)]"
+                      : "bg-primary/90 text-primary-foreground border-primary/30"
+                  }`}>
                     {cmp.badgeText}
                   </span>
                   {cmp.isEndingSoon && (
-                    <span className="rounded-xl bg-rose-600 text-white px-2.5 py-1 text-[10px] font-black shadow-md flex items-center gap-1">
-                      <Flame className="size-3" /> Son Günler
+                    <span className="rounded-xl bg-card/90 text-foreground border border-border px-2.5 py-1 text-[10px] font-bold shadow-2xs backdrop-blur-xs flex items-center gap-1">
+                      <Clock className="size-3 text-primary" /> Son Günler
                     </span>
                   )}
                 </div>

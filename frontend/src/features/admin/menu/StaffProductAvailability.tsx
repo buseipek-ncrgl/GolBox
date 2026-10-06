@@ -1,9 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Grid2X2, List, PackageCheck, PackageX } from 'lucide-react';
 import { api } from '../../../services/api';
-import { extractArray } from '../../../lib/adminQuery';
+import { extractArray, pagedMeta } from '../../../lib/adminQuery';
 import { formatCurrency } from '../../../lib/adminDate';
 import { Button, EmptyState, ErrorState, FilterBar, Input, Select, StatusBadge } from '../../../admin/components';
 import { useAdminFeedback } from '../AdminFeedback';
+import { SafeImg } from '../../../components/admin/adminUi';
 
 export function StaffProductAvailability() {
   const { setSuccess, setError, savingKey, setSavingKey } = useAdminFeedback();
@@ -14,17 +16,16 @@ export function StaffProductAvailability() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [fail, setFail] = useState<string | null>(null);
+  const [view, setView] = useState<'card' | 'list'>(() => localStorage.getItem('availability-view') === 'list' ? 'list' : 'card');
 
   const loadData = async () => {
     setLoading(true);
     setFail(null);
     try {
-      const [cafesRes, menuRes] = await Promise.all([api.getCafes(), api.getAllMenuItems()]);
-      const cafeList = extractArray(cafesRes);
+      const [cafesRes, menuRes] = await Promise.all([api.getAdminCafes({ page: 1, pageSize: 100, active: true }), api.getStaffProducts()]);
+      const cafeList = pagedMeta(cafesRes).items;
       setCafes(cafeList);
-      if (cafeList.length > 0 && !selectedBranchId) {
-        setSelectedBranchId(cafeList[0].id);
-      }
+      setSelectedBranchId((current) => cafeList.some((c: any) => c.id === current) ? current : (cafeList[0]?.id || ''));
       setItems(extractArray(menuRes));
     } catch (err: any) {
       setFail(err.message || 'Ürünler yüklenemedi.');
@@ -47,11 +48,7 @@ export function StaffProductAvailability() {
       );
       setSuccess(`${product.name} bu şubede ${nextState ? 'Mevcut' : 'Tükendi'} olarak güncellendi.`);
     } catch (err: any) {
-      // Optimistic state toggle fallback
-      setItems((prev) =>
-        prev.map((item) => (item.id === product.id ? { ...item, isAvailable: nextState } : item))
-      );
-      setSuccess(`${product.name} bu şubede ${nextState ? 'Mevcut' : 'Tükendi'} olarak güncellendi.`);
+      setError(err.message || 'Ürün durumu güncellenemedi.');
     } finally {
       setSavingKey(null);
     }
@@ -65,10 +62,10 @@ export function StaffProductAvailability() {
     const matchesSearch = !search || String(item.name).toLowerCase().includes(search.toLowerCase());
     return matchesBranch && matchesCategory && matchesSearch;
   });
+  const availability = useMemo(() => ({ available: filteredItems.filter((item) => item.isAvailable !== false).length, unavailable: filteredItems.filter((item) => item.isAvailable === false).length }), [filteredItems]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }} data-testid="staff-product-availability">
-      {/* Header Banner */}
       <div className="admin-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h2 style={{ margin: '0 0 2px', fontSize: 18, fontWeight: 700 }}>Şube Ürün Durumu Yönetimi</h2>
@@ -78,17 +75,23 @@ export function StaffProductAvailability() {
         </div>
 
         <Select
-          label="Şube Seçin"
+          label="Şube seçin"
           value={selectedBranchId}
           onChange={(e) => setSelectedBranchId(e.target.value)}
-          style={{ fontWeight: 700 }}
+          style={{ minWidth: 260, fontWeight: 700 }}
         >
+          {!cafes.length ? <option value="">Aktif şube bulunamadı</option> : null}
           {cafes.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
             </option>
           ))}
         </Select>
+      </div>
+
+      <div className="activity-toolbar">
+        <div className="admin-muted" style={{ marginRight: 'auto' }}>{filteredItems.length} ürün · {availability.available} mevcut · {availability.unavailable} tükendi</div>
+        <div className="activity-view-switch" aria-label="Stok görünümü"><button type="button" className={view === 'card' ? 'active' : ''} onClick={() => { setView('card'); localStorage.setItem('availability-view', 'card'); }}><Grid2X2 size={16} /> Kart</button><button type="button" className={view === 'list' ? 'active' : ''} onClick={() => { setView('list'); localStorage.setItem('availability-view', 'list'); }}><List size={16} /> Liste</button></div>
       </div>
 
       {/* Filter Toolbar */}
@@ -115,10 +118,9 @@ export function StaffProductAvailability() {
 
       {fail && <ErrorState description={fail} retry={loadData} />}
 
-      {/* Product Availability Grid */}
       {filteredItems.length === 0 ? (
         <EmptyState title="Ürün bulunamadı." description="Arama kriterlerini değiştirin." />
-      ) : (
+      ) : view === 'card' ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14 }}>
           {filteredItems.map((product) => {
             const isAvailable = product.isAvailable !== false;
@@ -138,6 +140,7 @@ export function StaffProductAvailability() {
                 }}
               >
                 <div>
+                  <SafeImg src={product.imageUrl} alt={product.name} className="availability-product-image" />
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
                     <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: isAvailable ? 'var(--text-primary)' : '#b91c1c' }}>
                       {product.name}
@@ -162,12 +165,14 @@ export function StaffProductAvailability() {
                     background: isAvailable ? undefined : '#047857',
                   }}
                 >
-                  {isAvailable ? '✕ Tükendi Olarak İşaretle' : '✓ Satışa Aç (Mevcut)'}
+                  {isAvailable ? <><PackageX size={17} /> Tükendi olarak işaretle</> : <><PackageCheck size={17} /> Satışa aç</>}
                 </Button>
               </div>
             );
           })}
         </div>
+      ) : (
+        <div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>Ürün</th><th>Kategori</th><th>Fiyat</th><th>Durum</th><th></th></tr></thead><tbody>{filteredItems.map((product) => { const isAvailable = product.isAvailable !== false; return <tr key={product.id}><td><div className="catalog-product-cell"><SafeImg className="catalog-product-thumb" src={product.imageUrl} alt="" /><strong>{product.name}</strong></div></td><td>{product.category || product.categoryName || 'Kategorisiz'}</td><td>{formatCurrency(product.price || 0)}</td><td><StatusBadge status={isAvailable ? 'Active' : 'Inactive'} label={isAvailable ? 'Mevcut' : 'Tükendi'} /></td><td><Button size="sm" variant={isAvailable ? 'secondary' : 'primary'} loading={savingKey === `product-${product.id}`} onClick={() => handleToggleAvailability(product)}>{isAvailable ? <><PackageX size={15} /> Tükendi işaretle</> : <><PackageCheck size={15} /> Satışa aç</>}</Button></td></tr>; })}</tbody></table></div>
       )}
     </div>
   );

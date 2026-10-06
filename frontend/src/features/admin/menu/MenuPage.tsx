@@ -7,6 +7,7 @@ import { Button, Checkbox, EmptyState, ErrorState, FilterBar, Input, Modal, Numb
 import { SafeImg } from '../../../components/admin/adminUi';
 import { useAdminFeedback } from '../AdminFeedback';
 import { StaffProductAvailability } from './StaffProductAvailability';
+import { ProductEditorDrawer } from './ProductEditorDrawer';
 
 export function MenuPage() {
   const { isAdmin, confirm, setError, setSuccess, savingKey, setSavingKey } = useAdminFeedback();
@@ -120,40 +121,28 @@ export function MenuPage() {
         </div>
       )}
       <Pagination page={page} pageSize={25} totalCount={total} onPage={setPage} />
-      <Modal open={!!form} title={form?.id ? 'Ürünü düzenle' : 'Yeni ürün'} onClose={close} footer={
-        <>
-          <Button variant="secondary" onClick={close}>Vazgeç</Button>
-          <Button form="menu-form" type="submit" loading={!!savingKey}>Kaydet</Button>
-        </>
-      }>
-        {form && (
-          <form id="menu-form" style={{ display: 'grid', gap: 12 }} onSubmit={async (e) => {
-            e.preventDefault();
-            setSavingKey('menu-save');
-            try {
-              if (form.id) await api.updateMenuItem(form.cafeId, form.id, form);
-              else await api.createMenuItem(form.cafeId, form);
-              setSuccess('Ürün kaydedildi.');
-              setForm(null);
-              await load();
-            } catch (err: any) {
-              setError(err.message || 'Ürün kaydedilemedi.');
-            } finally {
-              setSavingKey(null);
-            }
-          }}>
-            <Input required label="Ürün Adı" value={form.name || ''} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-            <Textarea label="Açıklama" value={form.description || ''} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-            <NumberInput required min={0} label="Fiyat (TL)" value={form.price ?? 45} onChange={(e) => setForm({ ...form, price: Number(e.target.value) })} />
-            <Input label="Görsel URL" value={form.imageUrl || ''} onChange={(e) => setForm({ ...form, imageUrl: e.target.value })} />
-            <Select required label="Göl Kafe" value={form.cafeId || ''} onChange={(e) => setForm({ ...form, cafeId: e.target.value })}>
-              <option value="">Kafe seç</option>
-              {cafes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </Select>
-            <Checkbox label="Aktif" checked={form.isActive !== false} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} />
-          </form>
-        )}
-      </Modal>
+      <ProductEditorDrawer
+        open={!!form}
+        data={form}
+        cafes={cafes}
+        allProducts={items}
+        onClose={close}
+        loading={!!savingKey}
+        onSave={async (formData) => {
+          setSavingKey('menu-save');
+          try {
+            if (formData.id) await api.updateMenuItem(formData.cafeId, formData.id, formData);
+            else await api.createMenuItem(formData.cafeId, formData);
+            setSuccess('Ürün kataloğu başarıyla güncellendi.');
+            setForm(null);
+            await load();
+          } catch (err: any) {
+            setError(err.message || 'Ürün kaydedilemedi.');
+          } finally {
+            setSavingKey(null);
+          }
+        }}
+      />
     </div>
   );
 }

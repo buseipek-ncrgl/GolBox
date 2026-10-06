@@ -21,13 +21,39 @@ public class CampaignsController : BaseApiController
         _context = context;
     }
 
+    [HttpGet("public")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetPublicCampaigns(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        (page, pageSize) = AdminPaging.Normalize(page, pageSize);
+        var now = DateTime.UtcNow;
+        var query = _context.Campaigns.AsNoTracking()
+            .Where(c => c.IsActive && c.StartDate <= now && c.EndDate >= now);
+        var totalCount = await query.CountAsync(cancellationToken);
+        var items = await query.OrderBy(c => c.EndDate)
+            .Skip((page - 1) * pageSize).Take(pageSize)
+            .Select(c => new
+            {
+                c.Id, c.Title, c.Description, c.ImageUrl, c.CampaignType,
+                c.StartDate, c.EndDate, c.TargetUserGroup, c.CafeId, c.MenuItemId,
+                c.TotalUsageLimit, c.PerUserLimit, c.CurrentUsageCount,
+                cafeName = c.CafeId.HasValue ? _context.Cafes.Where(x => x.Id == c.CafeId.Value).Select(x => x.Name).FirstOrDefault() : null,
+                menuItemName = c.MenuItemId.HasValue ? _context.MenuItems.Where(x => x.Id == c.MenuItemId.Value).Select(x => x.Name).FirstOrDefault() : null
+            }).ToListAsync(cancellationToken);
+        return Ok(Result<object>.Ok(new { items, page, pageSize, totalCount }));
+    }
+
     [HttpGet]
     [Authorize(Policy = AuthorizationPolicies.StaffOrAdmin)]
     public async Task<IActionResult> GetCampaigns(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = AdminPaging.DefaultPageSize,
         [FromQuery] string? search = null,
-        [FromQuery] bool? active = null)
+        [FromQuery] bool? active = null,
+        [FromQuery] string? state = null)
     {
         (page, pageSize) = AdminPaging.Normalize(page, pageSize);
         var query = _context.Campaigns.AsQueryable();
@@ -38,6 +64,10 @@ public class CampaignsController : BaseApiController
         }
         if (active.HasValue)
             query = query.Where(c => c.IsActive == active.Value);
+        var now = DateTime.UtcNow;
+        if (state == "upcoming") query = query.Where(c => c.StartDate > now);
+        if (state == "ongoing") query = query.Where(c => c.StartDate <= now && c.EndDate >= now);
+        if (state == "ended") query = query.Where(c => c.EndDate < now);
         var totalCount = await query.CountAsync();
         var list = await query
             .OrderByDescending(c => c.CreatedDate)
@@ -103,6 +133,10 @@ public class CampaignsController : BaseApiController
         campaign.StartDate = request.StartDate;
         campaign.EndDate = request.EndDate;
         campaign.TargetUserGroup = string.IsNullOrWhiteSpace(request.TargetUserGroup) ? "All" : request.TargetUserGroup;
+        campaign.CafeId = request.CafeId;
+        campaign.MenuItemId = request.MenuItemId;
+        campaign.TotalUsageLimit = request.TotalUsageLimit;
+        campaign.PerUserLimit = request.PerUserLimit;
         campaign.UpdatedDate = DateTime.UtcNow;
         await _context.SaveChangesAsync();
         await AuditLogsController.LogAsync(_context, "admin", "Admin", "Campaign_Update", "Campaigns", "Campaign", campaign.Id.ToString(), previous, campaign.Title, null);
@@ -135,6 +169,23 @@ public class CampaignsController : BaseApiController
         await _context.SaveChangesAsync();
         await AuditLogsController.LogAsync(_context, "admin", "Admin", "Campaign_Unpublish", "Campaigns", "Campaign", id.ToString(), "Active", "Inactive", null);
         return Ok(Result<object>.Ok(new { id, isActive = false }, "Kampanya yayından kaldırıldı."));
+    }
+
+    [HttpDelete("{id:guid}")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    public async Task<IActionResult> DeleteCampaign(Guid id)
+    {
+        var campaign = await _context.Campaigns.FindAsync(id);
+        if (campaign == null)
+            return NotFound(Result<object>.Fail("Kampanya bulunamadı."));
+        var previous = campaign.Title;
+        campaign.IsActive = false;
+        campaign.IsDeleted = true;
+        campaign.DeletedDate = DateTime.UtcNow;
+        campaign.UpdatedDate = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+        await AuditLogsController.LogAsync(_context, "admin", "Admin", "Campaign_Delete", "Campaigns", "Campaign", id.ToString(), previous, null, null);
+        return Ok(Result<object>.Ok(new { id }, "Kampanya silindi."));
     }
 
     public class CreateCampaignRequest

@@ -7,6 +7,8 @@ export interface User {
   pointsBalance: number;
   role?: string;
   roles?: string[];
+  branchId?: string | null;
+  duty?: string | null;
   phone?: string;
   age?: number;
   educationLevel?: string;

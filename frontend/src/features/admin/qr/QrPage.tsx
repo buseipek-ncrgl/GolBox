@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../../../services/api';
-import { extractArray, pagedMeta } from '../../../lib/adminQuery';
+import { pagedMeta } from '../../../lib/adminQuery';
 import { qrOperationLabel, qrResultLabel } from '../../../lib/adminLabels';
 import { formatDateTime, formatGp } from '../../../lib/adminDate';
 import { Button, DataTable, ErrorState, Input, NumberInput, Pagination, RadioGroup, Select } from '../../../admin/components';
@@ -33,8 +33,8 @@ export function QrPage() {
   };
 
   useEffect(() => {
-    void api.getCafes().then((c) => {
-      const list = Array.isArray(c) ? c : extractArray(c);
+    void api.getAdminCafes({ page: 1, pageSize: 100 }).then((c) => {
+      const list = pagedMeta(c).items;
       setCafes(list);
       if (list[0]?.id) setCafeId(list[0].id);
     }).catch((err) => setError(err.message));
@@ -78,7 +78,7 @@ export function QrPage() {
           onChange={(e) => setToken(e.target.value)}
           autoComplete="off"
         />
-        <Select label="Tesis" required value={cafeId} onChange={(e) => setCafeId(e.target.value)}>
+        <Select label="Şube" required value={cafeId} onChange={(e) => setCafeId(e.target.value)}>
           {cafes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </Select>
         <RadioGroup
@@ -114,7 +114,7 @@ export function QrPage() {
           columns={[
             { key: 'date', header: 'Tarih', render: (row) => formatDateTime(row.createdDate) },
             { key: 'citizen', header: 'Vatandaş', render: (row) => row.citizenName },
-            { key: 'cafe', header: 'Tesis', render: (row) => row.cafeName },
+            { key: 'cafe', header: 'Şube', render: (row) => row.cafeName },
             { key: 'op', header: 'İşlem', render: (row) => qrOperationLabel(row.operation) },
             { key: 'gp', header: 'GP', render: (row) => formatGp(row.gp || 0) },
             { key: 'status', header: 'Sonuç', render: (row) => row.status === 'Completed' ? 'Başarılı' : row.status }

@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { MEDIA_FALLBACK, resolveMediaUrl } from '../../lib/mediaUrl';
 
-export const SafeImg: React.FC<{ src?: string | null; alt?: string; style?: React.CSSProperties }> = ({ src, alt, style }) => {
+export const SafeImg: React.FC<{ src?: string | null; alt?: string; style?: React.CSSProperties; className?: string }> = ({ src, alt, style, className }) => {
   const [broken, setBroken] = useState(false);
   const resolved = resolveMediaUrl(src);
   if (!resolved || broken) {
-    return <img src={MEDIA_FALLBACK} alt={alt || ''} style={style} />;
+    return <img src={MEDIA_FALLBACK} alt={alt || ''} style={style} className={className} />;
   }
-  return <img src={resolved} alt={alt || ''} style={style} onError={() => setBroken(true)} />;
+  return <img src={resolved} alt={alt || ''} style={style} className={className} onError={() => setBroken(true)} />;
 };
 
 export const btnPrimary: React.CSSProperties = {

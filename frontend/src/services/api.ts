@@ -264,6 +264,16 @@ export const api = {
     request<any>(`/cafes/${cafeId}/menu/${id}`, {
       method: 'DELETE',
     }),
+  getCatalogMeta: () => request<any>('/catalog/meta'),
+  createCatalogCategory: (data: any) => request<any>('/catalog/categories', { method: 'POST', body: JSON.stringify(data) }),
+  updateCatalogCategory: (id: string, data: any) => request<any>(`/catalog/categories/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteCatalogCategory: (id: string) => request<any>(`/catalog/categories/${id}`, { method: 'DELETE' }),
+  createCatalogIngredient: (data: any) => request<any>('/catalog/ingredients', { method: 'POST', body: JSON.stringify(data) }),
+  updateCatalogIngredient: (id: string, data: any) => request<any>(`/catalog/ingredients/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteCatalogIngredient: (id: string) => request<any>(`/catalog/ingredients/${id}`, { method: 'DELETE' }),
+  createCatalogAllergen: (data: any) => request<any>('/catalog/allergens', { method: 'POST', body: JSON.stringify(data) }),
+  updateCatalogAllergen: (id: string, data: any) => request<any>(`/catalog/allergens/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteCatalogAllergen: (id: string) => request<any>(`/catalog/allergens/${id}`, { method: 'DELETE' }),
 
   // QR
   scanQr: (command: any) =>
@@ -289,10 +299,10 @@ export const api = {
   // Orders (Ismarlıyor)
   getOrders: (params?: Record<string, string | number | undefined>) =>
     request<any>(`/orders${toQuery(params || {})}`),
-  updateOrderStatus: (id: string, status: string) =>
+  updateOrderStatus: (id: string, status: string, reason?: string) =>
     request<any>(`/orders/${id}/status`, {
       method: 'PUT',
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({ status, reason }),
     }),
   createOrder: (data: any) =>
     request<any>('/orders', {
@@ -309,13 +319,14 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify({ isAvailable }),
     }),
-  resolveOrderQr: (qrToken: string) =>
-    request<any>('/staff/qr/resolve-order', {
+  getStaffProducts: () => request<any>('/staff/products'),
+  resolveOrderQr: (qrToken: string, cafeId?: string) =>
+    request<any>('/qr/orders/resolve', {
       method: 'POST',
-      body: JSON.stringify({ qrToken }),
+      body: JSON.stringify({ code: qrToken, cafeId }),
     }),
-  completeOrderPickup: (orderId: string, data: { paymentMethod: string; pointsRedeemed?: number }) =>
-    request<any>(`/staff/orders/${orderId}/complete-pickup`, {
+  completeOrderPickup: (orderId: string, data: { cafeId?: string; paymentMethod: string; pointsRedeemed?: number }) =>
+    request<any>(`/qr/orders/${orderId}/complete`, {
       method: 'POST',
       body: JSON.stringify(data),
     }),
@@ -361,6 +372,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ isActive }),
     }),
+  updateStaffAssignment: (userId: string, data: { duty: string; branchId?: string | null; registrationNumber?: string }) =>
+    request<any>(`/staff/${userId}/assignment`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
   getCampaigns: (params?: Record<string, string | number | boolean | undefined>) =>
     request<any>(`/campaigns${toQuery({ page: 1, pageSize: 25, ...params })}`),
   createCampaign: (data: any) =>
@@ -374,6 +390,8 @@ export const api = {
     request<any>(`/campaigns/${id}/publish`, { method: 'POST' }),
   unpublishCampaign: (id: string) =>
     request<any>(`/campaigns/${id}/unpublish`, { method: 'POST' }),
+  deleteCampaign: (id: string) =>
+    request<any>(`/campaigns/${id}`, { method: 'DELETE' }),
   getNotifications: (params?: Record<string, string | number | undefined>) =>
     request<any>(`/notifications${toQuery({ page: 1, pageSize: 25, ...params })}`),
   previewNotification: (data: any) =>
@@ -419,9 +437,12 @@ export const api = {
   completeActivity: (id: string) =>
     request<any>(`/activities/${id}/complete`, { method: 'POST' }),
   checkInEventParticipant: (data: { eventId: string; qrToken: string; notes?: string }) =>
-    request<any>(`/staff/events/${data.eventId}/check-in`, { method: 'POST', body: JSON.stringify(data) }),
+    request<any>(`/activities/${data.eventId}/check-in`, { method: 'POST', body: JSON.stringify({ qrToken: data.qrToken, notes: data.notes }) }),
+  getEventCheckins: (eventId: string) => request<any>(`/activities/${eventId}/check-ins`),
   getMissions: (params?: Record<string, string | number | undefined>) =>
     request<any>(`/missions${toQuery({ page: 1, pageSize: 25, ...params })}`),
+  getMissionById: (id: string) =>
+    request<any>(`/missions/${id}`),
   createMission: (data: any) =>
     request<any>('/missions', { method: 'POST', body: JSON.stringify(data) }),
   updateMission: (id: string, data: any) =>
@@ -430,6 +451,10 @@ export const api = {
     request<any>(`/missions/${id}/publish`, { method: 'POST' }),
   endMission: (id: string) =>
     request<any>(`/missions/${id}/end`, { method: 'POST' }),
+  duplicateMission: (id: string) =>
+    request<any>(`/missions/${id}/duplicate`, { method: 'POST' }),
+  deleteMission: (id: string) =>
+    request<any>(`/missions/${id}`, { method: 'DELETE' }),
   getReportsSummary: (params?: Record<string, string | undefined>) =>
     request<any>(`/reports/summary${toQuery(params || {})}`),
   exportReport: async (type: string, params?: Record<string, string | undefined>) => {

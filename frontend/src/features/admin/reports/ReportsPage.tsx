@@ -39,21 +39,7 @@ export function ReportsPage() {
     setLoading(true);
     try {
       const res = await api.getReportsSummary(buildParams());
-      setData(res || {
-        orderCount: 1420,
-        completedOrders: 1380,
-        cancelledOrders: 25,
-        noShowOrders: 15,
-        avgPrepMinutes: 8.4,
-        earnedPoints: 148500,
-        spentPoints: 62400,
-        manualAdjustments: 1200,
-        activeRewards: 6,
-        totalEvents: 14,
-        eventRegistrations: 420,
-        eventAttended: 368,
-        eventNoShowRate: '12.3%',
-      });
+      setData(res);
       setFail(null);
     } catch (err: any) {
       setFail(err);
@@ -76,6 +62,7 @@ export function ReportsPage() {
       a.href = url;
       a.download = `golbox-${type}-rapor.csv`;
       a.click();
+      URL.revokeObjectURL(url);
       setSuccess('Rapor başarıyla dışa aktarıldı (CSV).');
     } catch (err: any) {
       setError(err.message || 'Rapor indirme başarısız.');
@@ -86,11 +73,9 @@ export function ReportsPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      {/* Header & Explanatory Banner */}
       <div>
-        <h1 style={{ margin: '0 0 4px', fontSize: 22, fontWeight: 700 }}>Operasyonel Dönem Raporları</h1>
         <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: 14 }}>
-          Dashboard anlık durumu gösterirken, Raporlar modülü zaman içindeki eğilimleri, şube performansını ve sadakat metriklerini analiz eder.
+          Genel Bakış anlık durumu gösterirken, Raporlar modülü zaman içindeki eğilimleri, şube performansını ve sadakat metriklerini analiz eder.
         </p>
       </div>
 
@@ -150,44 +135,50 @@ export function ReportsPage() {
         <Skeleton variant="card" />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <div className="report-executive-grid">
+            <ReportKpiCard label="Tamamlanan satış" value={formatCurrency(data.grossRevenue ?? 0)} helper={`${data.completedOrders ?? 0} teslim edilen sipariş`} />
+            <ReportKpiCard label="Ortalama sepet" value={formatCurrency(data.averageBasket ?? 0)} helper="Teslim edilen siparişler" />
+            <ReportKpiCard label="Tamamlama oranı" value={`%${data.completionRate ?? 0}`} helper="Toplam sipariş içindeki pay" />
+            <ReportKpiCard label="Aktif sipariş veren" value={data.activeCitizens ?? 0} helper="Dönemde benzersiz vatandaş" />
+          </div>
           {/* Section 1: Gel-Al Sipariş Metrikleri */}
-          <div>
-            <h2 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 10px', color: 'var(--text-primary)' }}>
-              1. Gel-Al Sipariş ve Operasyon Metrikleri
-            </h2>
+          <section className="report-section">
+            <div className="report-section-heading"><div><h2>Gel-Al operasyonu</h2><p>Sipariş akışı ve şube hizmet performansı</p></div></div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
               <ReportKpiCard label="Toplam Sipariş" value={data.orderCount ?? 0} helper="Dönem içinde oluşturulan siparişler" />
               <ReportKpiCard label="Tamamlanan Sipariş" value={data.completedOrders ?? 0} color="#047857" helper="Teslim edilen siparişler" />
               <ReportKpiCard label="İptal Edilen" value={data.cancelledOrders ?? 0} color="#b91c1c" helper="Müşteri veya şube iptali" />
-              <ReportKpiCard label="No-Show Siparişler" value={data.noShowOrders ?? 0} color="#b45309" helper="Şubeden teslim alınmayan siparişler" />
-              <ReportKpiCard label="Ort. Hazırlama Süresi" value={`${data.avgPrepMinutes ?? 8.4} dk`} helper="Hazırlanıyor -> Hazır ortalama süre" />
+              <ReportKpiCard label="Ort. hazırlama süresi" value={`${data.avgPrepMinutes ?? 0} dk`} helper="Hazırlanıyor ile hazır arasındaki süre" />
+              <ReportKpiCard label="Benzersiz vatandaş" value={data.uniqueOrderingUsers ?? 0} helper="Dönemde sipariş veren kullanıcı" />
             </div>
-          </div>
+          </section>
 
           {/* Section 2: Sadakat ve GölPuan Metrikleri */}
-          <div>
-            <h2 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 10px', color: 'var(--text-primary)' }}>
-              2. GölPuan Defteri ve Sadakat Dengesi
-            </h2>
+          <section className="report-section">
+            <div className="report-section-heading"><div><h2>GölPuan ve sadakat</h2><p>Kazanım, kullanım ve açık puan yükümlülüğü</p></div></div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
               <ReportKpiCard label="Kazanılan GölPuan" value={`+${formatGp(data.earnedPoints ?? 0)}`} color="#047857" helper="Tamamlanan sipariş ve etkinliklerden" />
               <ReportKpiCard label="Kullanılan GölPuan" value={`-${formatGp(data.spentPoints ?? 0)}`} color="#b91c1c" helper="Kasa indirimleri ve ödüllerden" />
-              <ReportKpiCard label="Manuel Düzeltmeler" value={formatGp(data.manualAdjustments ?? 0)} helper="Gerekçeli admin müdahaleleri" />
-              <ReportKpiCard label="Aktif Ödüller" value={`${data.activeRewards ?? 6} Katalog Ödülü`} helper="Şu an yayında olan ödüller" />
+              <ReportKpiCard label="Puan kullanılan sipariş" value={`%${data.pointOrderShare ?? 0}`} helper={`${data.pointOrderCount ?? 0} sipariş`} />
+              <ReportKpiCard label="Açık GölPuan bakiyesi" value={formatGp(data.outstandingPoints ?? 0)} helper="Vatandaş hesaplarındaki toplam bakiye" />
+              <ReportKpiCard label="Aktif ödüller" value={data.activeRewards ?? 0} helper="Şu an yayında olan katalog ödülleri" />
             </div>
-          </div>
+          </section>
 
           {/* Section 3: Belediye Etkinlik Metrikleri */}
-          <div>
-            <h2 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 10px', color: 'var(--text-primary)' }}>
-              3. Belediye Etkinlikleri ve Katılım Oranları
-            </h2>
+          <section className="report-section">
+            <div className="report-section-heading"><div><h2>Etkinlik katılımı</h2><p>Kayıt ve doğrulanmış QR check-in sonuçları</p></div></div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
               <ReportKpiCard label="Toplam Etkinlik" value={data.totalEvents ?? 0} helper="Düzenlenen sosyal/eğitim etkinlikleri" />
               <ReportKpiCard label="Kayıtlı Katılımcı" value={data.eventRegistrations ?? 0} helper="Online kayıt oluşturan vatandaşlar" />
               <ReportKpiCard label="Doğrulanmış Katılım" value={data.eventAttended ?? 0} color="#047857" helper="QR check-in ile katılanlar" />
-              <ReportKpiCard label="Etkinlik No-Show Oranı" value={data.eventNoShowRate || '12.3%'} color="#b45309" helper="Kayıt olup katılmayanlar" />
+              <ReportKpiCard label="Katılım oranı" value={`%${data.eventAttendanceRate ?? 0}`} color="#047857" helper="Kayıtların doğrulanma oranı" />
             </div>
+          </section>
+
+          <div className="report-detail-grid">
+            <section className="report-section"><div className="report-section-heading"><div><h2>Şube karşılaştırması</h2><p>Teslim edilen satış ve sipariş tamamlama</p></div></div><div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>Şube</th><th>Sipariş</th><th>Tamamlanan</th><th>Oran</th><th>Satış</th></tr></thead><tbody>{(data.branchPerformance || []).map((row: any) => <tr key={row.cafeId}><td><strong>{row.cafeName}</strong></td><td>{row.orderCount}</td><td>{row.completedOrders}</td><td>%{row.completionRate}</td><td>{formatCurrency(row.revenue)}</td></tr>)}</tbody></table></div></section>
+            <section className="report-section"><div className="report-section-heading"><div><h2>En çok tercih edilen ürünler</h2><p>Teslim edilen siparişlerdeki adetler</p></div></div><div className="report-product-list">{(data.topProducts || []).map((row: any, index: number) => <div key={row.name}><span>{index + 1}</span><div><strong>{row.name}</strong><small>{formatCurrency(row.revenue)}</small></div><b>{row.quantity} adet</b></div>)}</div></section>
           </div>
         </div>
       )}
@@ -200,6 +191,8 @@ export function ReportsPage() {
     </div>
   );
 }
+
+const formatCurrency = (value: number) => new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', maximumFractionDigits: 2 }).format(Number(value || 0));
 
 function ReportKpiCard({ label, value, color, helper }: { label: string; value: string | number; color?: string; helper?: string }) {
   return (

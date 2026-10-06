@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useCallback, useEffect, useState } from "react"
 import { createPortal } from "react-dom"
 import {
   ArrowLeft,
@@ -24,6 +24,7 @@ import {
 } from "lucide-react"
 import { useGolbox } from "@/lib/golbox-context"
 import { useGolToast } from "@/components/golbox/gol-toast"
+import { API_BASE_URL } from "@/lib/api-config"
 
 export interface MissionData {
   id: string
@@ -41,6 +42,8 @@ export interface MissionData {
   howToCompleteSteps: string[]
   ctaType: "MENU" | "EVENTS" | "BRANCHES" | "POINTS"
   progressHistory?: { label: string; date: string }[]
+  isEligible?: boolean
+  eligibilityMessage?: string | null
 }
 
 export const GOLBOX_MISSIONS_CATALOG: MissionData[] = [
@@ -159,14 +162,58 @@ export function MissionsScreen({
   onNavigateToEvents?: () => void
   onNavigateToBranches?: () => void
 }) {
-  const { user } = useGolbox()
+  const { user, token, refreshData } = useGolbox()
   const showToast = useGolToast()
 
   const [activeTab, setActiveTab] = useState<"active" | "completed">("active")
   const [selectedMission, setSelectedMission] = useState<MissionData | null>(null)
+  const [missions, setMissions] = useState<MissionData[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [claimingId, setClaimingId] = useState<string | null>(null)
 
-  const activeMissions = GOLBOX_MISSIONS_CATALOG.filter((m) => m.status === "IN_PROGRESS")
-  const completedMissions = GOLBOX_MISSIONS_CATALOG.filter((m) => m.status === "COMPLETED")
+  const loadMissions = useCallback(async () => {
+    if (!token) { setMissions([]); setLoading(false); return }
+    setLoading(true); setError(null)
+    try {
+      const response = await fetch(`${API_BASE_URL}/tasks`, { headers: { Authorization: `Bearer ${token}` } })
+      const body = await response.json()
+      if (!response.ok || !body.success) throw new Error(body.message || "Görevler yüklenemedi.")
+      const rows = Array.isArray(body.data) ? body.data : []
+      setMissions(rows.map((item: any) => {
+        let steps: string[] = []
+        try { steps = item.howToCompleteJson ? JSON.parse(item.howToCompleteJson) : [] } catch { steps = [] }
+        if (!steps.length) steps = [item.description || item.shortDescription || "Görev koşullarını tamamlayın."]
+        return { id: item.id, title: item.title, shortDescription: item.shortDescription || item.description, fullDescription: item.description,
+          category: item.category || "GölBOX", missionType: item.missionType || "ORDER_COMPLETED", currentProgress: item.currentProgress || 0,
+          targetProgress: item.targetProgress || 1, pointsGranted: item.pointsReward || 0,
+          validUntil: new Date(item.endDate).toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" }),
+          status: item.isCompleted ? "COMPLETED" : new Date(item.endDate).getTime() < Date.now() ? "EXPIRED" : "IN_PROGRESS",
+          completedAt: item.isCompleted ? "Ödül hesaba aktarıldı" : undefined, howToCompleteSteps: steps,
+          ctaType: item.missionType === "EVENT_ATTENDED" ? "EVENTS" : item.missionType === "DISTINCT_BRANCH" ? "BRANCHES" : "MENU",
+          isEligible: item.isEligible, eligibilityMessage: item.eligibilityMessage } as MissionData
+      }))
+    } catch (cause: any) { setError(cause.message || "Görevler yüklenemedi."); setMissions([]) }
+    finally { setLoading(false) }
+  }, [token])
+
+  useEffect(() => { void loadMissions() }, [loadMissions])
+
+  const activeMissions = missions.filter((m) => m.status === "IN_PROGRESS")
+  const completedMissions = missions.filter((m) => m.status === "COMPLETED")
+
+  const claimMission = async (mission: MissionData) => {
+    if (!token) return
+    setClaimingId(mission.id)
+    try {
+      const response = await fetch(`${API_BASE_URL}/tasks/${mission.id}/complete`, { method: "POST", headers: { Authorization: `Bearer ${token}` } })
+      const body = await response.json()
+      if (!response.ok || !body.success) throw new Error(body.message || "Görev ödülü alınamadı.")
+      showToast(`Görev tamamlandı. +${mission.pointsGranted} GölPuan hesabınıza eklendi.`)
+      setSelectedMission(null); await Promise.all([loadMissions(), refreshData()])
+    } catch (cause: any) { showToast(cause.message || "Görev ödülü alınamadı.") }
+    finally { setClaimingId(null) }
+  }
 
   const handleCtaClick = (ctaType: MissionData["ctaType"]) => {
     setSelectedMission(null)
@@ -201,30 +248,30 @@ export function MissionsScreen({
 
         <div className="flex-1 space-y-4 px-4 py-5 pb-32 max-w-lg mx-auto w-full">
           {/* HEADER HERO BADGE */}
-          <div className="rounded-3xl border border-amber-400/40 bg-gradient-to-br from-slate-900 to-slate-950 p-6 text-white shadow-xl space-y-3">
+          <div className="rounded-3xl border border-border/80 bg-card p-6 shadow-2xs space-y-3">
             <div className="flex items-center justify-between">
-              <span className="rounded-xl bg-amber-400 text-amber-950 px-3 py-1 text-[10px] font-black uppercase tracking-wider">
+              <span className="rounded-xl bg-accent border border-border px-3 py-1 text-[10px] font-black uppercase tracking-wider text-muted-foreground">
                 {selectedMission.category} Görevi
               </span>
-              <span className="rounded-xl bg-amber-400/20 border border-amber-400/30 text-amber-300 px-3 py-1 text-xs font-black">
+              <span className="rounded-xl bg-[color:var(--color-gold)]/10 border border-[color:var(--color-gold)]/30 text-[color:var(--color-gold)] px-3 py-1 text-xs font-black">
                 +{selectedMission.pointsGranted} GP Ödül
               </span>
             </div>
 
             <div>
-              <h2 className="text-lg font-black text-white">{selectedMission.title}</h2>
-              <p className="text-xs text-slate-300 font-medium mt-1 leading-relaxed">{selectedMission.shortDescription}</p>
+              <h2 className="text-lg font-black text-foreground">{selectedMission.title}</h2>
+              <p className="text-xs text-muted-foreground font-medium mt-1 leading-relaxed">{selectedMission.shortDescription}</p>
             </div>
 
             {/* PROGRESS BAR */}
             <div className="pt-2 space-y-1.5">
               <div className="flex justify-between text-xs font-black">
-                <span className="text-slate-300">İlerleme: {selectedMission.currentProgress} / {selectedMission.targetProgress}</span>
-                <span className="text-amber-400">%{pct}</span>
+                <span className="text-muted-foreground">İlerleme: {selectedMission.currentProgress} / {selectedMission.targetProgress}</span>
+                <span className="text-primary">%{pct}</span>
               </div>
-              <div className="h-3 w-full overflow-hidden rounded-full bg-slate-800 p-0.5">
+              <div className="h-3 w-full overflow-hidden rounded-full bg-accent p-0.5 border border-border/40">
                 <div
-                  className="h-full rounded-full bg-gradient-to-r from-amber-400 to-amber-500 transition-all duration-500"
+                  className="h-full rounded-full bg-primary transition-all duration-500"
                   style={{ width: `${pct}%` }}
                 />
               </div>
@@ -287,6 +334,8 @@ export function MissionsScreen({
                 <CheckCircle2 className="size-4 text-emerald-600" />
                 <span>Görev Tamamlandı! +{selectedMission.pointsGranted} GölPuan Yüklendi ✓</span>
               </div>
+            ) : selectedMission.currentProgress >= selectedMission.targetProgress ? (
+              <button disabled={claimingId === selectedMission.id} onClick={() => void claimMission(selectedMission)} className="w-full flex items-center justify-center gap-2 rounded-2xl bg-primary py-3.5 text-xs font-black text-primary-foreground shadow-md disabled:opacity-60"><Gift className="size-4" />{claimingId === selectedMission.id ? "Ödül aktarılıyor..." : `Ödülü Al · +${selectedMission.pointsGranted} GP`}</button>
             ) : (
               <button
                 onClick={() => handleCtaClick(selectedMission.ctaType)}
@@ -344,10 +393,13 @@ export function MissionsScreen({
           </button>
         </div>
 
+        {loading ? <div className="rounded-2xl border border-border bg-card p-8 text-center text-xs font-semibold text-muted-foreground">Görevler yükleniyor...</div> : null}
+        {error ? <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-5 text-center"><p className="text-xs font-semibold text-destructive">{error}</p><button type="button" onClick={() => void loadMissions()} className="mt-3 min-h-11 rounded-xl border border-border bg-card px-4 text-xs font-bold text-foreground">Tekrar Dene</button></div> : null}
+
         {/* 3. ACTIVE MISSIONS LIST */}
-        {activeTab === "active" && (
+        {!loading && !error && activeTab === "active" && (
           <div className="space-y-3 pt-1">
-            {activeMissions.map((ms) => {
+            {activeMissions.length === 0 ? <div className="rounded-3xl border border-border bg-card p-8 text-center"><ShieldCheck className="mx-auto size-8 text-muted-foreground" /><p className="mt-3 text-sm font-black text-foreground">Aktif görev bulunmuyor</p><p className="mt-1 text-xs text-muted-foreground">Yeni görevler yayınlandığında burada görünecek.</p></div> : activeMissions.map((ms) => {
               const pct = Math.min(100, Math.round((ms.currentProgress / ms.targetProgress) * 100))
               return (
                 <div
@@ -366,7 +418,7 @@ export function MissionsScreen({
                       <p className="text-xs text-muted-foreground font-medium mt-0.5 line-clamp-1">{ms.shortDescription}</p>
                     </div>
 
-                    <span className="rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 px-2.5 py-1 text-xs font-black shrink-0">
+                    <span className="rounded-xl bg-[color:var(--color-gold)]/10 border border-[color:var(--color-gold)]/30 text-[color:var(--color-gold)] px-2.5 py-1 text-xs font-black shrink-0">
                       +{ms.pointsGranted} GP
                     </span>
                   </div>
@@ -399,7 +451,7 @@ export function MissionsScreen({
         )}
 
         {/* 4. COMPLETED MISSIONS LIST */}
-        {activeTab === "completed" && (
+        {!loading && !error && activeTab === "completed" && (
           <div className="space-y-3 pt-1">
             {completedMissions.length === 0 ? (
               <div className="rounded-3xl border border-dashed border-border p-8 text-center space-y-2">

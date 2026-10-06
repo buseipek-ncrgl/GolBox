@@ -75,24 +75,10 @@ public class JoinActivityCommandHandler : IRequestHandler<JoinActivityCommand, R
             UserId = user.Id,
             ActivityId = activity.Id,
             JoinedAt = now,
-            PointsEarned = activity.PointsReward,
+            PointsEarned = 0,
             OrganizationId = user.OrganizationId
         };
         _context.UserActivities.Add(userActivity);
-
-        user.PointsBalance += activity.PointsReward;
-
-        var ledger = new PointTransaction
-        {
-            UserId = user.Id,
-            OrganizationId = user.OrganizationId,
-            Amount = activity.PointsReward,
-            Type = "Earn",
-            Description = $"\"{activity.Title}\" Etkinliğine Katılım",
-            ReferenceType = "Activity",
-            ReferenceId = activity.Id
-        };
-        _context.PointTransactions.Add(ledger);
 
         try
         {
@@ -107,6 +93,6 @@ public class JoinActivityCommandHandler : IRequestHandler<JoinActivityCommand, R
             return Result.FailConflict("Bu etkinliğe zaten katıldınız.");
         }
 
-        return Result.Ok("Etkinliğe başarıyla katıldınız ve puanınız eklendi.");
+        return Result.Ok("Etkinlik kaydınız oluşturuldu. Katılım puanı etkinlik günü doğrulanmış check-in sonrasında eklenir.");
     }
 }

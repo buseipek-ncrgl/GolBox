@@ -1,13 +1,14 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Gift, Search, QrCode, MapPin, CheckCircle2, ChevronDown, ChevronUp, Sparkles, ExternalLink, Award, ChevronRight } from "lucide-react"
+import { Gift, Search, QrCode, MapPin, CheckCircle2, ChevronDown, ChevronUp, Sparkles, ExternalLink, Award, ChevronRight, History, ArrowDownLeft, ArrowUpRight } from "lucide-react"
 import { Screen } from "@/components/golbox/screen"
 import { LoginScreen } from "@/components/golbox/screens/login-screen"
+import { AuthGate } from "@/components/golbox/auth-gate"
 import { QrUsageModal, type QrUsageFacility, type QrUsageItem } from "@/components/golbox/qr-usage-modal"
 import { useGolbox } from "@/lib/golbox-context"
 
-type MainTab = "discover" | "my-rewards"
+type MainTab = "discover" | "my-rewards" | "movements"
 type SourceFilter = "all" | "GolPuan" | "Ismarliyor" | "GiftHunt"
 export type RewardsTabProp = "discover" | "my-rewards" | "catalog" | "coupons" | "cart"
 
@@ -23,31 +24,6 @@ export interface CombinedRewardClaim {
   expiresAt: string
 }
 
-const DEFAULT_DEMO_CLAIMS: CombinedRewardClaim[] = [
-  {
-    id: "claim-1",
-    title: "Filtre Kahve İkramı",
-    description: "Umut Yılmaz Ismarlıyor kampanyasından ücretsiz cold brew kahve ikramı.",
-    sourceType: "Ismarliyor",
-    redeemCode: "IS-SH-7890",
-    status: "Claimed",
-    facilities: ["Merkez Kitap Kafe", "Şehitkamil Gençlik Kitap Kafe"],
-    claimedAt: new Date().toISOString(),
-    expiresAt: new Date(Date.now() + 30 * 86400000).toISOString(),
-  },
-  {
-    id: "claim-3",
-    title: "Türk Kahvesi Kuponu",
-    description: "40 GP harcanarak Ödül Kataloğu'ndan alındı.",
-    sourceType: "GolPuan",
-    redeemCode: "GP-SH-1102",
-    status: "Claimed",
-    facilities: ["Merkez Kitap Kafe", "Şehitkamil Gençlik Kitap Kafe"],
-    claimedAt: new Date().toISOString(),
-    expiresAt: new Date(Date.now() + 90 * 86400000).toISOString(),
-  },
-]
-
 export function RewardsScreen({
   onClose,
   closeLabel = "Geri",
@@ -59,7 +35,7 @@ export function RewardsScreen({
   initialTab?: RewardsTabProp
   onOpenMissions?: () => void
 }) {
-  const { user, token, rewards, claimedRewards, cafes, addBonusPoints } = useGolbox()
+  const { user, token, rewards, claimedRewards, cafes, claimReward, pointTransactions, loading } = useGolbox()
   const mappedInitial = initialTab === "coupons" || initialTab === "my-rewards" ? "my-rewards" : "discover"
   const [tab, setTab] = useState<MainTab>(mappedInitial)
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all")
@@ -67,7 +43,7 @@ export function RewardsScreen({
   const [searchQuery, setSearchQuery] = useState("")
   const [expandedFacilityId, setExpandedFacilityId] = useState<string | null>(null)
   const [activeQrItem, setActiveQrItem] = useState<QrUsageItem | null>(null)
-  const [localClaims, setLocalClaims] = useState<CombinedRewardClaim[]>(DEFAULT_DEMO_CLAIMS)
+  const [claimingId, setClaimingId] = useState<string | null>(null)
 
   const points = user?.pointsBalance ?? 0
 
@@ -77,15 +53,15 @@ export function RewardsScreen({
       id: c.claimId,
       title: c.rewardTitle,
       description: c.rewardDescription || undefined,
-      sourceType: "GolPuan" as const,
+      sourceType: (c.sourceType || "GolPuan") as CombinedRewardClaim["sourceType"],
       redeemCode: c.redeemCode,
       status: (c.status === "Claimed" ? "Claimed" : c.status === "Redeemed" ? "Redeemed" : "Expired") as CombinedRewardClaim["status"],
-      facilities: ["Merkez Kitap Kafe", "Şehitkamil Gençlik Kitap Kafe"],
+      facilities: cafes.filter((c) => c.isActive).map((c) => c.name),
       claimedAt: c.claimedAt,
       expiresAt: c.expiresAt,
     }))
-    return [...fromBackend, ...localClaims]
-  }, [claimedRewards, localClaims])
+    return fromBackend
+  }, [claimedRewards, cafes])
 
   const filteredClaims = useMemo(() => {
     if (sourceFilter === "all") return allClaims
@@ -102,7 +78,7 @@ export function RewardsScreen({
     )
   }, [rewards, searchQuery])
 
-  const handleClaimWithPoints = (rewardTitle: string, pointsCost: number) => {
+  const handleClaimWithPoints = async (rewardId: string, pointsCost: number) => {
     if (!token) {
       setShowLogin(true)
       return
@@ -112,24 +88,25 @@ export function RewardsScreen({
       return
     }
 
-    addBonusPoints(-pointsCost, `${rewardTitle} Ödülü Alındı`)
-    const newClaim: CombinedRewardClaim = {
-      id: `claim-${Date.now()}`,
-      title: rewardTitle,
-      description: `${pointsCost} GP karşılığında kataloğdan alındı.`,
-      sourceType: "GolPuan",
-      redeemCode: `GP-SH-${Math.floor(1000 + Math.random() * 9000)}`,
-      status: "Claimed",
-      facilities: ["Merkez Kitap Kafe", "Şehitkamil Gençlik Kitap Kafe"],
-      claimedAt: new Date().toISOString(),
-      expiresAt: new Date(Date.now() + 90 * 86400000).toISOString(),
-    }
-    setLocalClaims((prev) => [newClaim, ...prev])
-    setTab("my-rewards")
+    setClaimingId(rewardId)
+    const claimed = await claimReward(rewardId)
+    setClaimingId(null)
+    if (claimed) setTab("my-rewards")
   }
 
   if (showLogin && !token) {
     return <LoginScreen onClose={() => setShowLogin(false)} closeLabel="Ödüllere dön" />
+  }
+
+  if (!token) {
+    return (
+      <Screen fill className="justify-center">
+        <AuthGate
+          context="LOYALTY"
+          onLogin={() => setShowLogin(true)}
+        />
+      </Screen>
+    )
   }
 
   const resolveClaimFacilities = (claim: CombinedRewardClaim): QrUsageFacility[] =>
@@ -152,21 +129,21 @@ export function RewardsScreen({
     })
 
   return (
-    <Screen className="space-y-4 pb-12">
+    <Screen className="space-y-4 pb-32">
       <header className="space-y-1">
         {onClose && (
           <button type="button" onClick={onClose} className="text-sm font-medium text-primary">
             {closeLabel}
           </button>
         )}
-        <h1 className="font-serif text-2xl font-bold text-foreground">Ödüllerim</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">Ödüllerim</h1>
         <p className="text-xs text-muted-foreground">
           GölPuan kataloğunu keşfedin, kazandığınız tüm ikramları tesislerde QR ile kullanın.
         </p>
       </header>
 
       {/* Main 2-Tab Switcher: Keşfet | Kazandıklarım */}
-      <div className="grid grid-cols-2 gap-1 rounded-2xl bg-secondary p-1 shadow-2xs" role="tablist" aria-label="Ödüllerim bölümleri">
+      <div className="grid grid-cols-3 gap-1 rounded-2xl bg-secondary p-1 shadow-2xs" role="tablist" aria-label="GölPuan bölümleri">
         <button
           type="button"
           onClick={() => setTab("discover")}
@@ -191,6 +168,7 @@ export function RewardsScreen({
           <Sparkles className="size-4 text-[color:var(--color-gold)]" />
           Kazandıklarım ({allClaims.length})
         </button>
+        <button type="button" onClick={() => setTab("movements")} role="tab" aria-selected={tab === "movements"} className={`flex min-h-11 items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/40 ${tab === "movements" ? "bg-card text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"}`}><History className="size-4 text-primary" />Hareketler</button>
       </div>
 
       {/* KEŞFET TAB */}
@@ -203,7 +181,7 @@ export function RewardsScreen({
                 <p className="text-[11px] font-bold uppercase tracking-wider text-primary-foreground/75">
                   GölPuan Bakiyeniz
                 </p>
-                <p className="font-serif text-3xl font-bold leading-tight mt-0.5">
+                <p className="font-sans text-3xl font-extrabold tracking-tight leading-tight mt-0.5">
                   {points.toLocaleString("tr-TR")}{" "}
                   <span className="font-sans text-xs font-semibold text-primary-foreground/80">GP</span>
                 </p>
@@ -280,13 +258,16 @@ export function RewardsScreen({
                     <span className="mt-1 inline-block rounded-md bg-[color:var(--color-gold)]/15 px-2 py-0.5 text-[11px] font-bold text-[color:var(--color-gold)]">
                       {reward.requiredPoints.toLocaleString("tr-TR")} GP
                     </span>
+                    {reward.remainingStock != null && <span className="ml-1.5 text-[10px] font-semibold text-muted-foreground">{reward.remainingStock > 0 ? `Son ${reward.remainingStock} adet` : "Tükendi"}</span>}
+                    {reward.isEligible === false && reward.eligibilityMessage && <p className="mt-1 text-[10px] font-semibold text-destructive">{reward.eligibilityMessage}</p>}
                   </div>
                   <button
                     type="button"
-                    onClick={() => handleClaimWithPoints(reward.title, reward.requiredPoints)}
+                    onClick={() => void handleClaimWithPoints(reward.id, reward.requiredPoints)}
+                    disabled={loading || claimingId === reward.id || points < reward.requiredPoints || reward.isEligible === false || reward.remainingStock === 0}
                     className="min-h-11 shrink-0 rounded-xl bg-primary px-3.5 py-2 text-xs font-bold text-primary-foreground shadow-2xs hover:bg-primary/90 transition-all active:scale-95 focus-visible:ring-2 focus-visible:ring-primary/40"
                   >
-                    GölPuan ile Al
+                    {claimingId === reward.id ? "Alınıyor..." : reward.isEligible === false ? "Uygun değil" : reward.remainingStock === 0 ? "Tükendi" : points < reward.requiredPoints ? "Puan yetersiz" : "GölPuan ile Al"}
                   </button>
                 </div>
               ))}
@@ -330,6 +311,8 @@ export function RewardsScreen({
               {filteredClaims.map((claim) => {
                 const isExpanded = expandedFacilityId === claim.id
                 const claimFacilities = resolveClaimFacilities(claim)
+                const usable = claim.status === "Claimed" && new Date(claim.expiresAt).getTime() > Date.now()
+                const statusLabel = usable ? "Kullanılabilir" : claim.status === "Redeemed" ? "Kullanıldı" : "Süresi doldu"
                 const badgeText =
                   claim.sourceType === "Ismarliyor"
                     ? "Ismarlıyor'dan kazandın"
@@ -354,13 +337,13 @@ export function RewardsScreen({
                         <span className={`inline-block rounded-md px-2 py-0.5 text-[10px] font-bold ${badgeBg}`}>
                           {badgeText}
                         </span>
-                        <h3 className="mt-1 font-serif text-base font-bold text-foreground">{claim.title}</h3>
+                        <h3 className="mt-1 text-base font-bold text-foreground">{claim.title}</h3>
                         {claim.description && (
                           <p className="mt-0.5 text-xs text-muted-foreground">{claim.description}</p>
                         )}
                       </div>
-                      <span className="shrink-0 rounded-full bg-emerald-600/15 px-2.5 py-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-400">
-                        Kullanılabilir
+                      <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold ${usable ? "bg-emerald-600/15 text-emerald-700 dark:text-emerald-400" : "bg-secondary text-muted-foreground"}`}>
+                        {statusLabel}
                       </span>
                     </div>
 
@@ -374,13 +357,13 @@ export function RewardsScreen({
                         className="flex min-h-11 items-center gap-1.5 rounded-lg text-xs font-semibold text-primary hover:underline focus-visible:ring-2 focus-visible:ring-primary/40"
                       >
                         <MapPin className="size-3.5" />
-                        <span>Nerede Kullanabilirim? ({claimFacilities.length} Tesis)</span>
+                        <span>Geçerli Şubeler ({claimFacilities.length})</span>
                         {isExpanded ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
                       </button>
 
                       {isExpanded && (
                         <div id={`claim-facilities-${claim.id}`} className="mt-2 rounded-xl bg-secondary/60 p-3 text-xs space-y-1 animate-in fade-in duration-150">
-                          <p className="text-[11px] font-bold text-muted-foreground uppercase">Geçerli Tesisler:</p>
+                          <p className="text-[11px] font-bold text-muted-foreground uppercase">Geçerli Şubeler</p>
                           <ul className="space-y-2">
                             {claimFacilities.map((facility) => (
                               <li key={facility.id} className="rounded-xl border border-border/60 bg-card p-2.5">
@@ -427,6 +410,7 @@ export function RewardsScreen({
                       </span>
                       <button
                         type="button"
+                        disabled={!usable}
                         onClick={() =>
                           setActiveQrItem({
                             id: claim.id,
@@ -439,7 +423,7 @@ export function RewardsScreen({
                         className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground shadow-2xs hover:bg-primary/90 transition-all active:scale-95 focus-visible:ring-2 focus-visible:ring-primary/40"
                       >
                         <QrCode className="size-4" />
-                        QR ile Kullan
+                        {usable ? "QR ile Kullan" : statusLabel}
                       </button>
                     </div>
                   </div>
@@ -447,6 +431,13 @@ export function RewardsScreen({
               })}
             </div>
           )}
+        </div>
+      )}
+
+      {tab === "movements" && (
+        <div className="space-y-3">
+          <div className="rounded-[20px] border border-border/80 bg-card p-4 shadow-2xs"><p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Güncel bakiye</p><p className="mt-1 text-2xl font-black text-foreground">{points.toLocaleString("tr-TR")} <span className="text-xs text-muted-foreground">GP</span></p></div>
+          {pointTransactions.length === 0 ? <div className="rounded-[20px] border border-border bg-card p-8 text-center"><History className="mx-auto size-7 text-muted-foreground" /><p className="mt-3 text-sm font-bold text-foreground">Henüz GölPuan hareketiniz yok</p><p className="mt-1 text-xs text-muted-foreground">Kazanç ve kullanımlarınız burada listelenecek.</p></div> : <div className="overflow-hidden rounded-[20px] border border-border/80 bg-card shadow-2xs">{pointTransactions.map((item) => { const positive = item.amount > 0; return <div key={item.id} className="flex items-center gap-3 border-b border-border/60 p-3.5 last:border-b-0"><span className={`grid size-9 shrink-0 place-items-center rounded-xl ${positive ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" : "bg-rose-500/10 text-rose-700 dark:text-rose-400"}`}>{positive ? <ArrowDownLeft className="size-4" /> : <ArrowUpRight className="size-4" />}</span><div className="min-w-0 flex-1"><p className="truncate text-xs font-bold text-foreground">{item.description || (positive ? "GölPuan kazanımı" : "GölPuan kullanımı")}</p><p className="mt-0.5 text-[11px] text-muted-foreground">{new Date(item.createdDate).toLocaleString("tr-TR", { dateStyle: "medium", timeStyle: "short" })}</p></div><strong className={`text-sm ${positive ? "text-emerald-700 dark:text-emerald-400" : "text-rose-700 dark:text-rose-400"}`}>{positive ? "+" : ""}{item.amount.toLocaleString("tr-TR")} GP</strong></div>})}</div>}
         </div>
       )}
 

@@ -24,7 +24,7 @@ import {
 } from "lucide-react"
 import { useGolbox, type FoodCartItem, type MenuItem } from "@/lib/golbox-context"
 import { useGolToast } from "@/components/golbox/gol-toast"
-import { ProductDetailScreen } from "@/components/golbox/screens/product-detail-screen"
+import { ProductDetailScreen } from "@/components/golbox/screens/catalog-product-detail-screen"
 import { GelAlSummaryScreen } from "@/components/golbox/screens/gel-al-summary-screen"
 
 const CROSS_SELL_ITEMS: (MenuItem & { studentPrice?: number })[] = [
@@ -54,9 +54,11 @@ const CROSS_SELL_ITEMS: (MenuItem & { studentPrice?: number })[] = [
 export function CartScreen({
   onClose,
   onNavigateToMenu,
+  onNavigateToQr,
 }: {
   onClose?: () => void
   onNavigateToMenu: () => void
+  onNavigateToQr?: () => void
 }) {
   const {
     token,
@@ -88,6 +90,17 @@ export function CartScreen({
   const [couponCode, setCouponCode] = useState("")
   const [appliedDiscount, setAppliedDiscount] = useState<{ code: string; amount: number; label: string } | null>(null)
   const [couponError, setCouponError] = useState<string | null>(null)
+
+  // DYNAMIC CROSS-SELL ITEMS EXCLUDING ITEMS ALREADY IN CART
+  const dynamicCrossSellItems = useMemo(() => {
+    const cartProductIds = new Set(foodCart.map((fc) => fc.product.id))
+    const allMenuItems = cafes.flatMap((c) => c.menuItems || [])
+    const availableItems = allMenuItems.filter((m) => !cartProductIds.has(m.id))
+    if (availableItems.length > 0) {
+      return availableItems.slice(0, 4)
+    }
+    return CROSS_SELL_ITEMS.filter((m) => !cartProductIds.has(m.id))
+  }, [cafes, foodCart])
 
   // CALCULATED TOTALS (SECTION 41)
   const subtotal = useMemo(() => {
@@ -165,45 +178,39 @@ export function CartScreen({
         onOrderCompleted={() => {
           clearFoodCart()
           if (onClose) onClose()
-          onNavigateToMenu()
+          if (onNavigateToQr) {
+            onNavigateToQr()
+          } else {
+            onNavigateToMenu()
+          }
         }}
       />
     )
   }
 
   return (
-    <div className="fixed inset-0 z-[90] flex flex-col bg-background overflow-y-auto no-scrollbar animate-in fade-in duration-200">
-      {/* 1. HEADER (SECTION 8) */}
-      <header className="sticky top-0 z-30 flex items-center justify-between border-b border-border/40 bg-background/95 px-4 py-3 backdrop-blur-md">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={onClose || onNavigateToMenu}
-            aria-label="Geri Dön"
-            className="flex size-9 items-center justify-center rounded-xl border border-border/80 bg-card text-foreground shadow-2xs hover:bg-accent transition active:scale-95"
-          >
-            <ArrowLeft className="size-4" />
-          </button>
-          <div>
-            <h1 className="text-base font-black text-foreground">Sepetim</h1>
-            <p className="text-[10px] text-muted-foreground font-semibold">
-              {foodCart.length} Farklı Ürün · {foodCart.reduce((a, b) => a + b.quantity, 0)} Adet
-            </p>
-          </div>
+    <div className="w-full flex-1 flex flex-col px-4 py-3 pb-24 animate-in fade-in duration-200">
+      {/* IN-PAGE TITLE HEADER */}
+      <header className="space-y-1 mb-3">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Sepetim</h1>
+          {foodCart.length > 0 && (
+            <button
+              onClick={() => setShowClearConfirm(true)}
+              className="flex items-center gap-1.5 rounded-xl border border-destructive/20 bg-destructive/10 px-3 py-1.5 text-xs font-bold text-destructive hover:bg-destructive/20 transition active:scale-95 cursor-pointer"
+            >
+              <Trash2 className="size-3.5" />
+              <span>Temizle</span>
+            </button>
+          )}
         </div>
-
-        {foodCart.length > 0 && (
-          <button
-            onClick={() => setShowClearConfirm(true)}
-            className="flex items-center gap-1 rounded-xl px-2.5 py-1.5 text-xs font-bold text-destructive hover:bg-destructive/10 transition"
-          >
-            <Trash2 className="size-3.5" />
-            <span>Temizle</span>
-          </button>
-        )}
+        <p className="text-xs text-muted-foreground">
+          {foodCart.length > 0 ? `${foodCart.length} Farklı Ürün · ${foodCart.reduce((a, b) => a + b.quantity, 0)} Adet` : "Henüz ürün eklenmedi"}
+        </p>
       </header>
 
       {/* MAIN CART CONTENT */}
-      <div className="flex-1 px-4 py-3 space-y-4 max-w-lg mx-auto w-full pb-36">
+      <div className="flex-1 space-y-4 max-w-lg mx-auto w-full pb-6">
         {/* 2. SEÇİLİ ŞUBE KARTI (SECTION 10 & 11) */}
         <div className="rounded-2xl border border-border bg-card p-3.5 shadow-2xs">
           <div className="flex items-start justify-between">
@@ -266,9 +273,8 @@ export function CartScreen({
                 return (
                   <div
                     key={cartItem.id}
-                    className={`relative flex gap-3 rounded-2xl border p-3.5 shadow-2xs transition bg-card ${
-                      isUnavailable ? "border-destructive/50 bg-destructive/5" : "border-border hover:border-primary/40"
-                    }`}
+                    className={`relative flex gap-3 rounded-2xl border p-3.5 shadow-2xs transition bg-card ${isUnavailable ? "border-destructive/50 bg-destructive/5" : "border-border hover:border-primary/40"
+                      }`}
                   >
                     {/* THUMBNAIL */}
                     <div className="relative size-20 shrink-0 overflow-hidden rounded-xl bg-muted">
@@ -357,42 +363,50 @@ export function CartScreen({
               })}
             </div>
 
-            {/* 5. "KAHVENİN YANINA?" CROSS-SELL (SECTION 54 & 55) */}
-            <div className="pt-2">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-xs font-black uppercase tracking-wider text-muted-foreground px-1">
-                  Kahvenin Yanına Çok Yakışır
-                </h3>
-              </div>
-              <div className="flex gap-2.5 overflow-x-auto no-scrollbar pb-1">
-                {CROSS_SELL_ITEMS.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex w-36 shrink-0 flex-col justify-between rounded-2xl border border-border bg-card p-2 shadow-2xs hover:border-primary/40 transition"
-                  >
-                    <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-muted mb-1.5">
-                      <img src={item.imageUrl} alt={item.name} className="size-full object-cover" />
-                    </div>
-                    <div>
-                      <h4 className="truncate text-[11px] font-black text-foreground">{item.name}</h4>
-                      <div className="mt-1 flex items-center justify-between">
-                        <span className="text-xs font-extrabold text-primary">₺{item.price}</span>
-                        <button
-                          onClick={() => {
-                            addToFoodCart(item, 1, "Standart Lezzet", item.price)
-                            showToast(`${item.name} sepetinize eklendi.`)
-                          }}
-                          aria-label={`${item.name} sepete ekle`}
-                          className="flex size-6 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-2xs hover:scale-105 active:scale-95"
-                        >
-                          <Plus className="size-3.5" strokeWidth={3} />
-                        </button>
+            {/* 5. "SİPARİŞİNİN YANINA" DYNAMIC CROSS-SELL (SECTION 54 & 55) */}
+            {dynamicCrossSellItems.length > 0 && (
+              <div className="pt-2">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-xs font-black uppercase tracking-wider text-muted-foreground px-1">
+                    Siparişinin Yanına Çok Yakışır
+                  </h3>
+                </div>
+                <div className="flex gap-2.5 overflow-x-auto no-scrollbar pb-1">
+                  {dynamicCrossSellItems.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex w-36 shrink-0 flex-col justify-between rounded-2xl border border-border bg-card p-2 shadow-2xs hover:border-emerald-600/40 transition"
+                    >
+                      <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-muted mb-1.5">
+                        <img
+                          src={item.imageUrl || "https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=400&q=80"}
+                          alt={item.name}
+                          className="size-full object-cover"
+                        />
+                      </div>
+                      <div>
+                        <h4 className="truncate text-[11px] font-black text-foreground">{item.name}</h4>
+                        <div className="mt-1 flex items-center justify-between">
+                          <span className="text-xs font-extrabold text-emerald-700 dark:text-emerald-400">
+                            ₺{item.price}
+                          </span>
+                          <button
+                            onClick={() => {
+                              addToFoodCart(item, 1, "Standart Lezzet", item.price)
+                              showToast(`${item.name} sepetinize eklendi.`)
+                            }}
+                            aria-label={`${item.name} sepete ekle`}
+                            className="flex size-6 items-center justify-center rounded-lg bg-emerald-700 text-white shadow-2xs hover:scale-105 active:scale-95 cursor-pointer"
+                          >
+                            <Plus className="size-3.5" strokeWidth={3} />
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* 6. KUPON & KAMPANYA ALANI (SECTION 46 - 49) */}
             <div className="rounded-2xl border border-border bg-card p-3.5 shadow-2xs">
@@ -468,27 +482,27 @@ export function CartScreen({
                 <span>₺{subtotal}</span>
               </div>
               {totalDiscount > 0 && (
-                <div className="flex justify-between text-xs text-emerald-600 dark:text-emerald-400 font-extrabold">
+                <div className="flex justify-between text-xs text-primary font-extrabold">
                   <span>Toplam İndirim</span>
                   <span>-₺{totalDiscount}</span>
                 </div>
               )}
               <div className="border-t border-border/60 pt-2 flex justify-between text-sm font-black text-foreground">
                 <span>Toplam Tutar</span>
-                <span className="text-base text-primary">₺{finalTotal}</span>
+                <span className="text-base text-primary font-extrabold">₺{finalTotal}</span>
               </div>
             </div>
 
             {/* 8. ŞUBEDE ÖDEME BİLGİLENDİRMESİ (SECTION 43 & 113) */}
-            <div className="rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 p-3.5 flex items-start gap-3">
-              <div className="flex size-7 items-center justify-center rounded-lg bg-amber-400 text-amber-950 font-black shrink-0 mt-0.5">
+            <div className="rounded-2xl bg-primary/5 dark:bg-primary/15 border border-primary/20 p-3.5 flex items-start gap-3">
+              <div className="flex size-7 items-center justify-center rounded-lg bg-primary text-primary-foreground font-black shrink-0 mt-0.5">
                 <Info className="size-4" />
               </div>
               <div>
-                <h4 className="text-xs font-black text-amber-900 dark:text-amber-200">
+                <h4 className="text-xs font-black text-primary">
                   Ödemeni Şubede Yapacaksın
                 </h4>
-                <p className="text-[11px] text-amber-800 dark:text-amber-300/90 mt-0.5 leading-snug">
+                <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
                   GölBOX uygulamasında kredi kartı istenmez. Siparişini teslim alırken şubede nakit veya POS kartınızla ödeme yapabilirsiniz.
                 </p>
               </div>
@@ -499,18 +513,18 @@ export function CartScreen({
 
       {/* 9. STICKY BOTTOM GEL-AL'A DEVAM ET BAR (SECTION 44, 45 & 100) */}
       {foodCart.length > 0 && (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 p-4 backdrop-blur-md">
+        <div className="sticky bottom-0 z-20 mt-4 border-t border-border/80 bg-card/95 p-3.5 backdrop-blur-md shadow-lg rounded-2xl">
           <div className="max-w-lg mx-auto flex items-center justify-between gap-4">
             <div>
-              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                Ödenecek Tutar (Şubede)
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">
+                Şubede Ödenecek
               </span>
-              <h3 className="text-lg font-black text-foreground">₺{finalTotal}</h3>
+              <h3 className="text-lg font-black text-primary">₺{finalTotal}</h3>
             </div>
 
             <button
               onClick={handleProceedToGelAl}
-              className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-primary px-6 py-3.5 text-xs font-black text-primary-foreground shadow-md hover:opacity-90 active:scale-95 transition"
+              className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-primary px-6 py-3.5 text-xs font-black text-primary-foreground shadow-md hover:bg-primary/90 active:scale-95 transition cursor-pointer"
             >
               <span>Gel-Al'a Devam Et</span>
               <ChevronRight className="size-4" />
@@ -620,11 +634,10 @@ export function CartScreen({
                       setShowBranchModal(false)
                     }
                   }}
-                  className={`flex items-center justify-between rounded-2xl border p-3 cursor-pointer transition ${
-                    selectedBranch.id === cafe.id
+                  className={`flex items-center justify-between rounded-2xl border p-3 cursor-pointer transition ${selectedBranch.id === cafe.id
                       ? "border-primary bg-primary/10 shadow-2xs"
                       : "border-border bg-card hover:bg-accent"
-                  }`}
+                    }`}
                 >
                   <div className="flex items-start gap-3">
                     <div className="mt-0.5 flex size-7 items-center justify-center rounded-xl bg-primary/20 text-primary">

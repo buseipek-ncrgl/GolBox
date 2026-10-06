@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { fetchCitizens } from '../../../admin/hooks/adminApi';
 import { educationLabel, MAX_MANUAL_GP, MIN_MANUAL_REASON, pointTypeLabel } from '../../../lib/adminLabels';
 import { formatDateTime, formatGp } from '../../../lib/adminDate';
-import { Button, DataTable, Drawer, EmptyState, ErrorState, Input, Modal, NumberInput, Pagination, Select, StatusBadge, Textarea } from '../../../admin/components';
+import { BulkSelectionBar, Button, DataTable, Drawer, EmptyState, ErrorState, Input, Modal, NumberInput, Pagination, Select, StatusBadge, Textarea } from '../../../admin/components';
 import { useAdminFeedback } from '../AdminFeedback';
 import { api } from '../../../services/api';
 
@@ -38,6 +38,7 @@ export function CitizensPage() {
   const [fail, setFail] = useState<unknown>(null);
   const [detail, setDetail] = useState<any>(null);
   const [showPii, setShowPii] = useState(false);
+  const [selected, setSelected] = useState<string[]>([]);
 
   // Manual Points Modal
   const [gpOpen, setGpOpen] = useState(false);
@@ -207,6 +208,7 @@ export function CitizensPage() {
       </form>
 
       {fail ? <ErrorState error={fail} retry={load} /> : null}
+      <BulkSelectionBar count={selected.length} actionLabel="Oturumları sonlandır" danger={false} onClear={() => setSelected([])} onAction={() => confirm({ title: 'Seçili vatandaşların oturumlarını sonlandır', message: `${selected.length} vatandaşın tüm mobil oturumları güvenli biçimde kapatılacak. Hesaplar ve geçmiş işlemler silinmez.`, confirmLabel: 'Oturumları sonlandır', danger: true, onConfirm: async () => { await Promise.all(selected.map((id) => api.revokeUserSessions(id))); setSelected([]); setSuccess('Seçili vatandaşların oturumları sonlandırıldı.'); } })} />
 
       <DataTable
         caption="Vatandaş Hesabı Listesi"
@@ -214,6 +216,8 @@ export function CitizensPage() {
         error={null}
         rows={items}
         getRowId={(u) => u.id}
+        selectedIds={selected}
+        onSelectionChange={setSelected}
         emptyTitle="Henüz kayıtlı vatandaş bulunmuyor."
         emptyDescription="Arama kriterlerinizi değiştirip tekrar deneyin."
         columns={[

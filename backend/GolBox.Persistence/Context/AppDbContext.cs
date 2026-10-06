@@ -37,6 +37,16 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<Activity> Activities => Set<Activity>();
     public DbSet<UserActivity> UserActivities => Set<UserActivity>();
     public DbSet<MenuItem> MenuItems => Set<MenuItem>();
+    public DbSet<Ingredient> Ingredients => Set<Ingredient>();
+    public DbSet<Allergen> Allergens => Set<Allergen>();
+    public DbSet<ProductIngredient> ProductIngredients => Set<ProductIngredient>();
+    public DbSet<ProductAllergen> ProductAllergens => Set<ProductAllergen>();
+    public DbSet<ProductOptionGroup> ProductOptionGroups => Set<ProductOptionGroup>();
+    public DbSet<ProductOption> ProductOptions => Set<ProductOption>();
+    public DbSet<ProductRelation> ProductRelations => Set<ProductRelation>();
+    public DbSet<BranchProduct> BranchProducts => Set<BranchProduct>();
+    public DbSet<BranchHours> BranchHours => Set<BranchHours>();
+    public DbSet<BranchSpecialHours> BranchSpecialHours => Set<BranchSpecialHours>();
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();

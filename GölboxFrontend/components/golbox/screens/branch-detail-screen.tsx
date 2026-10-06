@@ -107,7 +107,7 @@ export function BranchDetailScreen({
             {branch.name}
           </span>
           {isSelected && (
-            <span className="rounded-2xl bg-emerald-600 px-3 py-1.5 text-xs font-black text-white shadow-lg flex items-center gap-1">
+            <span className="rounded-2xl bg-primary px-3 py-1.5 text-xs font-black text-primary-foreground shadow-lg flex items-center gap-1">
               <Check className="size-3.5" strokeWidth={3} />
               Seçili Şuben
             </span>

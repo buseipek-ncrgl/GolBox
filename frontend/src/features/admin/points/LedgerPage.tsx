@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
+import { Award, CircleDollarSign, MinusCircle, PlusCircle, Search, WalletCards } from 'lucide-react';
 import { api } from '../../../services/api';
 import { pagedMeta } from '../../../lib/adminQuery';
 import { pointTypeLabel } from '../../../lib/adminLabels';
 import { formatDateTime, formatGp } from '../../../lib/adminDate';
-import { FilterBar, PaginationBar, EmptyState, ListError, TableWrap } from '../../../components/admin/FilterBar';
+import { PaginationBar, EmptyState, ListError, TableWrap } from '../../../components/admin/FilterBar';
 import { AdminSkeletonTable } from '../../../components/admin/AdminSkeleton';
-import { btnPrimary, inputStyle } from '../../../components/admin/adminUi';
 import { Button, Input, Modal, NumberInput, Select, Textarea } from '../../../admin/components';
 import { useAdminFeedback } from '../AdminFeedback';
 
@@ -22,12 +22,7 @@ export function LedgerPage() {
   const [fail, setFail] = useState<string | null>(null);
 
   // Summary Metrics
-  const [summary, setSummary] = useState({
-    inCirculation: 148500,
-    earnedToday: 12450,
-    spentToday: 4800,
-    activeRewards: 6,
-  });
+  const [summary, setSummary] = useState({ inCirculation: 0, earnedToday: 0, spentToday: 0, activeRewards: 0 });
 
   // Manual Adjustment Modal State
   const [showAdjustModal, setShowAdjustModal] = useState(false);
@@ -36,6 +31,9 @@ export function LedgerPage() {
   const [amount, setAmount] = useState<number>(100);
   const [reason, setReason] = useState('Müşteri destek düzeltmesi');
   const [customReason, setCustomReason] = useState('');
+  const [citizenSearch, setCitizenSearch] = useState('');
+  const [citizens, setCitizens] = useState<any[]>([]);
+  const [citizenLoading, setCitizenLoading] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -44,28 +42,24 @@ export function LedgerPage() {
       const meta = pagedMeta(res, page, pageSize);
       setItems(meta.items);
       setTotal(meta.totalCount);
+      setSummary(res?.summary || { inCirculation: 0, earnedToday: 0, spentToday: 0, activeRewards: 0 });
       setFail(null);
-
-      // Try loading live summary if endpoint available
-      try {
-        const overview = await api.getDashboardOverview();
-        if (overview) {
-          setSummary({
-            inCirculation: overview.pointsInCirculation ?? 148500,
-            earnedToday: overview.pointsEarnedToday ?? 12450,
-            spentToday: overview.pointsSpentToday ?? 4800,
-            activeRewards: overview.activeRewardCount ?? 6,
-          });
-        }
-      } catch {
-        // Fallback to static summary
-      }
     } catch (err: any) {
       setFail(err.message || 'Defter yüklenemedi.');
       setError(err.message);
     } finally {
       setLoading(false);
     }
+  };
+
+  const findCitizens = async () => {
+    if (citizenSearch.trim().length < 2) { setError('Ad, e-posta veya telefon için en az 2 karakter girin.'); return; }
+    setCitizenLoading(true);
+    try {
+      const response = await api.getUsers({ role: 'User', search: citizenSearch.trim(), page: 1, pageSize: 8 });
+      setCitizens(pagedMeta(response).items);
+    } catch (err: any) { setError(err.message || 'Vatandaşlar aranamadı.'); }
+    finally { setCitizenLoading(false); }
   };
 
   useEffect(() => {
@@ -94,13 +88,16 @@ export function LedgerPage() {
       setSavingKey('adjust-points');
       try {
         await api.adjustUserPoints(userId.trim(), {
-          amount: finalAmount,
+          amount: Math.abs(finalAmount),
+          actionType: actionType === 'deduct' ? 'Deduct' : 'Add',
           reason: finalReason,
-          type: actionType === 'deduct' ? 'ManualDeduction' : 'ManualAddition',
+          description: finalReason,
         });
         setSuccess(`GölPuan düzeltmesi başarıyla işlendi (${finalAmount > 0 ? '+' : ''}${finalAmount} GP).`);
         setShowAdjustModal(false);
         setUserId('');
+        setCitizenSearch('');
+        setCitizens([]);
         setAmount(100);
         setReason('Müşteri destek düzeltmesi');
         setCustomReason('');
@@ -128,88 +125,66 @@ export function LedgerPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      {/* Summary KPI Bar */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
-        <div className="admin-card">
+      <div className="catalog-summary" aria-label="GölPuan özeti">
+        <div className="catalog-summary-item"><WalletCards size={18} /><div>
           <div style={{ fontSize: 12, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             Dolaşımdaki GölPuan
           </div>
-          <div style={{ fontSize: 24, fontWeight: 800, marginTop: 4, color: 'var(--brand-primary, #047857)' }}>
+          <div className="loyalty-summary-value">
             {formatGp(summary.inCirculation)}
-          </div>
+          </div></div>
         </div>
-        <div className="admin-card">
+        <div className="catalog-summary-item"><PlusCircle size={18} /><div>
           <div style={{ fontSize: 12, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             Bugün Kazanılan
           </div>
-          <div style={{ fontSize: 24, fontWeight: 800, marginTop: 4, color: '#047857' }}>
+          <div className="loyalty-summary-value positive">
             +{formatGp(summary.earnedToday)}
-          </div>
+          </div></div>
         </div>
-        <div className="admin-card">
+        <div className="catalog-summary-item"><MinusCircle size={18} /><div>
           <div style={{ fontSize: 12, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             Bugün Kullanılan
           </div>
-          <div style={{ fontSize: 24, fontWeight: 800, marginTop: 4, color: '#b91c1c' }}>
+          <div className="loyalty-summary-value negative">
             -{formatGp(summary.spentToday)}
-          </div>
+          </div></div>
         </div>
-        <div className="admin-card">
+        <div className="catalog-summary-item"><Award size={18} /><div>
           <div style={{ fontSize: 12, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             Aktif Ödüller
           </div>
-          <div style={{ fontSize: 24, fontWeight: 800, marginTop: 4 }}>
+          <div className="loyalty-summary-value">
             {summary.activeRewards} Ödül
-          </div>
+          </div></div>
         </div>
       </div>
 
       {/* Action Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>GölPuan Defteri & Transaction Geçmişi</h2>
           <p style={{ margin: '2px 0 0', fontSize: 13, color: 'var(--text-secondary)' }}>
-            Değiştirilemez (immutable) sadakat işlem logları. Puan bakiyesi serbest textbox ile değiştirilemez.
+            Kazanılan, kullanılan ve yönetici tarafından düzeltilen tüm puan hareketlerini izleyin.
           </p>
         </div>
         {isAdmin && (
           <Button data-testid="manual-adjust-btn" onClick={() => setShowAdjustModal(true)}>
-            + Manuel Puan Düzeltmesi
+            <CircleDollarSign size={16} /> Manuel düzeltme
           </Button>
         )}
       </div>
 
-      <FilterBar
-        search={search}
-        onSearch={setSearch}
-        activeCount={[search, type, preset !== '30d'].filter(Boolean).length}
-        onClear={() => {
-          setSearch('');
-          setType('');
-          setPreset('30d');
-          setPage(1);
-        }}
-        filters={
-          <>
-            <select value={type} onChange={(e) => { setType(e.target.value); setPage(1); }} style={inputStyle}>
-              <option value="">İşlem türü</option>
-              {['Earn', 'Spend', 'ManualAddition', 'ManualDeduction', 'Visit', 'Activity'].map((t) => (
-                <option key={t} value={t}>
-                  {pointTypeLabel(t)}
-                </option>
-              ))}
-            </select>
-            <select value={preset} onChange={(e) => setPreset(e.target.value)} style={inputStyle}>
-              <option value="today">Bugün</option>
-              <option value="7d">Son 7 gün</option>
-              <option value="30d">Son 30 gün</option>
-            </select>
-            <button type="button" style={btnPrimary} onClick={() => { setPage(1); void load(); }}>
-              Filtrele
-            </button>
-          </>
-        }
-      />
+      <form className="ledger-filter-bar" onSubmit={(e) => { e.preventDefault(); setPage(1); void load(); }}>
+        <Input label="Hareket ara" placeholder="Vatandaş, açıklama veya kaynak" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <Select label="İşlem türü" value={type} onChange={(e) => { setType(e.target.value); setPage(1); }}>
+          <option value="">Tüm işlemler</option>
+          {['Earn', 'Spend', 'ManualAddition', 'ManualDeduction', 'Visit', 'Activity'].map((t) => <option key={t} value={t}>{pointTypeLabel(t)}</option>)}
+        </Select>
+        <Select label="Dönem" value={preset} onChange={(e) => { setPreset(e.target.value); setPage(1); }}>
+          <option value="today">Bugün</option><option value="7d">Son 7 gün</option><option value="30d">Son 30 gün</option>
+        </Select>
+        <div className="ledger-filter-actions"><Button type="submit">Filtrele</Button><Button type="button" variant="ghost" onClick={() => { setSearch(''); setType(''); setPreset('30d'); setPage(1); }}>Temizle</Button></div>
+      </form>
 
       {fail && <ListError message={fail} onRetry={load} />}
 
@@ -274,13 +249,12 @@ export function LedgerPage() {
             <strong>Güvenlik & Audit Kuralı:</strong> GölPuan bakiyesi doğrudan düzenlenemez. Tüm düzeltmeler gerekçeli ve izlenebilir yeni bir ledger hareketi üretir.
           </div>
 
-          <Input
-            required
-            label="Hedef Vatandaş ID / E-posta / Telefon"
-            placeholder="Örn: USR-1094 veya vatandaş e-postası"
-            value={userId}
-            onChange={(e) => setUserId(e.target.value)}
-          />
+          <div className="loyalty-citizen-search">
+            <Input label="Vatandaş ara" placeholder="Ad, e-posta veya telefon" value={citizenSearch} onChange={(e) => { setCitizenSearch(e.target.value); setUserId(''); }} />
+            <Button type="button" variant="secondary" loading={citizenLoading} onClick={() => void findCitizens()}><Search size={15} /> Ara</Button>
+          </div>
+          {citizens.length > 0 && <div className="loyalty-citizen-results" role="listbox" aria-label="Vatandaş sonuçları">{citizens.map((citizen) => <button type="button" key={citizen.id} className={userId === citizen.id ? 'selected' : ''} onClick={() => { setUserId(citizen.id); setCitizenSearch(`${citizen.firstName} ${citizen.lastName}`.trim()); }}><span>{citizen.firstName} {citizen.lastName}</span><small>{citizen.email || citizen.phoneNumber || citizen.id}</small><b>{formatGp(citizen.pointsBalance)}</b></button>)}</div>}
+          {userId && <p className="admin-helper">Seçilen vatandaş doğrulandı. İşlem mevcut bakiye üzerinden güvenli olarak uygulanacaktır.</p>}
 
           <Select
             label="İşlem Yönü"

@@ -53,10 +53,12 @@ public class EarnBonusPointsCommandHandler : IRequestHandler<EarnBonusPointsComm
         {
             Id = Guid.NewGuid(),
             UserId = user.Id,
+            OrganizationId = user.OrganizationId,
             Amount = request.Amount,
             Type = "Earn",
             Description = string.IsNullOrWhiteSpace(request.Description) ? "Bonus Puan" : request.Description,
             ReferenceType = string.IsNullOrWhiteSpace(request.ReferenceType) ? "Bonus" : request.ReferenceType,
+            BalanceAfter = user.PointsBalance,
             CreatedBy = user.Id,
             CreatedDate = DateTime.UtcNow
         };

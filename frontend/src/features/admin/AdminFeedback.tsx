@@ -73,7 +73,7 @@ function FeedbackInner({ isAdmin, children }: { isAdmin: boolean; children: Reac
   );
 }
 
-export function AdminFeedbackProvider({ isAdmin, children }: { isAdmin: boolean; children: React.ReactNode }) {
+export function AdminFeedbackProvider({ isAdmin = true, children }: { isAdmin?: boolean; children: React.ReactNode }) {
   return (
     <ToastProvider>
       <FeedbackInner isAdmin={isAdmin}>{children}</FeedbackInner>

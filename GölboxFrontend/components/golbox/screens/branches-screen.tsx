@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useRef } from "react"
+import React, { useState, useEffect, useRef, useMemo } from "react"
 import { createPortal } from "react-dom"
 import {
   ArrowLeft,
@@ -32,10 +32,38 @@ import { BranchDetailScreen, type BranchData } from "./branch-detail-screen"
 
 export const GOLBOX_BRANCHES_CATALOG: BranchData[] = [
   {
-    id: "branch-2",
-    name: "GölBOX Üniversite Şubesi",
-    shortAddress: "Üniversite Bulvarı, Şehitkamil",
-    fullAddress: "Gaziantep Üniversitesi Kampüs İçi Rektörlük Yanı No:12, Şehitkamil / Gaziantep",
+    id: "33333333-3333-3333-3333-333333333333",
+    name: "Şehitkamil Kitap Kafe",
+    shortAddress: "İncilipınar Mah. Muammer Aksoy Bulv., Şehitkamil",
+    fullAddress: "İncilipınar Mah. Muammer Aksoy Bulv. No:12, Şehitkamil / Gaziantep",
+    city: "Gaziantep",
+    district: "Şehitkamil",
+    latitude: 37.0662,
+    longitude: 37.3781,
+    distanceMeters: 500,
+    isOpen: true,
+    closesAt: "23:00",
+    pickupStatus: "ACCEPTING",
+    estimatedMin: 5,
+    estimatedMax: 8,
+    phone: "0342 320 00 01",
+    imageUrl: "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=600&auto=format&fit=crop&q=80",
+    workingHours: {
+      "Pazartesi": "07:30 – 23:00",
+      "Salı": "07:30 – 23:00",
+      "Çarşamba": "07:30 – 23:00",
+      "Perşembe": "07:30 – 23:00",
+      "Cuma": "07:30 – 23:00",
+      "Cumartesi": "08:00 – 23:00",
+      "Pazar": "08:00 – 22:30"
+    },
+    features: ["Wi-Fi", "Açık Alan", "Çalışma Alanı", "Erişilebilir Giriş", "Otopark"]
+  },
+  {
+    id: "11111111-1111-1111-1111-111111111111",
+    name: "GölBOX Test Şubesi 2",
+    shortAddress: "Atatürk Mah. 15. Sok., Şehitkamil",
+    fullAddress: "Atatürk Mah. 15. Sok. No:4, Şehitkamil / Gaziantep",
     city: "Gaziantep",
     district: "Şehitkamil",
     latitude: 37.0352,
@@ -46,102 +74,46 @@ export const GOLBOX_BRANCHES_CATALOG: BranchData[] = [
     pickupStatus: "ACCEPTING",
     estimatedMin: 8,
     estimatedMax: 12,
-    phone: "0342 320 00 01",
+    phone: "0342 320 00 02",
     imageUrl: "https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=600&auto=format&fit=crop&q=80",
     workingHours: {
-      "Pazartesi": "08:00 – 23:00",
-      "Salı": "08:00 – 23:00",
-      "Çarşamba": "08:00 – 23:00",
-      "Perşembe": "08:00 – 23:00",
-      "Cuma": "08:00 – 23:00",
-      "Cumartesi": "09:00 – 23:00",
+      "Pazartesi": "07:30 – 23:00",
+      "Salı": "07:30 – 23:00",
+      "Çarşamba": "07:30 – 23:00",
+      "Perşembe": "07:30 – 23:00",
+      "Cuma": "07:30 – 23:00",
+      "Cumartesi": "08:00 – 23:00",
       "Pazar": "09:00 – 22:00"
     },
     features: ["Wi-Fi", "Açık Alan", "Çalışma Alanı", "Erişilebilir Giriş"]
   },
   {
-    id: "branch-1",
-    name: "GölBOX Merkez Şubesi",
-    shortAddress: "Atatürk Bulvarı, Şehitkamil",
-    fullAddress: "Atatürk Mah. Turgut Özal Bulvarı No:42, Şehitkamil / Gaziantep",
-    city: "Gaziantep",
-    district: "Şehitkamil",
-    latitude: 37.0662,
-    longitude: 37.3781,
-    distanceMeters: 2400,
-    isOpen: true,
-    closesAt: "00:00",
-    pickupStatus: "ACCEPTING",
-    estimatedMin: 5,
-    estimatedMax: 8,
-    phone: "0342 320 00 02",
-    imageUrl: "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=600&auto=format&fit=crop&q=80",
-    workingHours: {
-      "Pazartesi": "07:30 – 00:00",
-      "Salı": "07:30 – 00:00",
-      "Çarşamba": "07:30 – 00:00",
-      "Perşembe": "07:30 – 00:00",
-      "Cuma": "07:30 – 00:00",
-      "Cumartesi": "08:00 – 00:00",
-      "Pazar": "08:00 – 23:30"
-    },
-    features: ["Wi-Fi", "Açık Alan", "Çalışma Alanı", "Erişilebilir Giriş", "Otopark"]
-  },
-  {
-    id: "branch-3",
-    name: "GölBOX Park Şubesi",
-    shortAddress: "Dülükbaba Park İçi, Şehitkamil",
-    fullAddress: "Dülükbaba Tabiat Parkı İçi Sosyal Tesis Alanı, Şehitkamil / Gaziantep",
+    id: "22222222-2222-2222-2222-222222222222",
+    name: "GölBOX Test Şubesi 3",
+    shortAddress: "Dülük Mah. 1. Sok., Şehitkamil",
+    fullAddress: "Dülük Mah. 1. Sok. No:8, Şehitkamil / Gaziantep",
     city: "Gaziantep",
     district: "Şehitkamil",
     latitude: 37.1085,
     longitude: 37.3450,
     distanceMeters: 3100,
     isOpen: true,
-    closesAt: "22:00",
-    pickupStatus: "PAUSED",
-    estimatedMin: 15,
-    estimatedMax: 20,
+    closesAt: "23:00",
+    pickupStatus: "ACCEPTING",
+    estimatedMin: 10,
+    estimatedMax: 15,
     phone: "0342 320 00 03",
     imageUrl: "https://images.unsplash.com/photo-1442512595331-e89e73853f31?w=600&auto=format&fit=crop&q=80",
     workingHours: {
-      "Pazartesi": "09:00 – 22:00",
-      "Salı": "09:00 – 22:00",
-      "Çarşamba": "09:00 – 22:00",
-      "Perşembe": "09:00 – 22:00",
-      "Cuma": "09:00 – 22:00",
-      "Cumartesi": "09:00 – 22:00",
+      "Pazartesi": "07:30 – 23:00",
+      "Salı": "07:30 – 23:00",
+      "Çarşamba": "07:30 – 23:00",
+      "Perşembe": "07:30 – 23:00",
+      "Cuma": "07:30 – 23:00",
+      "Cumartesi": "09:00 – 23:00",
       "Pazar": "09:00 – 22:00"
     },
     features: ["Açık Alan", "Manzara", "Erişilebilir Giriş", "Otopark"]
-  },
-  {
-    id: "branch-4",
-    name: "GölBOX İbrahimli Şubesi",
-    shortAddress: "İbrahimli Bulvarı, Şehitkamil",
-    fullAddress: "İbrahimli Mah. Turgut Özal Bulvarı No:108, Şehitkamil / Gaziantep",
-    city: "Gaziantep",
-    district: "Şehitkamil",
-    latitude: 37.0812,
-    longitude: 37.3325,
-    distanceMeters: 4500,
-    isOpen: true,
-    closesAt: "23:30",
-    pickupStatus: "ACCEPTING",
-    estimatedMin: 7,
-    estimatedMax: 10,
-    phone: "0342 320 00 04",
-    imageUrl: "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=600&auto=format&fit=crop&q=80",
-    workingHours: {
-      "Pazartesi": "07:30 – 23:30",
-      "Salı": "07:30 – 23:30",
-      "Çarşamba": "07:30 – 23:30",
-      "Perşembe": "07:30 – 23:30",
-      "Cuma": "07:30 – 23:30",
-      "Cumartesi": "08:00 – 23:30",
-      "Pazar": "08:00 – 23:00"
-    },
-    features: ["Wi-Fi", "Açık Alan", "Erişilebilir Giriş"]
   }
 ]
 
@@ -154,12 +126,12 @@ export function BranchesScreen({
   onSelectBranchSuccess?: (branch: SelectedBranch) => void
   onNavigateToMenu?: () => void
 }) {
-  const { selectedBranch, setSelectedBranch, foodCart } = useGolbox()
+  const { selectedBranch, setSelectedBranch, foodCart, cafes } = useGolbox()
   const showToast = useGolToast()
   const { origin, usingFallback } = useCitizenLocation()
 
   const [search, setSearch] = useState("")
-  const [favoriteBranchIds, setFavoriteBranchIds] = useState<string[]>(["branch-2"])
+  const [favoriteBranchIds, setFavoriteBranchIds] = useState<string[]>(["33333333-3333-3333-3333-333333333333"])
   const [activeDetailBranch, setActiveDetailBranch] = useState<BranchData | null>(null)
 
   const [highlightedBranchId, setHighlightedBranchId] = useState<string | null>(selectedBranch.id)
@@ -169,8 +141,38 @@ export function BranchesScreen({
 
   const cardRefs = useRef<{ [key: string]: HTMLDivElement | null }>({})
 
+  // DYNAMIC BRANCHES FROM BACKEND / CONTEXT
+  const allBranchesList: BranchData[] = useMemo(() => {
+    if (cafes && cafes.length > 0) {
+      return cafes.filter((c) => c.isActive !== false).map((c, idx) => {
+        const fallback = GOLBOX_BRANCHES_CATALOG.find((b) => b.id === c.id) || GOLBOX_BRANCHES_CATALOG[idx % GOLBOX_BRANCHES_CATALOG.length]
+        return {
+          id: c.id,
+          name: c.name,
+          shortAddress: c.address || fallback?.shortAddress || "Şehitkamil / Gaziantep",
+          fullAddress: c.address || fallback?.fullAddress || "Şehitkamil / Gaziantep",
+          city: "Gaziantep",
+          district: "Şehitkamil",
+          latitude: c.latitude || fallback?.latitude || 37.0662,
+          longitude: c.longitude || fallback?.longitude || 37.3781,
+          distanceMeters: fallback?.distanceMeters || (idx + 1) * 600,
+          isOpen: c.isOpen !== false,
+          closesAt: "23:00",
+          pickupStatus: "ACCEPTING",
+          estimatedMin: 5,
+          estimatedMax: 10,
+          phone: "0342 320 00 01",
+          imageUrl: c.imageUrl || fallback?.imageUrl || "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=600&q=80",
+          workingHours: fallback?.workingHours || { "Pazartesi": "07:30 – 23:00" },
+          features: fallback?.features || ["Wi-Fi", "Gel-Al", "Çalışma Alanı"]
+        }
+      })
+    }
+    return GOLBOX_BRANCHES_CATALOG
+  }, [cafes])
+
   // FILTER BRANCHES BASED ON SEARCH QUERY
-  const filteredBranches = GOLBOX_BRANCHES_CATALOG.filter((branch) => {
+  const filteredBranches = allBranchesList.filter((branch) => {
     const q = search.toLowerCase().trim()
     if (!q) return true
     return (
@@ -316,7 +318,7 @@ export function BranchesScreen({
 
         {/* 3. EMBEDDED OPENSTREETMAP CONTAINER (REAL MAP TILES) */}
         {(() => {
-          const activeBranchData = GOLBOX_BRANCHES_CATALOG.find((b) => b.id === (highlightedBranchId || selectedBranch.id)) || GOLBOX_BRANCHES_CATALOG[0]
+          const activeBranchData = allBranchesList.find((b) => b.id === (highlightedBranchId || selectedBranch.id)) || allBranchesList[0]
           const mapLat = activeBranchData.latitude || 37.0662
           const mapLng = activeBranchData.longitude || 37.3781
           const bbox = `${mapLng - 0.015}%2C${mapLat - 0.012}%2C${mapLng + 0.015}%2C${mapLat + 0.012}`
@@ -367,7 +369,7 @@ export function BranchesScreen({
                   setShowLocationHelper(false)
                   showToast("Konum servisleri sorgulanıyor...")
                 }}
-                className="rounded-xl bg-amber-500 px-3 py-1.5 text-[10px] font-black text-amber-950 shadow-2xs hover:bg-amber-400 active:scale-95"
+                className="rounded-xl bg-primary px-3 py-1.5 text-[10px] font-black text-primary-foreground shadow-2xs hover:bg-primary/90 active:scale-95"
               >
                 Konumumu Kullan
               </button>
@@ -426,7 +428,7 @@ export function BranchesScreen({
                     isSelected
                       ? "border-primary bg-primary/5 ring-1 ring-primary/40 shadow-md"
                       : isHighlighted
-                      ? "border-amber-400 bg-amber-50/20 ring-1 ring-amber-400"
+                      ? "border-primary/60 bg-primary/5 ring-1 ring-primary/30"
                       : "border-border bg-card hover:border-primary/40"
                   }`}
                 >

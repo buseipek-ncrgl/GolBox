@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Threading;
 using MediatR;
 using GolBox.Application.Authorization;
 using GolBox.Application.Common;
@@ -42,7 +43,8 @@ public class PointsController : BaseApiController
         [FromQuery] string? search = null,
         [FromQuery] string? preset = null,
         [FromQuery] DateTime? from = null,
-        [FromQuery] DateTime? to = null)
+        [FromQuery] DateTime? to = null,
+        CancellationToken cancellationToken = default)
     {
         (page, pageSize) = AdminPaging.Normalize(page, pageSize);
         var query = _context.PointTransactions.Include(pt => pt.User).AsQueryable();
@@ -66,7 +68,7 @@ public class PointsController : BaseApiController
         }
 
         query = query.OrderByDescending(pt => pt.CreatedDate);
-        var totalCount = await query.CountAsync();
+        var totalCount = await query.CountAsync(cancellationToken);
         var pageRows = await query
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
@@ -80,16 +82,17 @@ public class PointsController : BaseApiController
                 pt.Type,
                 pt.Description,
                 pt.ReferenceType,
+                pt.BalanceAfter,
                 pt.CreatedBy,
                 pt.CreatedDate
             })
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         var actorIds = pageRows.Where(r => r.CreatedBy.HasValue).Select(r => r.CreatedBy!.Value).Distinct().ToList();
         var actors = actorIds.Count == 0
             ? new Dictionary<Guid, string>()
             : await _context.Users.Where(u => actorIds.Contains(u.Id))
-                .ToDictionaryAsync(u => u.Id, u => (u.FirstName + " " + u.LastName).Trim());
+                .ToDictionaryAsync(u => u.Id, u => (u.FirstName + " " + u.LastName).Trim(), cancellationToken);
 
         var items = pageRows.Select(pt => new
         {
@@ -101,12 +104,32 @@ public class PointsController : BaseApiController
             pt.Type,
             pt.Description,
             source = pt.ReferenceType,
+            pt.BalanceAfter,
             pt.CreatedBy,
             actorName = pt.CreatedBy.HasValue && actors.TryGetValue(pt.CreatedBy.Value, out var name) ? name : null,
             pt.CreatedDate
         }).ToList();
 
-        return Ok(Result<object>.Ok(new { items, page, pageSize, totalCount }));
+        var (todayFrom, todayTo) = AdminDateRange.Today();
+        var inCirculation = await _context.Users
+            .Where(u => u.Role == "User" || u.Role == "Citizen")
+            .SumAsync(u => (int?)u.PointsBalance, cancellationToken) ?? 0;
+        var earnedToday = await _context.PointTransactions
+            .Where(pt => pt.CreatedDate >= todayFrom && pt.CreatedDate < todayTo && pt.Amount > 0)
+            .SumAsync(pt => (int?)pt.Amount, cancellationToken) ?? 0;
+        var spentTodayRaw = await _context.PointTransactions
+            .Where(pt => pt.CreatedDate >= todayFrom && pt.CreatedDate < todayTo && pt.Amount < 0)
+            .SumAsync(pt => (int?)pt.Amount, cancellationToken) ?? 0;
+        var activeRewards = await _context.Rewards.CountAsync(r => r.Status == "Active", cancellationToken);
+
+        return Ok(Result<object>.Ok(new
+        {
+            items,
+            page,
+            pageSize,
+            totalCount,
+            summary = new { inCirculation, earnedToday, spentToday = Math.Abs(spentTodayRaw), activeRewards }
+        }));
     }
 
     [HttpPost("grant")]
@@ -136,6 +159,7 @@ public class PointsController : BaseApiController
     }
 
     [HttpPost("earn")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
     public async Task<IActionResult> EarnBonusPoints([FromBody] EarnBonusPointsCommand command)
     {
         var result = await _mediator.Send(command);

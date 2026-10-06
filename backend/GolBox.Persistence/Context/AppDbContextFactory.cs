@@ -8,7 +8,7 @@ public sealed class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbConte
     public AppDbContext CreateDbContext(string[] args)
     {
         var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseSqlServer("Server=(localdb)\\mssqllocaldb;Database=GolBoxDesign;Trusted_Connection=True;TrustServerCertificate=True")
+            .UseSqlite("Data Source=golbox.db")
             .Options;
         return new AppDbContext(options);
     }

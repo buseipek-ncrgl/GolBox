@@ -3,13 +3,16 @@
 import React, { useId, useState } from "react"
 import { Coffee, Smartphone, Eye, EyeOff, AlertCircle, ArrowRight, ArrowLeft, FileText, CheckCircle2 } from "lucide-react"
 import { useGolbox } from "@/lib/golbox-context"
+import { GolboxBrandLogo } from "@/components/golbox/golbox-brand-logo"
 
 export function LoginScreen({
   onClose,
   closeLabel = "Geri",
+  onReplaySplash,
 }: {
   onClose?: () => void
   closeLabel?: string
+  onReplaySplash?: () => void
 }) {
   const { login, register, loading } = useGolbox()
   const [isRegister, setIsRegister] = useState(false)
@@ -156,16 +159,27 @@ export function LoginScreen({
   return (
     <div className="gol-fade-up gol-screen flex h-full flex-col justify-start pt-6 px-2">
       <div className="mb-6 flex flex-col items-center text-center">
-        <span
-          aria-hidden
-          className="mb-2 flex size-14 items-center justify-center rounded-full bg-emerald-700 text-white shadow-md"
+        <button
+          type="button"
+          onClick={onReplaySplash}
+          title="Açılış ekranını (Splash) önizle"
+          className="group cursor-pointer"
         >
-          <Coffee className="size-7" />
-        </span>
+          <GolboxBrandLogo size={90} className="mb-3 transition-transform group-hover:scale-105" />
+        </button>
         <h1 className="font-serif text-[1.85rem] font-bold text-foreground">GölBOX'a Hoş Geldin</h1>
-        <p className="mt-1 max-w-[18rem] text-xs font-medium text-amber-600 dark:text-amber-400 italic">
+        <p className="mt-1 max-w-[18rem] text-xs font-medium text-emerald-700 dark:text-emerald-400 italic">
           "Kahveni seç, GölPuan kazan, sıra beklemeden Gel-Al."
         </p>
+        {onReplaySplash && (
+          <button
+            type="button"
+            onClick={onReplaySplash}
+            className="mt-2.5 inline-flex items-center gap-1 rounded-full bg-emerald-100 dark:bg-emerald-950/80 px-3 py-1 text-[11px] font-bold text-emerald-800 dark:text-emerald-300 hover:bg-emerald-200 transition cursor-pointer"
+          >
+            ✨ Açılış Ekranını (Splash) Önizle
+          </button>
+        )}
         {onClose ? (
           <button type="button" onClick={onClose} className="mt-2 text-xs font-semibold text-primary">
             {closeLabel}

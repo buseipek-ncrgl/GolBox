@@ -46,8 +46,9 @@ public class GlobalExceptionMiddleware
     {
         context.Response.ContentType = "application/json";
 
-        if (exception is DbUpdateConcurrencyException)
+        if (exception is DbUpdateConcurrencyException concEx)
         {
+            _logger.LogError(concEx, "DbUpdateConcurrencyException caught: {Message}. Entries: {Entries}", concEx.Message, string.Join(", ", concEx.Entries.Select(e => $"{e.Entity.GetType().Name} ({e.State})")));
             context.Response.StatusCode = (int)HttpStatusCode.Conflict;
             var conflict = Result.Fail("Kayıt başka bir işlem tarafından güncellendi. Lütfen tekrar deneyin.");
             var conflictJson = JsonSerializer.Serialize(conflict, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
