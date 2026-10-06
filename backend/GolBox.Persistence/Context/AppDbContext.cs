@@ -102,6 +102,11 @@ public class AppDbContext : DbContext, IAppDbContext
             {
                 entry.Entity.CreatedDate = DateTime.UtcNow;
                 entry.Entity.IsDeleted = false;
+
+                if (entry.Entity is Cafe cafe && string.IsNullOrWhiteSpace(cafe.Code))
+                {
+                    cafe.Code = "BR-" + (cafe.Id != Guid.Empty ? cafe.Id.ToString("N")[..8].ToUpperInvariant() : Guid.NewGuid().ToString("N")[..8].ToUpperInvariant());
+                }
             }
             else if (entry.State == EntityState.Modified)
             {
