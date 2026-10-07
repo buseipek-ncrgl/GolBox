@@ -1,5 +1,6 @@
 using GolBox.Api.Controllers;
 using GolBox.Api.Hubs;
+using GolBox.Api.Services;
 using GolBox.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
@@ -34,7 +35,8 @@ public class CatalogPricingTests
         db.BranchProducts.Add(new BranchProduct { Id = Guid.NewGuid(), CafeId = cafe.Id, MenuItemId = product.Id, IsAvailable = true });
         await db.SaveChangesAsync();
 
-        var controller = new OrdersController(db, new FakeCurrentUser { UserId = user.Id, Role = "User" }, new FakeHubContext<OrderHub>());
+        var controller = new OrdersController(db, new FakeCurrentUser { UserId = user.Id, Role = "User" }, new FakeHubContext<OrderHub>(),
+            new CitizenNotificationService(db, new FakeHubContext<NotificationHub>()));
         var result = await controller.CreateOrder(new CreateOrderRequest
         {
             UserId = user.Id,
@@ -71,7 +73,8 @@ public class CatalogPricingTests
         db.BranchProducts.Add(new BranchProduct { Id = Guid.NewGuid(), CafeId = cafe.Id, MenuItemId = product.Id, IsAvailable = true });
         await db.SaveChangesAsync();
 
-        var controller = new OrdersController(db, new FakeCurrentUser { UserId = user.Id, Role = "User" }, new FakeHubContext<OrderHub>());
+        var controller = new OrdersController(db, new FakeCurrentUser { UserId = user.Id, Role = "User" }, new FakeHubContext<OrderHub>(),
+            new CitizenNotificationService(db, new FakeHubContext<NotificationHub>()));
         var result = await controller.CreateOrder(new CreateOrderRequest
         {
             UserId = user.Id,

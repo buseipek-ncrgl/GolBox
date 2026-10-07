@@ -1,6 +1,7 @@
 using System.Collections;
 using GolBox.Api.Controllers;
 using GolBox.Api.Hubs;
+using GolBox.Api.Services;
 using GolBox.Application.Authorization;
 using GolBox.Application.Common;
 using GolBox.Application.Features.Points.Commands;
@@ -185,7 +186,8 @@ public class AdminHardeningTests
         await db.SaveChangesAsync();
 
         Assert.True(OrderStatuses.CanTransition(OrderStatuses.Ready, OrderStatuses.Cancelled));
-        var controller = new OrdersController(db, new FakeCurrentUser { UserId = Guid.NewGuid(), Role = "Staff" }, new FakeHubContext<OrderHub>());
+        var controller = new OrdersController(db, new FakeCurrentUser { UserId = Guid.NewGuid(), Role = "Staff" }, new FakeHubContext<OrderHub>(),
+            new CitizenNotificationService(db, new FakeHubContext<NotificationHub>()));
         Assert.Equal(200, ActionResultAssert.Status(await controller.UpdateOrderStatus(order.Id, new UpdateOrderStatusRequest { Status = "Cancelled" })));
         Assert.Equal(OrderStatuses.Cancelled, (await db.Orders.FindAsync(order.Id))!.Status);
         Assert.Equal(50, (await db.Users.FindAsync(user.Id))!.PointsBalance);

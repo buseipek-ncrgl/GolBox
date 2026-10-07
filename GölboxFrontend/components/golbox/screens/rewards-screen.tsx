@@ -10,7 +10,7 @@ import { useGolbox } from "@/lib/golbox-context"
 
 type MainTab = "discover" | "my-rewards" | "movements"
 type SourceFilter = "all" | "GolPuan" | "Ismarliyor" | "GiftHunt"
-export type RewardsTabProp = "discover" | "my-rewards" | "catalog" | "coupons" | "cart"
+export type RewardsTabProp = "discover" | "my-rewards" | "movements" | "catalog" | "coupons" | "cart"
 
 export interface CombinedRewardClaim {
   id: string
@@ -36,7 +36,11 @@ export function RewardsScreen({
   onOpenMissions?: () => void
 }) {
   const { user, token, orders, rewards, claimedRewards, cafes, claimReward, pointTransactions, loading } = useGolbox()
-  const mappedInitial = initialTab === "coupons" || initialTab === "my-rewards" ? "my-rewards" : "discover"
+  const mappedInitial: MainTab = initialTab === "coupons" || initialTab === "my-rewards"
+    ? "my-rewards"
+    : initialTab === "movements"
+      ? "movements"
+      : "discover"
   const [tab, setTab] = useState<MainTab>(mappedInitial)
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all")
   const [showLogin, setShowLogin] = useState(false)

@@ -202,7 +202,7 @@ export function ProfileScreen({
   const [showFavorites, setShowFavorites] = useState(false)
   const [showNotifPrefs, setShowNotifPrefs] = useState(false)
   const [favoritesTab, setFavoritesTab] = useState<"products" | "recipes">("products")
-  const [rewardsTab, setRewardsTab] = useState<"catalog" | "cart" | "coupons">("catalog")
+  const [rewardsTab, setRewardsTab] = useState<"catalog" | "cart" | "coupons" | "movements">("catalog")
 
   useEffect(() => {
     if (token) void loadMyCaptures()
@@ -213,7 +213,7 @@ export function ProfileScreen({
   const activeCoupons = claimedRewards.filter(isActiveCoupon)
   const gpRows =
     token && pointTransactions.length > 0
-      ? pointTransactions.slice(0, 8).map((pt) => ({
+      ? pointTransactions.slice(0, 4).map((pt) => ({
           id: pt.id,
           label: pt.description || "GölPuan",
           when: formatWhen(pt.createdDate),
@@ -553,7 +553,24 @@ export function ProfileScreen({
 
       {gpRows.length > 0 ? (
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-foreground">Puan hareketleri</h2>
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">Son puan hareketleri</h2>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">En son 4 işlem gösteriliyor.</p>
+          </div>
+          {pointTransactions.length > 4 ? (
+            <button
+              type="button"
+              onClick={() => {
+                setRewardsTab("movements")
+                setShowRewards(true)
+              }}
+              className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-black text-primary hover:bg-primary/15"
+            >
+              Tümünü Gör <ChevronRight className="size-3.5" />
+            </button>
+          ) : null}
+        </div>
         <ul className="gol-card divide-y divide-border">
           {gpRows.map((row) => (
             <li key={row.id} className="flex items-center gap-3 px-4 py-3">

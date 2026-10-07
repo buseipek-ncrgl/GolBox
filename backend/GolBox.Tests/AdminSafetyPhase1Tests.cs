@@ -1,5 +1,6 @@
 using GolBox.Api.Controllers;
 using GolBox.Api.Hubs;
+using GolBox.Api.Services;
 using GolBox.Application.Authorization;
 using GolBox.Application.Common;
 using GolBox.Application.Notifications;
@@ -340,7 +341,7 @@ public class AdminSafetyPhase1Tests
         await using var __ = db;
         db.Organizations.Add(TestData.Org());
         await db.SaveChangesAsync();
-        var result = await new CampaignsController(db).CreateCampaign(new CampaignsController.CreateCampaignRequest
+        var result = await new CampaignsController(db, new FakeCurrentUser { UserId = Guid.NewGuid(), Role = "Admin" }).CreateCampaign(new CampaignsController.CreateCampaignRequest
         {
             Title = "Bahar duyurusu",
             Description = "İçerik",
@@ -399,7 +400,8 @@ public class AdminSafetyPhase1Tests
     }
 
     private static OrdersController OrderController(GolBox.Persistence.Context.AppDbContext db) =>
-        new(db, new FakeCurrentUser { UserId = Guid.NewGuid(), Role = "Staff", Email = "staff@test.local" }, new FakeHubContext<OrderHub>());
+        new(db, new FakeCurrentUser { UserId = Guid.NewGuid(), Role = "Staff", Email = "staff@test.local" }, new FakeHubContext<OrderHub>(),
+            new CitizenNotificationService(db, new FakeHubContext<NotificationHub>()));
 
     private static UsersController UsersController(GolBox.Persistence.Context.AppDbContext db) =>
         new(null!, db, new FakeCurrentUser { UserId = Guid.NewGuid(), Role = "Admin", Email = "admin@test.local" });

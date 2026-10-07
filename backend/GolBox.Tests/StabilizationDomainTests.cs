@@ -133,6 +133,19 @@ public class StabilizationDomainTests
     }
 
     [Fact]
+    public async Task Development_Seed_Is_Idempotent_And_Creates_One_Default_Staff_User()
+    {
+        var (conn, db) = TestDb.OpenMigrated();
+        await using var _ = conn;
+        await using var __ = db;
+
+        await DbInitializer.SeedAsync(db, new StubPasswordHasher(), isDevelopment: true);
+        await DbInitializer.SeedAsync(db, new StubPasswordHasher(), isDevelopment: true);
+
+        Assert.Equal(1, await db.Users.CountAsync(u => u.Email == "staff@golbox.gov.tr"));
+    }
+
+    [Fact]
     public async Task Fresh_Sqlite_Migrate_Creates_Required_Tables()
     {
         var (conn, db) = TestDb.OpenMigrated();

@@ -98,7 +98,6 @@ public static class DbInitializer
 
         await EnsureMissingSettingsAsync(context, orgId);
         await TryBootstrapAdminAsync(context, passwordHasher, orgId, bootstrapAdminEmail, bootstrapAdminPassword);
-        await EnsureStaffUserAsync(context, passwordHasher, orgId);
 
         if (isDevelopment)
         {
@@ -341,6 +340,11 @@ public static class DbInitializer
                 );
                 await context.SaveChangesAsync();
             }
+
+            // Keep the deterministic staff account available only in development.
+            // This must run after the bulk test-user seed above, otherwise a fresh
+            // database tries to insert staff@golbox.gov.tr twice in the same startup.
+            await EnsureStaffUserAsync(context, passwordHasher, orgId);
 
             // 5. Seed Rewards
             if (!await context.Rewards.AnyAsync(r => r.OrganizationId == orgId))
