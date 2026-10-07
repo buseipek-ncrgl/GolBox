@@ -622,9 +622,9 @@ export function CartScreen({
             </div>
 
             <div className="mt-3 space-y-2">
-              {cafes.map((cafe) => (
+              {cafes.map((cafe, cafeIndex) => (
                 <div
-                  key={cafe.id}
+                  key={`${cafe.id}-${cafeIndex}`}
                   onClick={() => {
                     if (foodCart.length > 0 && selectedBranch.id !== cafe.id) {
                       setPendingBranch(cafe)

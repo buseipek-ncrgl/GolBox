@@ -28,12 +28,26 @@ import { useGolbox } from "@/lib/golbox-context"
 import type { TabId } from "@/lib/golbox-data"
 import { ActiveOrderScreen } from "@/components/golbox/screens/active-order-screen"
 import { IsmarliyorCard } from "@/components/golbox/home/ismarliyor-card"
+import { API_BASE_URL } from "@/lib/api-config"
+
+interface FeaturedMission {
+  id: string
+  title: string
+  description: string
+  shortDescription?: string
+  category?: string
+  pointsReward: number
+  currentProgress: number
+  targetProgress: number
+  isCompleted: boolean
+}
 
 export function HomeScreen({
   onNavigate,
   onOpenCampaigns,
   onOpenEvents,
   onOpenMissions,
+  onOpenCoupons,
   hideHeader = false,
 }: {
   onNavigate: (tab: TabId) => void
@@ -41,6 +55,7 @@ export function HomeScreen({
   onOpenCampaigns?: () => void
   onOpenEvents?: () => void
   onOpenMissions?: () => void
+  onOpenCoupons?: () => void
   hideHeader?: boolean
 }) {
   const { token, user, unreadCount, orders, selectedBranch } = useGolbox()
@@ -51,6 +66,8 @@ export function HomeScreen({
   const [showNotifications, setShowNotifications] = useState(false)
   const [notifications] = useState<CitizenNotification[]>([])
   const [notificationsLoading] = useState(false)
+  const [featuredMission, setFeaturedMission] = useState<FeaturedMission | null>(null)
+  const [missionLoading, setMissionLoading] = useState(false)
 
   const isLoggedIn = Boolean(token)
   
@@ -95,6 +112,34 @@ export function HomeScreen({
   useEffect(() => {
     void loadHomeContent()
   }, [loadHomeContent])
+
+  useEffect(() => {
+    if (!token) {
+      setFeaturedMission(null)
+      return
+    }
+
+    let cancelled = false
+    const loadFeaturedMission = async () => {
+      setMissionLoading(true)
+      try {
+        const response = await fetch(`${API_BASE_URL}/tasks`, {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
+        })
+        const body = await response.json()
+        const rows: FeaturedMission[] = response.ok && body.success && Array.isArray(body.data) ? body.data : []
+        if (!cancelled) setFeaturedMission(rows.find((mission) => !mission.isCompleted) || rows[0] || null)
+      } catch {
+        if (!cancelled) setFeaturedMission(null)
+      } finally {
+        if (!cancelled) setMissionLoading(false)
+      }
+    }
+
+    void loadFeaturedMission()
+    return () => { cancelled = true }
+  }, [token])
 
   return (
     <Screen className="space-y-4.5 pb-32">
@@ -194,7 +239,7 @@ export function HomeScreen({
       </button>
 
       {/* 4. ISMARLIYOR KAMPANYASI (HIGH PRIORITY) */}
-      <IsmarliyorCard />
+      <IsmarliyorCard onJoinSuccess={onOpenCoupons} />
 
       {/* 4. QUICK CATEGORIES SHORTCUTS */}
       <div>
@@ -414,30 +459,47 @@ export function HomeScreen({
             )}
           </div>
 
-          <div
-            onClick={onOpenMissions}
-            className="cursor-pointer rounded-2xl border border-border bg-card p-3.5 shadow-2xs hover:border-emerald-600/40 transition group"
-          >
-            <div className="flex items-center justify-between">
-              <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">
-                <Award className="size-3" /> HAFTALIK GÖREV
-              </span>
-              <span className="text-xs font-bold text-amber-600 dark:text-amber-400">+150 GP</span>
+          {missionLoading ? (
+            <div className="rounded-2xl border border-border bg-card p-4 text-xs font-medium text-muted-foreground">
+              Aktif görev yükleniyor...
             </div>
-            <h3 className="mt-1 text-xs font-bold text-foreground group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors">
-              Bu Hafta 3 Kahve Al
-            </h3>
-            <p className="text-[11px] text-muted-foreground mt-0.5">3 adet kahve siparişi ver, 150 GölPuan kazan.</p>
-            <div className="mt-2">
-              <div className="flex justify-between text-[10px] text-muted-foreground mb-1 font-medium">
-                <span>İlerleme: 2 / 3 tamamlandı</span>
-                <span className="font-bold text-emerald-700 dark:text-emerald-400">%66</span>
+          ) : featuredMission ? (() => {
+            const target = Math.max(1, featuredMission.targetProgress || 1)
+            const progress = Math.min(target, Math.max(0, featuredMission.currentProgress || 0))
+            const percent = Math.min(100, Math.round((progress / target) * 100))
+            return (
+              <div
+                onClick={onOpenMissions}
+                className="cursor-pointer rounded-2xl border border-border bg-card p-3.5 shadow-2xs hover:border-emerald-600/40 transition group"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">
+                    <Award className="size-3" /> {featuredMission.category || "GölBOX"} GÖREVİ
+                  </span>
+                  <span className="text-xs font-bold text-amber-600 dark:text-amber-400">+{featuredMission.pointsReward || 0} GP</span>
+                </div>
+                <h3 className="mt-1 text-xs font-bold text-foreground group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors">
+                  {featuredMission.title}
+                </h3>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  {featuredMission.shortDescription || featuredMission.description}
+                </p>
+                <div className="mt-2">
+                  <div className="flex justify-between text-[10px] text-muted-foreground mb-1 font-medium">
+                    <span>İlerleme: {progress} / {target} tamamlandı</span>
+                    <span className="font-bold text-emerald-700 dark:text-emerald-400">%{percent}</span>
+                  </div>
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                    <div className="h-full rounded-full bg-emerald-600" style={{ width: `${percent}%` }} />
+                  </div>
+                </div>
               </div>
-              <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                <div className="h-full rounded-full bg-emerald-600" style={{ width: "66%" }} />
-              </div>
+            )
+          })() : (
+            <div className="rounded-2xl border border-dashed border-border bg-card p-4 text-xs text-muted-foreground">
+              Şu anda aktif görev bulunmuyor. Yeni görevler yayınlandığında burada görünecek.
             </div>
-          </div>
+          )}
         </div>
       )}
 
@@ -469,4 +531,3 @@ export function HomeScreen({
     </Screen>
   )
 }
-

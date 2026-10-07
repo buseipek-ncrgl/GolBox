@@ -72,6 +72,7 @@ public class ActivitiesController : BaseApiController
                 a.Id,
                 a.Title,
                 a.Description,
+                a.Category,
                 a.ImageUrl,
                 a.Location,
                 a.StartDate,
@@ -108,7 +109,8 @@ public class ActivitiesController : BaseApiController
                 a.PlaceName,
                 a.PlaceAddress,
                 a.PlaceLatitude,
-                a.PlaceLongitude);
+                a.PlaceLongitude,
+                a.Category ?? "Gençlik");
         }).ToList();
 
         return Ok(Result<object>.Ok(new PagedResult<PublicActivityDto>(items, page, pageSize, total)));
@@ -369,6 +371,7 @@ public class ActivitiesController : BaseApiController
             Id = Guid.NewGuid(),
             OrganizationId = request.OrganizationId == Guid.Empty ? KnownOrganizations.Sehitkamil : request.OrganizationId,
             Title = request.Title.Trim(),
+            Category = string.IsNullOrWhiteSpace(request.Category) ? "Gençlik" : request.Category.Trim(),
             Description = request.Description?.Trim() ?? string.Empty,
             PointsReward = request.PointsReward,
             Location = location,
@@ -425,6 +428,7 @@ public class ActivitiesController : BaseApiController
 
         var previous = activity.Title;
         activity.Title = request.Title.Trim();
+        activity.Category = string.IsNullOrWhiteSpace(request.Category) ? "Gençlik" : request.Category.Trim();
         activity.Description = request.Description?.Trim() ?? string.Empty;
         activity.PointsReward = request.PointsReward;
         activity.Location = location;
@@ -531,7 +535,8 @@ public record PublicActivityDto(
     string? PlaceName = null,
     string? PlaceAddress = null,
     decimal? PlaceLatitude = null,
-    decimal? PlaceLongitude = null
+    decimal? PlaceLongitude = null,
+    string Category = "Gençlik"
 );
 
 public class EventCheckInRequest
@@ -545,6 +550,7 @@ public class CreateActivityRequest
     public Guid OrganizationId { get; set; } = KnownOrganizations.Sehitkamil;
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
+    public string? Category { get; set; } = "Gençlik";
     public int PointsReward { get; set; }
     public string Location { get; set; } = string.Empty;
     public string? ImageUrl { get; set; }

@@ -8,6 +8,7 @@ export function Modal({
   size = 'md',
   children,
   footer,
+  role = 'dialog',
   onClose
 }: {
   open: boolean;
@@ -15,6 +16,7 @@ export function Modal({
   size?: 'sm' | 'md' | 'lg' | 'xl';
   children: React.ReactNode;
   footer?: React.ReactNode;
+  role?: 'dialog' | 'alertdialog';
   onClose: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -26,7 +28,7 @@ export function Modal({
     <div className="admin-overlay" onClick={onClose}>
       <div
         ref={ref}
-        role="dialog"
+        role={role}
         aria-modal="true"
         aria-labelledby={titleId}
         className={`admin-modal admin-modal-${size}`}

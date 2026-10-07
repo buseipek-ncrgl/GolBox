@@ -202,6 +202,7 @@ export function NotificationsSheet({
   onClose,
   onLogin,
   onOpen,
+  onMarkRead,
   onMarkAllRead,
 }: {
   isLoggedIn: boolean
@@ -210,6 +211,7 @@ export function NotificationsSheet({
   onClose: () => void
   onLogin: () => void
   onOpen: (item: CitizenNotification) => void
+  onMarkRead?: (item: CitizenNotification) => void
   onMarkAllRead?: () => void
 }) {
   const [filterCategory, setFilterCategory] = useState<"ALL" | "ORDER" | "EVENT" | "MISSION" | "REWARD">("ALL")
@@ -251,6 +253,15 @@ export function NotificationsSheet({
     if (onMarkAllRead) onMarkAllRead()
   }
 
+  const handleMarkRead = (item: CitizenNotification) => {
+    setNotificationsList((prev) =>
+      prev.map((notification) =>
+        notification.id === item.id ? { ...notification, isRead: true } : notification
+      )
+    )
+    onMarkRead?.(item)
+  }
+
   const renderNotificationCard = (item: CitizenNotification) => {
     let icon = <Bell className="size-4 text-primary" />
     let iconBg = "bg-primary/10 border border-primary/20 text-primary"
@@ -277,9 +288,6 @@ export function NotificationsSheet({
         key={item.id}
         type="button"
         onClick={() => {
-          setNotificationsList((prev) =>
-            prev.map((n) => (n.id === item.id ? { ...n, isRead: true } : n))
-          )
           onOpen(item)
         }}
         className={`group flex w-full items-start gap-3 rounded-2xl border p-3.5 text-left transition ${
@@ -302,16 +310,12 @@ export function NotificationsSheet({
                 tabIndex={0}
                 onClick={(e) => {
                   e.stopPropagation()
-                  setNotificationsList((prev) =>
-                    prev.map((n) => (n.id === item.id ? { ...n, isRead: true } : n))
-                  )
+                  handleMarkRead(item)
                 }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
                     e.stopPropagation()
-                    setNotificationsList((prev) =>
-                      prev.map((n) => (n.id === item.id ? { ...n, isRead: true } : n))
-                    )
+                    handleMarkRead(item)
                   }
                 }}
                 className="flex items-center gap-1 rounded-md bg-primary/10 border border-primary/20 px-2 py-0.5 text-[10px] font-bold text-primary hover:bg-primary/20 transition cursor-pointer"

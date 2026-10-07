@@ -17,6 +17,7 @@ const MenuPage = lazy(() => import('./features/admin/menu/CatalogMenuPage').then
 const LedgerPage = lazy(() => import('./features/admin/points/LedgerPage').then((m) => ({ default: m.LedgerPage })));
 const QrPage = lazy(() => import('./features/admin/qr/QrOperationsPage').then((m) => ({ default: m.QrOperationsPage })));
 const RewardsPage = lazy(() => import('./features/admin/rewards/RewardsPage').then((m) => ({ default: m.RewardsPage })));
+const FieldDropsPage = lazy(() => import('./features/admin/fielddrops/FieldDropsPage').then((m) => ({ default: m.FieldDropsPage })));
 const OrdersPage = lazy(() => import('./features/admin/orders/OrdersOperationsPage').then((m) => ({ default: m.OrdersOperationsPage })));
 const IsmarliyorPage = lazy(() => import('./features/admin/orders/IsmarliyorPage').then((m) => ({ default: m.IsmarliyorPage })));
 const CampaignsPage = lazy(() => import('./features/admin/campaigns/CampaignsPage').then((m) => ({ default: m.CampaignsPage })));
@@ -65,6 +66,7 @@ const MainApp = () => {
           <Route path="golpuan" element={<LedgerPage />} />
           <Route path="qr" element={<QrPage />} />
           <Route path="oduller" element={<RewardsPage />} />
+          <Route path="saha-hediyeleri" element={<FieldDropsPage />} />
           <Route path="siparisler" element={<OrdersPage />} />
           <Route path="ismarliyor" element={<IsmarliyorPage />} />
           <Route path="icerikler" element={<HomeContentPage />} />

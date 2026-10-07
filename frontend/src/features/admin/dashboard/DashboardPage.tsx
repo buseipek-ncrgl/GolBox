@@ -55,6 +55,7 @@ export function DashboardPage() {
     { id: 'kpi-total-orders', label: 'Toplam Sipariş', value: totalOrders, icon: ShoppingBag, color: '#047857', to: '/admin/siparisler' },
     { id: 'kpi-completed-orders', label: 'Tamamlanan Sipariş', value: completedOrders, icon: CheckCircle, color: '#059669', to: '/admin/siparisler' },
     { id: 'kpi-active-orders', label: 'Aktif Sipariş', value: metrics.activeOrdersCount ?? 0, icon: Clock, color: '#b45309', to: '/admin/siparisler' },
+    { id: 'kpi-active-ismarliyor', label: 'Aktif Ismarlıyor', value: metrics.activeIsmarliyorCount ?? metrics.activeOrdersCount ?? 0, icon: Gift, color: '#0284c7', to: '/admin/ismarliyor' },
     { id: 'kpi-recorded-sales', label: 'Tamamlanan Satış', value: formatCurrency(salesRevenue), icon: DollarSign, color: '#0d9488', to: '/admin/raporlar' },
   ];
 
@@ -173,7 +174,7 @@ export function DashboardPage() {
 
       {/* SLA / Operation Alerts */}
       <div id="operation-alerts" data-testid="operation-alerts" className="admin-card">
-        <div className="overview-section-title"><div><h2>Müdahale gereken siparişler</h2><p>{CRITICAL_ORDER_MINUTES} dakikayı aşan aktif siparişler</p></div><Link to="/admin/siparisler" className="overview-link">Siparişlere git <ArrowRight size={14} /></Link></div>
+        <div data-testid="critical-queue" className="overview-section-title"><div><h2>Müdahale gereken siparişler</h2><p>{CRITICAL_ORDER_MINUTES} dakikayı aşan aktif siparişler</p></div><Link to="/admin/siparisler" className="overview-link">Siparişlere git <ArrowRight size={14} /></Link></div>
         {critical.length === 0 ? (
           <p className="admin-muted" style={{ margin: 0, fontSize: 13 }}>SLA aşımı yok. Müdahale gereken kritik sipariş bulunmuyor.</p>
         ) : (

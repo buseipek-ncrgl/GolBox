@@ -6,18 +6,30 @@ import { Bell, Coffee, Calendar, Award, Coins, Zap, ShieldCheck, Check } from "l
 import { useGolToast } from "@/components/golbox/gol-toast"
 import type { CitizenNotificationPreferences } from "@/lib/city-content-api"
 
+const STORAGE_KEY = "golbox_notif_prefs"
+
+const DEFAULT_PREFS: CitizenNotificationPreferences = {
+  orderUpdates: true,
+  eventUpdates: true,
+  loyaltyUpdates: true,
+  missionUpdates: true,
+  marketingUpdates: false,
+}
+
 export function NotificationPreferencesSheet({
   onClose,
 }: {
   onClose: () => void
 }) {
   const showToast = useGolToast()
-  const [preferences, setPreferences] = useState<CitizenNotificationPreferences>({
-    orderUpdates: true,
-    eventUpdates: true,
-    loyaltyUpdates: true,
-    missionUpdates: true,
-    marketingUpdates: false,
+  const [preferences, setPreferences] = useState<CitizenNotificationPreferences>(() => {
+    if (typeof window === "undefined") return DEFAULT_PREFS
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY)
+      return saved ? JSON.parse(saved) : DEFAULT_PREFS
+    } catch {
+      return DEFAULT_PREFS
+    }
   })
   const [isSaved, setIsSaved] = useState(false)
 
@@ -26,11 +38,16 @@ export function NotificationPreferencesSheet({
   }
 
   const handleSave = () => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(preferences))
+    } catch {
+      // ignore
+    }
     setIsSaved(true)
     showToast("Bildirim tercihleriniz başarıyla güncellendi.")
     setTimeout(() => {
       onClose()
-    }, 800)
+    }, 400)
   }
 
   return (

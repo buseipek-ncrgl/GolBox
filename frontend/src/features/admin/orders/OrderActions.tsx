@@ -50,7 +50,7 @@ export function OrderActions({ order, onChanged }: { order: any; onChanged: () =
     <Button key="cancel" size="sm" variant="danger" data-testid="order-cancel-action" loading={busy} onClick={() => request('Cancelled')}>İptal Et</Button>
   );
 
-  const dialog = <Modal open={cancelOpen} title="Siparişi iptal et" size="sm" onClose={() => setCancelOpen(false)} footer={<><Button variant="secondary" onClick={() => setCancelOpen(false)}>Vazgeç</Button><Button variant="danger" loading={busy} disabled={!cancelReason.trim()} onClick={() => void run('Cancelled', cancelReason)}>Siparişi İptal Et</Button></>}>
+  const dialog = <Modal open={cancelOpen} role="alertdialog" title="Siparişi iptal et" size="sm" onClose={() => setCancelOpen(false)} footer={<><Button variant="secondary" onClick={() => setCancelOpen(false)}>Vazgeç</Button><Button variant="danger" loading={busy} disabled={!cancelReason.trim()} onClick={() => void run('Cancelled', cancelReason)}>Siparişi İptal Et</Button></>}>
     <div style={{ display: 'grid', gap: 12 }}><p className="admin-muted" style={{ margin: 0 }}>İptal nedeni operasyon kaydında saklanır. GölPuan ile ödenmişse kullanılan puan otomatik iade edilir.</p><Textarea label="İptal nedeni" required value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} placeholder="Örn. ürün mevcut değil" /></div>
   </Modal>;
 

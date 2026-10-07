@@ -28,7 +28,8 @@ public record ClaimedRewardDto(
     string HolderName,
     string PersonalizedFor,
     bool IsExpired,
-    int DaysRemaining
+    int DaysRemaining,
+    string SourceType
 );
 
 public class GetUserClaimedRewardsQueryHandler : IRequestHandler<GetUserClaimedRewardsQuery, Result<List<ClaimedRewardDto>>>
@@ -87,7 +88,8 @@ public class GetUserClaimedRewardsQueryHandler : IRequestHandler<GetUserClaimedR
                 holderName,
                 personalized,
                 expired,
-                daysRemaining
+                daysRemaining,
+                ur.RedeemCode.StartsWith("ISM-") ? "Ismarliyor" : "GolPuan"
             );
         }).ToList();
 

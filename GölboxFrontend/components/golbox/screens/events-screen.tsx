@@ -155,12 +155,12 @@ export function EventsScreen({
   const [selectedEventForDetail, setSelectedEventForDetail] = useState<FullEventItem | null>(null)
   const [showSuccessModal, setShowSuccessModal] = useState<FullEventItem | null>(null)
 
-  const categories = ["Tümü", "Teknoloji", "Kültür ve Sanat", "Eğitim", "Spor"]
+  const categories = ["Tümü", "Teknoloji", "Kültür ve Sanat", "Eğitim", "Spor", "Gençlik"]
 
   useEffect(() => {
     void fetchPublicActivities(token, 1, 50).then((response) => {
       const mapped = response.items.map((item: any): FullEventItem => ({
-        id: item.id, title: item.title, category: "Gençlik", date: new Date(item.startDate).toLocaleDateString("tr-TR", { day: "2-digit", month: "long", year: "numeric" }),
+        id: item.id, title: item.title, category: item.category || "Gençlik", date: new Date(item.startDate).toLocaleDateString("tr-TR", { day: "2-digit", month: "long", year: "numeric" }),
         time: `${new Date(item.startDate).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })} – ${new Date(item.endDate).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}`,
         venueName: item.placeName || item.location, fullAddress: item.placeAddress || item.location,
         latitude: item.placeLatitude || 0, longitude: item.placeLongitude || 0, imageUrl: item.imageUrl || "",

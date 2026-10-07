@@ -42,7 +42,8 @@ export function ActivitiesPage() {
   useEffect(() => { void load(); }, [page, filter]);
   useEffect(() => { void api.getAdminPlaces({ pageSize: 100 }).then((r) => setPlaces(pagedMeta(r).items)).catch(() => undefined); }, []);
 
-  const blank = () => ({ title: '', description: '', pointsReward: 50, capacity: 50, startDate: '', startTime: '10:00', endDate: '', endTime: '12:00', placeId: '', location: '' });
+  const activityCategories = ['Teknoloji', 'Kültür ve Sanat', 'Eğitim', 'Spor', 'Gençlik'];
+  const blank = () => ({ title: '', description: '', category: 'Gençlik', pointsReward: 50, capacity: 50, startDate: '', startTime: '10:00', endDate: '', endTime: '12:00', placeId: '', location: '' });
   const dirty = !!form && JSON.stringify(form) !== snapshot;
   const open = (next: any) => { setForm(next); setSnapshot(JSON.stringify(next)); };
   const close = () => {
@@ -53,6 +54,7 @@ export function ActivitiesPage() {
   const payload = (f: any) => ({
     title: f.title,
     description: f.description,
+    category: f.category || 'Gençlik',
     pointsReward: Number(f.pointsReward || 0),
     capacity: Number(f.capacity || 0),
     startDate: istanbulDateTimeToIso(f.startDate, f.startTime || '10:00'),
@@ -146,7 +148,7 @@ export function ActivitiesPage() {
             return <article className="activity-card" key={a.id}><SelectionCheckbox label={`${a.title} seç`} checked={selected.includes(a.id)} onChange={(checked) => toggle(a.id, checked)} />
               <header>
                 <div className="activity-date"><strong>{new Intl.DateTimeFormat('tr-TR', { day: '2-digit' }).format(new Date(a.startDate))}</strong><span>{new Intl.DateTimeFormat('tr-TR', { month: 'short' }).format(new Date(a.startDate))}</span></div>
-                <div><StatusBadge status={a.status} label={activityStatusLabel(a.status, a.startDate, a.endDate)} /><h3>{a.title}</h3></div>
+                <div><StatusBadge status={a.status} label={activityStatusLabel(a.status, a.startDate, a.endDate)} /><h3>{a.title}</h3><span className="admin-muted">{a.category || 'Gençlik'}</span></div>
               </header>
               <div className="activity-card-meta">
                 <span><Clock3 size={16} />{formatDateTime(a.startDate)} – {formatDateTime(a.endDate)}</span>
@@ -165,13 +167,14 @@ export function ActivitiesPage() {
           <table className="admin-table">
             <thead>
               <tr>
-                <th>Başlık</th><th>Başlangıç</th><th>Bitiş</th><th>Tesis</th><th>Kontenjan</th><th>Katılım</th><th>GP</th><th>Durum</th><th></th>
+                <th>Başlık</th><th>Kategori</th><th>Başlangıç</th><th>Bitiş</th><th>Tesis</th><th>Kontenjan</th><th>Katılım</th><th>GP</th><th>Durum</th><th></th>
               </tr>
             </thead>
             <tbody>
               {items.map((a) => (
                 <tr key={a.id}>
                   <td>{a.title}</td>
+                  <td>{a.category || 'Gençlik'}</td>
                   <td>{formatDateTime(a.startDate)}</td>
                   <td>{formatDateTime(a.endDate)}</td>
                   <td>{a.placeName || a.location || '—'}</td>
@@ -217,6 +220,9 @@ export function ActivitiesPage() {
             }
           }}>
             <Input required label="Etkinlik Başlığı" data-testid="activity-title" value={form.title || ''} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+            <Select required label="Etkinlik Kategorisi" value={form.category || 'Gençlik'} onChange={(e) => setForm({ ...form, category: e.target.value })}>
+              {activityCategories.map((category) => <option key={category} value={category}>{category}</option>)}
+            </Select>
             <Textarea label="Açıklama" value={form.description || ''} onChange={(e) => setForm({ ...form, description: e.target.value })} />
             <Select label="Belediye Tesisi" helper="Opsiyonel" value={form.placeId || ''} onChange={(e) => setForm({ ...form, placeId: e.target.value })}>
               <option value="">Tesis seçilmedi — serbest konum yazın</option>

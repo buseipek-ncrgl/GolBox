@@ -1,8 +1,13 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Gift, Coffee, Plus, CheckCircle2, Users, Edit, Trash2, Calendar, ArrowRight } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
-import { Button, Checkbox, EmptyState, Input, Modal, NumberInput } from '../../../admin/components';
+import { Button, Checkbox, DataTable, EmptyState, Input, Modal, NumberInput, Select, StatusBadge } from '../../../admin/components';
 import { useAdminFeedback } from '../AdminFeedback';
+import { api } from '../../../services/api';
+import { pagedMeta } from '../../../lib/adminQuery';
+import { formatCurrency, formatDateTime } from '../../../lib/adminDate';
+import { canonicalizeOrderStatus } from '../../../lib/adminLabels';
+import { OrderActions } from './OrderActions';
 
 interface IsmarliyorAdminCampaign {
   id: string;
@@ -16,30 +21,7 @@ interface IsmarliyorAdminCampaign {
   isActive: boolean;
 }
 
-const DEFAULT_CAMPAIGNS: IsmarliyorAdminCampaign[] = [
-  {
-    id: 'ism-1',
-    sponsorName: 'Umut Yılmaz',
-    sponsorTitle: 'Hayırsever Vatandaş',
-    itemName: 'Soğuk Kahve İkramı',
-    quota: 500,
-    claimed: 142,
-    targetAudience: 'Üniversite Öğrencileri (18–25 Yaş)',
-    endDate: '2026-10-15',
-    isActive: true,
-  },
-  {
-    id: 'ism-2',
-    sponsorName: 'Şehitkamil Belediyesi',
-    sponsorTitle: 'Kurumsal İkram',
-    itemName: 'GölBOX Filtre Kahve',
-    quota: 1000,
-    claimed: 850,
-    targetAudience: 'Tüm Vatandaşlar',
-    endDate: '2026-10-20',
-    isActive: true,
-  }
-];
+const DEFAULT_CAMPAIGNS: IsmarliyorAdminCampaign[] = [];
 
 function getDaysRemainingText(endDateStr?: string): string {
   if (!endDateStr) return 'Süresiz';
@@ -56,13 +38,70 @@ export function IsmarliyorPage() {
   const { setSuccess, setError } = useAdminFeedback();
   const [campaigns, setCampaigns] = useState<IsmarliyorAdminCampaign[]>(() => {
     const saved = localStorage.getItem('gol_ismarliyor_campaigns');
-    return saved ? JSON.parse(saved) : DEFAULT_CAMPAIGNS;
+    return saved ? JSON.parse(saved) : [];
   });
   const [editing, setEditing] = useState<IsmarliyorAdminCampaign | null>(null);
 
-  const saveCampaignsToStorage = (list: IsmarliyorAdminCampaign[]) => {
-    setCampaigns(list);
-    localStorage.setItem('gol_ismarliyor_campaigns', JSON.stringify(list));
+  // Live Orders state for operations
+  const [orders, setOrders] = useState<any[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [showCreateOrder, setShowCreateOrder] = useState(false);
+  const [orderForm, setOrderForm] = useState({ userId: '', cafeId: '', menuItemId: '', quantity: 1, amount: 45, targetCriteria: 'Gençler' });
+  const [cafes, setCafes] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
+  const [menu, setMenu] = useState<any[]>([]);
+
+  const loadOrders = async () => {
+    setOrdersLoading(true);
+    try {
+      const res = await api.getOrders({ page: 1, pageSize: 50 });
+      const meta = pagedMeta(res, 1, 50);
+      setOrders(meta.items || []);
+    } catch {
+      setOrders([]);
+    } finally {
+      setOrdersLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadOrders();
+    api.getIsmarliyorCampaigns()
+      .then(async items => {
+        if (Array.isArray(items)) {
+          const migrationKey = 'gol_ismarliyor_db_migration_v1';
+          const cachedRaw = localStorage.getItem('gol_ismarliyor_campaigns');
+          const cached = cachedRaw ? JSON.parse(cachedRaw) : [];
+          if (items.length === 0 && Array.isArray(cached) && cached.length > 0 && !localStorage.getItem(migrationKey)) {
+            const migrated = await api.syncIsmarliyorCampaigns(cached);
+            const next = Array.isArray(migrated) ? migrated : cached;
+            setCampaigns(next);
+            localStorage.setItem('gol_ismarliyor_campaigns', JSON.stringify(next));
+            localStorage.setItem(migrationKey, '1');
+          } else {
+            setCampaigns(items);
+            localStorage.setItem('gol_ismarliyor_campaigns', JSON.stringify(items));
+            localStorage.setItem(migrationKey, '1');
+          }
+        }
+      })
+      .catch((err: Error) => setError(err.message || 'Ismarlıyor kampanyaları yüklenemedi.'));
+    void Promise.all([
+      api.getCafes(),
+      api.getUsers({ role: 'citizen', pageSize: 100 }),
+      api.getAllMenuItems()
+    ]).then(([c, u, m]) => {
+      setCafes(Array.isArray(c) ? c : []);
+      setUsers(pagedMeta(u).items || []);
+      setMenu(Array.isArray(m) ? m : []);
+    }).catch(() => undefined);
+  }, []);
+
+  const saveCampaigns = async (list: IsmarliyorAdminCampaign[]) => {
+    const saved = await api.syncIsmarliyorCampaigns(list);
+    const next = Array.isArray(saved) ? saved : list;
+    setCampaigns(next);
+    localStorage.setItem('gol_ismarliyor_campaigns', JSON.stringify(next));
   };
 
   const openNew = () => {
@@ -83,7 +122,7 @@ export function IsmarliyorPage() {
     });
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editing) return;
     if (!editing.sponsorName || !editing.itemName) {
@@ -94,21 +133,33 @@ export function IsmarliyorPage() {
     const updated = exists
       ? campaigns.map((c) => (c.id === editing.id ? editing : c))
       : [editing, ...campaigns];
-    saveCampaignsToStorage(updated);
-    setSuccess(exists ? 'İkram kampanyası güncellendi.' : 'Yeni ikram kampanyası oluşturuldu.');
-    setEditing(null);
+    try {
+      await saveCampaigns(updated);
+      setSuccess(exists ? 'İkram kampanyası güncellendi.' : 'Yeni ikram kampanyası oluşturuldu.');
+      setEditing(null);
+    } catch (err: any) {
+      setError(err.message || 'İkram kampanyası kaydedilemedi.');
+    }
   };
 
-  const toggleActive = (id: string) => {
+  const toggleActive = async (id: string) => {
     const updated = campaigns.map((c) => (c.id === id ? { ...c, isActive: !c.isActive } : c));
-    saveCampaignsToStorage(updated);
-    setSuccess('Kampanya yayın durumu değiştirildi.');
+    try {
+      await saveCampaigns(updated);
+      setSuccess('Kampanya yayın durumu değiştirildi.');
+    } catch (err: any) {
+      setError(err.message || 'Kampanya yayın durumu değiştirilemedi.');
+    }
   };
 
-  const removeCampaign = (id: string) => {
+  const removeCampaign = async (id: string) => {
     const updated = campaigns.filter((c) => c.id !== id);
-    saveCampaignsToStorage(updated);
-    setSuccess('İkram kampanyası silindi.');
+    try {
+      await saveCampaigns(updated);
+      setSuccess('İkram kampanyası silindi.');
+    } catch (err: any) {
+      setError(err.message || 'İkram kampanyası silinemedi.');
+    }
   };
 
   const totalQuota = campaigns.reduce((sum, c) => sum + c.quota, 0);
@@ -249,13 +300,22 @@ export function IsmarliyorPage() {
               value={editing.sponsorTitle}
               onChange={(e) => setEditing({ ...editing, sponsorTitle: e.target.value })}
             />
-            <Input
+            <Select
               required
-              label="İkram Edilecek Kahve / Ürün Adı *"
-              placeholder="Örn: 500 Üniversite Öğrencisine Soğuk Kahve"
+              label="İkram Edilecek Kahve / Ürün *"
               value={editing.itemName}
               onChange={(e) => setEditing({ ...editing, itemName: e.target.value })}
-            />
+            >
+              <option value="">Varolan Menü Ürünlerinden Seçin...</option>
+              {menu.map((m) => (
+                <option key={m.id || m.name} value={m.name}>
+                  {m.name} ({formatCurrency(m.price || 0)})
+                </option>
+              ))}
+              <option value="Soğuk Kahve İkramı">Soğuk Kahve İkramı</option>
+              <option value="GölBOX Filtre Kahve">GölBOX Filtre Kahve</option>
+              <option value="Türk Kahvesi İkramı">Türk Kahvesi İkramı</option>
+            </Select>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <NumberInput
                 min={1}
@@ -296,6 +356,86 @@ export function IsmarliyorPage() {
             </div>
           </form>
         )}
+      </Modal>
+
+      {/* Live Orders Section */}
+      <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#0f172a' }}>Canlı Ismarlıyor Siparişleri</h3>
+          <Button size="sm" variant="secondary" onClick={() => setShowCreateOrder(true)}>
+            + Yeni Sipariş
+          </Button>
+        </div>
+
+        <DataTable
+          caption="Canlı Ismarlıyor Siparişleri"
+          loading={ordersLoading}
+          onRetry={loadOrders}
+          rows={orders}
+          getRowId={(o) => o.id}
+          emptyTitle="Henüz Ismarlıyor siparişi yok."
+          emptyDescription="Yeni bir ikram siparişi oluşturabilirsiniz."
+          columns={[
+            { key: 'code', header: 'Kod', render: (o) => <span className="admin-gp">{o.collectionCode}</span> },
+            { key: 'user', header: 'Vatandaş', render: (o) => o.userFullName || 'Vatandaş' },
+            { key: 'cafe', header: 'Şube', render: (o) => `${o.cafeName || 'Şube'} (${formatCurrency(o.totalAmount || 0)})` },
+            { key: 'status', header: 'Durum', render: (o) => <StatusBadge status={canonicalizeOrderStatus(o.status)} /> },
+            { key: 'date', header: 'Tarih', render: (o) => formatDateTime(o.createdDate) }
+          ]}
+          actions={(o) => <OrderActions order={o} onChanged={loadOrders} />}
+        />
+      </div>
+
+      {/* Create Live Order Modal */}
+      <Modal
+        open={showCreateOrder}
+        title="Yeni Ismarlıyor Siparişi"
+        onClose={() => setShowCreateOrder(false)}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowCreateOrder(false)}>Vazgeç</Button>
+            <Button form="order-create" type="submit">Oluştur</Button>
+          </>
+        }
+      >
+        <form
+          id="order-create"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            try {
+              await api.createOrder({
+                userId: orderForm.userId,
+                cafeId: orderForm.cafeId,
+                items: [{ menuItemId: orderForm.menuItemId, quantity: orderForm.quantity }],
+                totalAmount: orderForm.amount,
+                targetCriteria: orderForm.targetCriteria
+              });
+              setSuccess('Sipariş oluşturuldu.');
+              setShowCreateOrder(false);
+              await loadOrders();
+            } catch (err: any) {
+              setError(err.message || 'Sipariş oluşturulamadı.');
+            }
+          }}
+          style={{ display: 'grid', gap: 12 }}
+        >
+          <Select required label="Vatandaş" value={orderForm.userId} onChange={(e) => setOrderForm({ ...orderForm, userId: e.target.value })}>
+            <option value="">Vatandaş Seçiniz...</option>
+            {users.map((u) => <option key={u.id} value={u.id}>{u.firstName} {u.lastName}</option>)}
+          </Select>
+
+          <Select required label="Kafe" value={orderForm.cafeId} onChange={(e) => setOrderForm({ ...orderForm, cafeId: e.target.value })}>
+            <option value="">Kafe Seçiniz...</option>
+            {cafes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </Select>
+
+          <Select required label="Ürün" value={orderForm.menuItemId} onChange={(e) => setOrderForm({ ...orderForm, menuItemId: e.target.value })}>
+            <option value="">Ürün Seçiniz...</option>
+            {menu.map((m) => (
+              <option key={m.id} value={m.id}>{m.name} ({m.price} ₺)</option>
+            ))}
+          </Select>
+        </form>
       </Modal>
     </div>
   );

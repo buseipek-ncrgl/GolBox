@@ -5,6 +5,7 @@ import { useGolToast } from "@/components/golbox/gol-toast"
 import * as signalR from "@microsoft/signalr"
 import { API_BASE_URL, HUB_URL, NOTIFICATION_HUB_URL } from "@/lib/api-config"
 import { fetchUnreadCount } from "@/lib/city-content-api"
+import { playNotificationSound, unlockNotificationSound } from "@/lib/notification-sound"
 
 export interface UserProfile {
   id: string
@@ -58,6 +59,7 @@ export interface MenuItem {
   requiredEducation?: string
   categoryId?: string
   categoryName?: string
+  isAvailable?: boolean
   ingredients?: string
   allergenInfo?: string
   nutritionInfo?: string
@@ -279,6 +281,7 @@ interface GolboxContextType {
   removeFromCart: (rewardId: string) => void
   checkoutCart: () => Promise<boolean>
   loadMyCoupons: () => Promise<void>
+  addClaimedReward: (claim: ClaimedReward) => void
   uploadFile: (file: File) => Promise<string | null>
   refreshData: () => Promise<void>
   loadNearbyFieldDrops: (latitude: number, longitude: number) => Promise<void>
@@ -289,6 +292,8 @@ interface GolboxContextType {
   toggleFavorite: (productId: string) => void
   savedConfigurations: SavedConfiguration[]
   saveCustomConfiguration: (name: string, productId: string, summary: string) => void
+  removeCustomConfiguration: (id: string) => void
+  updateCustomConfiguration: (id: string, name: string) => void
   refreshUnreadCount: () => Promise<void>
   addBonusPoints: (amount: number, description: string) => void
   updateProfileState: (firstName: string, lastName: string) => Promise<void> | void
@@ -418,37 +423,39 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
     pointsExchangeRate: 1,
   })
   const [unreadCount, setUnreadCount] = useState(0)
-  const [favorites, setFavoritesState] = useState<string[]>(() => {
-    if (typeof window === "undefined") return ["m-1", "m-4"]
-    try {
-      const raw = localStorage.getItem("gol_favorites")
-      return raw ? JSON.parse(raw) : ["m-1", "m-4"]
-    } catch {
-      return ["m-1", "m-4"]
-    }
-  })
+  const [favorites, setFavoritesState] = useState<string[]>([])
+
+
+
+
+
+
+
+
 
   const toggleFavorite = useCallback((productId: string) => {
     setFavoritesState((prev) => {
       const next = prev.includes(productId) ? prev.filter((id) => id !== productId) : [...prev, productId]
       if (typeof window !== "undefined") {
         try {
-          localStorage.setItem("gol_favorites", JSON.stringify(next))
+          if (user?.id) {
+            localStorage.setItem(`gol_favorites_${user.id}`, JSON.stringify(next))
+          }
         } catch {}
       }
       return next
     })
-  }, [])
+  }, [user?.id])
 
-  const [savedConfigurations, setSavedConfigurations] = useState<SavedConfiguration[]>(() => {
-    if (typeof window === "undefined") return []
-    try {
-      const raw = localStorage.getItem("gol_saved_configs")
-      return raw ? JSON.parse(raw) : []
-    } catch {
-      return []
-    }
-  })
+  const [savedConfigurations, setSavedConfigurations] = useState<SavedConfiguration[]>([])
+
+
+
+
+
+
+
+
 
   const saveCustomConfiguration = useCallback((name: string, productId: string, summary: string) => {
     setSavedConfigurations((prev) => {
@@ -462,12 +469,38 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
       const next = [newConfig, ...prev]
       if (typeof window !== "undefined") {
         try {
-          localStorage.setItem("gol_saved_configs", JSON.stringify(next))
+          if (user?.id) {
+            localStorage.setItem(`gol_saved_configs_${user.id}`, JSON.stringify(next))
+          }
         } catch {}
       }
       return next
     })
-  }, [])
+  }, [user?.id])
+
+  const removeCustomConfiguration = useCallback((id: string) => {
+    setSavedConfigurations((prev) => {
+      const next = prev.filter((item) => item.id !== id)
+      if (typeof window !== "undefined" && user?.id) {
+        try {
+          localStorage.setItem(`gol_saved_configs_${user.id}`, JSON.stringify(next))
+        } catch {}
+      }
+      return next
+    })
+  }, [user?.id])
+
+  const updateCustomConfiguration = useCallback((id: string, name: string) => {
+    setSavedConfigurations((prev) => {
+      const next = prev.map((item) => (item.id === id ? { ...item, name } : item))
+      if (typeof window !== "undefined" && user?.id) {
+        try {
+          localStorage.setItem(`gol_saved_configs_${user.id}`, JSON.stringify(next))
+        } catch {}
+      }
+      return next
+    })
+  }, [user?.id])
 
   // FOOD & DRINK MOBILE CART STATE (SECTIONS 1 - 136)
   const [selectedBranch, setSelectedBranch] = useState<SelectedBranch>({
@@ -703,7 +736,8 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
           let localClaims: ClaimedReward[] = []
           if (typeof window !== "undefined") {
             try {
-              const rawLocal = localStorage.getItem("gol_claimed_rewards")
+              const claimKey = user?.id ? `gol_claimed_rewards_${user.id}` : null
+              const rawLocal = claimKey ? localStorage.getItem(claimKey) : null
               if (rawLocal) localClaims = JSON.parse(rawLocal)
             } catch {}
           }
@@ -716,7 +750,8 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
           let localClaims: ClaimedReward[] = []
           if (typeof window !== "undefined") {
             try {
-              const rawLocal = localStorage.getItem("gol_claimed_rewards")
+              const claimKey = user?.id ? `gol_claimed_rewards_${user.id}` : null
+              const rawLocal = claimKey ? localStorage.getItem(claimKey) : null
               if (rawLocal) localClaims = JSON.parse(rawLocal)
             } catch {}
           }
@@ -744,7 +779,7 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setSessionReady(true)
     }
-  }, [token, fetchWithAuth, selectedBranch.id, selectedBranch.name, selectedBranch.address])
+  }, [token, user?.id, fetchWithAuth, selectedBranch.id, selectedBranch.name, selectedBranch.address])
 
   useEffect(() => {
     if (!token) {
@@ -753,10 +788,23 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
       setPointTransactions([])
       setMyCaptures([])
       setClaimedRewards([])
+      setFavoritesState([])
+      setSavedConfigurations([])
       setUnreadCount(0)
+    } else {
+      setOrders([])
+      if (typeof window !== "undefined") {
+        const favKey = user?.id ? `gol_favorites_${user.id}` : null
+        const rawFav = favKey ? localStorage.getItem(favKey) : null
+        setFavoritesState(rawFav ? JSON.parse(rawFav) : [])
+
+        const cfgKey = user?.id ? `gol_saved_configs_${user.id}` : null
+        const rawCfg = cfgKey ? localStorage.getItem(cfgKey) : null
+        setSavedConfigurations(rawCfg ? JSON.parse(rawCfg) : [])
+      }
     }
     void refreshData()
-  }, [token, refreshData])
+  }, [token, user?.id, refreshData])
 
   // Real-time SignalR hub listener with Turkish status mapping
   useEffect(() => {
@@ -811,7 +859,7 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
     try {
       setUnreadCount(await fetchUnreadCount(token))
     } catch {
-      setUnreadCount(0)
+      // Geçici ağ/yeniden bağlanma hatasında mevcut rozeti yanlışlıkla sıfırlama.
     }
   }, [token])
 
@@ -821,17 +869,34 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!token) return
+    const unlock = () => void unlockNotificationSound()
+    window.addEventListener("pointerdown", unlock, { once: true })
+    window.addEventListener("keydown", unlock, { once: true })
+    return () => {
+      window.removeEventListener("pointerdown", unlock)
+      window.removeEventListener("keydown", unlock)
+    }
+  }, [token])
+
+  useEffect(() => {
+    if (!token) return
 
     const connection = new signalR.HubConnectionBuilder()
       .withUrl(NOTIFICATION_HUB_URL, {
-        accessTokenFactory: () => localStorage.getItem("mob_token") || token || "",
+        accessTokenFactory: () => token,
       })
       .withAutomaticReconnect([0, 2000, 5000, 10000])
       .configureLogging(signalR.LogLevel.None)
       .build()
 
-    connection.on("ReceiveNotification", (payload: { title?: string }) => {
-      if (payload?.title) showToast(payload.title)
+    connection.on("ReceiveNotification", (payload: { id?: string; title?: string }) => {
+      setUnreadCount((current) => current + 1)
+      void playNotificationSound()
+      window.dispatchEvent(new CustomEvent("golbox-notification", { detail: payload }))
+      window.setTimeout(() => void refreshUnreadCount(), 500)
+    })
+
+    connection.onreconnected(() => {
       void refreshUnreadCount()
     })
 
@@ -891,6 +956,7 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
       const data = await res.json()
       if (res.ok && data.success) {
         localStorage.setItem("mob_token", data.data.accessToken)
+        setUser(data.data.user)
         setToken(data.data.accessToken)
         showToast(`Hoş geldiniz, ${data.data.user.firstName}.`)
         setLoading(false)
@@ -940,6 +1006,8 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
     setPointTransactions([])
     setMyCaptures([])
     setClaimedRewards([])
+    setFavoritesState([])
+    setSavedConfigurations([])
     setFoodCart([])
     setUnreadCount(0)
     setCartItems(readCart("guest"))
@@ -1187,16 +1255,44 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
       const res = await fetch(`${API_BASE_URL}/rewards/my-claimed`, {
         headers: { Authorization: `Bearer ${token}` },
       })
+      let localClaims: ClaimedReward[] = []
+      if (typeof window !== "undefined" && user?.id) {
+        try {
+          const rawLocal = localStorage.getItem(`gol_claimed_rewards_${user.id}`)
+          if (rawLocal) localClaims = JSON.parse(rawLocal)
+        } catch {}
+      }
       if (!res.ok) {
-        setClaimedRewards([])
+        setClaimedRewards(localClaims)
         return
       }
       const json = await res.json()
-      setClaimedRewards(Array.isArray(json.data) ? json.data : [])
+      const serverClaims: ClaimedReward[] = Array.isArray(json.data) ? json.data : []
+      const claimMap = new Map<string, ClaimedReward>()
+      for (const item of [...localClaims, ...serverClaims]) {
+        if (item?.claimId) claimMap.set(item.claimId, item)
+      }
+      setClaimedRewards(Array.from(claimMap.values()))
     } catch {
-      setClaimedRewards([])
+      let localClaims: ClaimedReward[] = []
+      if (typeof window !== "undefined" && user?.id) {
+        try {
+          const rawLocal = localStorage.getItem(`gol_claimed_rewards_${user.id}`)
+          if (rawLocal) localClaims = JSON.parse(rawLocal)
+        } catch {}
+      }
+      setClaimedRewards(localClaims)
     }
-  }, [token])
+  }, [token, user?.id])
+
+  const addClaimedReward = useCallback((claim: ClaimedReward) => {
+    if (!user?.id) return
+    setClaimedRewards((current) => {
+      const next = [claim, ...current.filter((item) => item.claimId !== claim.claimId && item.redeemCode !== claim.redeemCode)]
+      localStorage.setItem(`gol_claimed_rewards_${user.id}`, JSON.stringify(next))
+      return next
+    })
+  }, [user?.id])
 
   const claimReward = async (rewardId: string) => {
     if (!token) {
@@ -1465,6 +1561,7 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
         removeFromCart,
         checkoutCart,
         loadMyCoupons,
+        addClaimedReward,
         uploadFile,
         refreshData,
         loadNearbyFieldDrops,
@@ -1475,6 +1572,8 @@ export function GolboxProvider({ children }: { children: React.ReactNode }) {
         toggleFavorite,
         savedConfigurations,
         saveCustomConfiguration,
+        removeCustomConfiguration,
+        updateCustomConfiguration,
         refreshUnreadCount,
         addBonusPoints,
         updateProfileState,

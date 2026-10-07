@@ -98,7 +98,7 @@ export function SettingsPanel({
   return (
     <div className="settings-page">
       <UnsavedGuard dirty={dirty} />
-      <section className="settings-intro"><div><strong>Sadakat ve ödül kuralları</strong><p>Mobil uygulamadaki GölPuan kazanımı, ziyaret bonusu ve kupon süresini merkezi olarak yönetin.</p></div><span className={dirty ? 'is-dirty' : ''}>{dirty ? 'Kaydedilmemiş değişiklik' : 'Tüm ayarlar güncel'}</span></section>
+      <section className="settings-intro"><div><strong>Sadakat ve ödül kuralları</strong><p>Mobil uygulamadaki GölPuan kazanımı, ziyaret bonusu ve kupon süresini merkezi olarak yönetin.</p></div><span className={dirty ? 'is-dirty' : ''}>{dirty ? 'Kaydedilmemiş değişiklik var.' : 'Tüm ayarlar güncel'}</span></section>
       <div className="settings-grid">{RULES.map((rule) => (
         <section key={rule.key} className="settings-rule">
           <div className="settings-rule-icon">{icons[rule.key]}</div>
@@ -106,7 +106,7 @@ export function SettingsPanel({
         </section>
       ))}</div>
       <div className="settings-save-bar">
-        <div><strong>Ayarları kaydet</strong><span>{dirty ? 'Değişiklikler henüz mobil uygulamaya yansımadı.' : 'Mevcut değerler mobil uygulama ile senkronize.'}</span></div>
+        <div><strong>Ayarları kaydet</strong><span>{dirty ? 'Değişiklikler henüz mobil uygulamaya yansımadı.' : 'Güncel. Mevcut değerler mobil uygulama ile senkronize.'}</span></div>
         <Button onClick={() => void saveAll()} loading={saving} disabled={!dirty} data-testid="settings-save">
           Değişiklikleri kaydet
         </Button>

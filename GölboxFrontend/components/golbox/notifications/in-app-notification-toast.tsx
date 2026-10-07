@@ -37,7 +37,16 @@ export function InAppNotificationToast({
   return (
     <div
       onClick={onOpen}
-      className={`fixed top-16 inset-x-4 z-[120] max-w-lg mx-auto flex items-start justify-between gap-3 rounded-2xl border ${borderClass} p-3.5 shadow-xl backdrop-blur-md cursor-pointer animate-in slide-in-from-top duration-300`}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault()
+          onOpen()
+        }
+      }}
+      role="button"
+      tabIndex={0}
+      aria-live="polite"
+      className={`fixed top-3 inset-x-4 z-[120] max-w-lg mx-auto flex items-start justify-between gap-3 rounded-2xl border ${borderClass} p-3.5 shadow-xl backdrop-blur-md cursor-pointer animate-in slide-in-from-top duration-300`}
     >
       <div className="flex items-start gap-3 min-w-0">
         <div className="flex size-9 items-center justify-center rounded-xl bg-background/80 shrink-0 mt-0.5 shadow-2xs">

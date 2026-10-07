@@ -55,7 +55,7 @@ export function QrOperationsPage() {
     try {
       const result = await api.resolveOrderQr(code.trim(), branchId);
       setOrder(result); setSuccess('Sipariş doğrulandı. Teslim bilgilerini kontrol edin.');
-    } catch (cause: any) { setError(cause.message || 'Sipariş doğrulanamadı.'); }
+    } catch (cause: any) { setError(cause.message || 'Sipariş doğrulanamadı. Ismarlıyor siparişleri ikinci kez okutulmaz; Sipariş Operasyonundan teslim edilir.'); }
     finally { setSavingKey(null); }
   };
 
@@ -85,12 +85,12 @@ export function QrOperationsPage() {
       {loadError ? <ErrorState description={loadError} retry={load} /> : null}
       <div className="qr-terminal-layout">
         <section className="qr-terminal admin-card">
-          <div className="qr-terminal-head"><div><span className="qr-terminal-icon"><QrCode size={22} /></span><div><h2>Sipariş doğrulama</h2><p>Okuyucuyla tarayın veya teslim kodunu girin.</p></div></div><Button size="sm" variant="secondary" loading={loading} onClick={() => void load()}><RefreshCw size={14} /> Yenile</Button></div>
+          <div className="qr-terminal-head"><div><span className="qr-terminal-icon"><QrCode size={22} /></span><div><h2>Gel-Al sipariş doğrulama</h2><p>Ücretli Gel-Al siparişlerinde teslim kodunu okutun. Ismarlıyor siparişleri burada tekrar okutulmaz.</p></div></div><Button size="sm" variant="secondary" loading={loading} onClick={() => void load()}><RefreshCw size={14} /> Yenile</Button></div>
           <form className="qr-resolve-form" onSubmit={resolve}>
             <Select label="İşlem yapılan şube" required value={branchId} onChange={(event) => setBranchId(event.target.value)}><option value="">Şube seçin</option>{branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</Select>
             <label><span>Teslim kodu veya QR içeriği</span><div className="qr-code-input"><QrCode size={20} /><input ref={inputRef} autoFocus autoComplete="off" required value={code} onChange={(event) => setCode(event.target.value)} placeholder="Örn. IS-MR-4821" /><Button type="submit" loading={savingKey === 'pickup-resolve'}>Doğrula</Button></div><small>USB veya Bluetooth barkod okuyucular bu alana doğrudan veri aktarabilir.</small></label>
           </form>
-          {!order ? <div className="qr-terminal-idle"><span><ShieldCheck size={28} /></span><strong>Doğrulama bekleniyor</strong><p>Yalnızca seçili şubeye ait ve teslime hazır siparişler kabul edilir.</p></div> : <div className="pickup-confirmation">
+          {!order ? <div className="qr-terminal-idle"><span><ShieldCheck size={28} /></span><strong>Gel-Al doğrulaması bekleniyor</strong><p>Ismarlıyor kuponu Puan ve İkram sekmesinde yalnızca bir kez kullanılır. Hazır ve teslim adımları Sipariş Operasyonu ekranından yapılır.</p></div> : <div className="pickup-confirmation">
             <div className="pickup-success-head"><CheckCircle2 size={22} /><div><strong>Sipariş doğrulandı</strong><span>{order.collectionCode}</span></div><StatusBadge status="Ready" label="Teslime hazır" /></div>
             <div className="pickup-meta"><div><span>Vatandaş</span><strong>{order.memberName}</strong><small>{order.email}</small></div><div><span>Şube</span><strong>{order.cafeName}</strong></div><div><span>Sipariş zamanı</span><strong>{formatDateTime(order.createdDate)}</strong></div></div>
             <div className="pickup-items">{order.items?.map((item: any) => { const choices = optionsFromJson(item.selectedOptionsJson); return <div key={item.id}><span>{item.quantity}×</span><div><strong>{item.name}</strong>{choices.length ? <small>{choices.map((choice) => choice.name).join(', ')}</small> : null}</div><b>{formatCurrency(item.finalUnitPrice * item.quantity)}</b></div>; })}</div>

@@ -3,7 +3,7 @@ import { NavLink, Navigate, Outlet, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Users, ClipboardCheck, Landmark, Building2, Coffee, History, CreditCard, Award, MapPin, Gift,
   FileText, Film, Megaphone, Calendar, Bell, BarChart3, Shield, FileCheck, Settings, ChevronLeft, ChevronRight, LogOut,
-  Zap, Send, CheckCircle2
+  Zap, Send, CheckCircle2, Check, Trash2
 } from 'lucide-react';
 import { useAuth } from '../../store/AuthContext';
 import { ADMIN_PATHS, canAccessMenu, menuFromPath } from '../../lib/adminRoutes';
@@ -13,6 +13,12 @@ import { AdminFeedbackProvider } from '../../features/admin/AdminFeedback';
 import { AdminErrorBoundary } from './AdminErrorBoundary';
 import { PageHeader } from './PageHeader';
 import { Skeleton } from '../components/Skeleton';
+import {
+  getInboundNotifications,
+  markInboundAsRead,
+  deleteInboundNotification,
+  InboundNotification
+} from '../../lib/inboundNotifications';
 
 const ICONS: Record<string, React.ComponentType<{ size?: number }>> = {
   overview: LayoutDashboard,
@@ -40,6 +46,9 @@ export function AdminLayout() {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const [alertCount, setAlertCount] = useState(0);
+  const [showNotifModal, setShowNotifModal] = useState(false);
+  const [inboundList, setInboundList] = useState<InboundNotification[]>([]);
+
   const adminName = [currentUser?.firstName, currentUser?.lastName].filter(Boolean).join(' ') || currentUser?.email || 'Yönetici';
   const adminRole = currentUser?.role || (Array.isArray(currentUser?.roles) ? currentUser.roles[0] : null) || 'Admin';
   const isAdmin = adminRole === 'Admin';
@@ -47,6 +56,10 @@ export function AdminLayout() {
   const initials = `${currentUser?.firstName?.[0] || ''}${currentUser?.lastName?.[0] || ''}`.trim() || 'GB';
   const active = menuFromPath(location.pathname);
   const meta = ADMIN_PATHS.find((p) => p.id === active);
+
+  useEffect(() => {
+    setInboundList(getInboundNotifications());
+  }, [showNotifModal]);
 
   useEffect(() => {
     let cancelled = false;
@@ -71,14 +84,26 @@ export function AdminLayout() {
     return () => { cancelled = true; };
   }, [location.pathname]);
 
+  const handleMarkRead = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const updated = markInboundAsRead(id);
+    setInboundList(updated);
+  };
+
+  const handleDeleteNotif = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const updated = deleteInboundNotification(id);
+    setInboundList(updated);
+  };
+
   if (!canAccessMenu(active, isAdmin, duty)) {
     const firstAllowed = ADMIN_PATHS.find((item) => canAccessMenu(item.id, isAdmin, duty));
     return <Navigate to={firstAllowed?.path || '/admin/siparisler'} replace />;
   }
 
   const sections = ['Genel', 'Operasyon', 'Menü Yönetimi', 'Sadakat', 'İçerik', 'Yönetim'];
-
-  const [showNotifModal, setShowNotifModal] = useState(false);
+  const unreadCount = inboundList.filter((n) => !n.isRead).length;
+  const displayBadgeCount = unreadCount > 0 ? unreadCount : alertCount;
 
   return (
     <div className="admin-shell" data-testid="admin-layout">
@@ -115,6 +140,7 @@ export function AdminLayout() {
                       end={item.path === '/admin'}
                       className={({ isActive }) => `admin-nav-link${isActive ? ' active' : ''}`}
                       title={collapsed ? item.label : undefined}
+                      aria-label={item.id === 'users' ? 'Vatandaşlar' : item.label}
                     >
                       <Icon size={18} />
                       {!collapsed && <span>{item.label}</span>}
@@ -160,15 +186,15 @@ export function AdminLayout() {
               onClick={() => setShowNotifModal(!showNotifModal)}
             >
               <Bell size={18} />
-              {alertCount > 0 && <span className="admin-bell-badge">{alertCount}</span>}
+              {displayBadgeCount > 0 && <span className="admin-bell-badge">{displayBadgeCount}</span>}
             </button>
 
             {showNotifModal && (
-              <div className="admin-bell-popover">
-                <div className="admin-bell-popover-header">
+              <div className="admin-bell-popover" style={{ width: 360, right: 0 }}>
+                <div className="admin-bell-popover-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 16px', borderBottom: '1px solid #f1f5f9' }}>
                   <div>
-                    <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#0f172a' }}>Gelen Sistem & Operasyon Bildirimleri</h4>
-                    <span style={{ fontSize: 11, color: '#64748b' }}>Yönetici uyarı ve canlı operasyon takibi</span>
+                    <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#0f172a' }}>Gelen Sistem Bildirimleri</h4>
+                    <span style={{ fontSize: 11, color: '#64748b' }}>Canlı operasyon & sistem durum takibi</span>
                   </div>
                   <button
                     type="button"
@@ -178,38 +204,86 @@ export function AdminLayout() {
                     ×
                   </button>
                 </div>
-                <div className="admin-bell-popover-body">
-                  <div style={{ padding: 12, borderRadius: 12, background: '#f0fdf4', border: '1px solid #bbf7d0', fontSize: 12 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, color: '#166534' }}>
-                      <Zap size={14} /> Bekleyen Sipariş Operasyonu
-                    </div>
-                    <div style={{ color: '#15803d', marginTop: 4 }}>Şehitkamil Kitap Kafe için 1 yeni sipariş hazırlanmayı bekliyor.</div>
-                    <div style={{ fontSize: 10, fontWeight: 600, color: '#16a34a', marginTop: 6 }}>Canlı Sistem Akışı</div>
-                  </div>
 
-                  <div style={{ padding: 12, borderRadius: 12, background: '#fefce8', border: '1px solid #fef08a', fontSize: 12 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, color: '#854d0e' }}>
-                      <Gift size={14} /> Ismarlıyor Kampanya Kotası
+                <div className="admin-bell-popover-body" style={{ maxHeight: 340, overflowY: 'auto', padding: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {inboundList.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '24px 12px', color: '#94a3b8', fontSize: 13 }}>
+                      Gelen bildirim bulunmuyor.
                     </div>
-                    <div style={{ color: '#a16207', marginTop: 4 }}>"500 Üniversite Öğrencisine Soğuk Kahve" ikramı aktif durumda.</div>
-                    <div style={{ fontSize: 10, fontWeight: 600, color: '#ca8a04', marginTop: 6 }}>Güncel Kontenjan Takibi</div>
-                  </div>
+                  ) : (
+                    inboundList.map((n) => (
+                      <div
+                        key={n.id}
+                        style={{
+                          padding: 12,
+                          borderRadius: 10,
+                          background: n.isRead ? '#f8fafc' : '#ffffff',
+                          border: `1px solid ${n.isRead ? '#e2e8f0' : '#cbd5e1'}`,
+                          fontSize: 12,
+                          boxShadow: n.isRead ? 'none' : '0 1px 3px rgba(0,0,0,0.05)',
+                          position: 'relative'
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            {!n.isRead && (
+                              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#059669', flexShrink: 0 }} />
+                            )}
+                            <strong style={{ fontSize: 12, color: n.isRead ? '#475569' : '#0f172a' }}>{n.title}</strong>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                            {!n.isRead && (
+                              <button
+                                type="button"
+                                onClick={(e) => handleMarkRead(n.id, e)}
+                                title="Okundu işaretle"
+                                style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#059669', padding: 2 }}
+                              >
+                                <Check size={14} />
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={(e) => handleDeleteNotif(n.id, e)}
+                              title="Sil"
+                              style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#94a3b8', padding: 2 }}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </div>
 
-                  <div style={{ padding: 12, borderRadius: 12, background: '#f8fafc', border: '1px solid #e2e8f0', fontSize: 12 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, color: '#334155' }}>
-                      <CheckCircle2 size={14} /> Sunucu & Mobil Hub Durumu
-                    </div>
-                    <div style={{ color: '#475569', marginTop: 4 }}>SignalR bildirim kanalları ve API servisleri aktif çalışıyor.</div>
-                    <div style={{ fontSize: 10, fontWeight: 600, color: '#64748b', marginTop: 6 }}>Sistem Bağlantısı OK</div>
-                  </div>
+                        <div style={{ color: n.isRead ? '#64748b' : '#334155', marginTop: 4, lineHeight: 1.4 }}>
+                          {n.message}
+                        </div>
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, fontSize: 10, color: '#94a3b8' }}>
+                          <span style={{ fontWeight: 600, color: '#64748b' }}>{n.category}</span>
+                          <span>{n.time}</span>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
-                <div className="admin-bell-popover-footer">
+
+                <div className="admin-bell-popover-footer" style={{ padding: '10px 12px', borderTop: '1px solid #f1f5f9', background: '#fafafa' }}>
                   <NavLink
-                    to="/admin/bildirimler"
+                    to="/admin/bildirimler?tab=inbound"
                     onClick={() => setShowNotifModal(false)}
-                    className="admin-bell-popover-btn"
+                    style={{
+                      display: 'block',
+                      width: '100%',
+                      padding: '8px 12px',
+                      borderRadius: 8,
+                      background: '#047857',
+                      color: '#ffffff',
+                      fontWeight: 600,
+                      fontSize: 12,
+                      textAlign: 'center',
+                      textDecoration: 'none'
+                    }}
                   >
-                    <Send size={14} /> Duyuru & Vatandaş Push Bildirim Gönder
+                    Tüm Bildirimleri Gör
                   </NavLink>
                 </div>
               </div>

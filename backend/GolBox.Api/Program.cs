@@ -80,6 +80,7 @@ builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<ICityContentCache, CityContentCache>();
 builder.Services.AddSingleton<IPlaceCache, PlaceCache>();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+builder.Services.AddScoped<CitizenNotificationService>();
 builder.Services.AddScoped<ITokenDecoder, TokenDecoder>();
 builder.Services.AddSingleton<IDynamicQrService, DynamicQrService>();
 builder.Services.AddHostedService<ExpiredItemsCleanupService>();
@@ -213,48 +214,69 @@ using (var scope = app.Services.CreateScope())
     {
         try
         {
-            await context.Database.ExecuteSqlRawAsync("ALTER TABLE ProductOptionGroups DROP COLUMN MinSelect;");
-            await context.Database.ExecuteSqlRawAsync("ALTER TABLE ProductOptionGroups DROP COLUMN MaxSelect;");
-            await context.Database.ExecuteSqlRawAsync("ALTER TABLE ProductOptionGroups DROP COLUMN IsRequired;");
-        }
-        catch
-        {
-            try
+            var connection = context.Database.GetDbConnection();
+            if (connection.State != System.Data.ConnectionState.Open)
             {
-                await context.Database.ExecuteSqlRawAsync(@"
-                    PRAGMA foreign_keys=OFF;
-                    CREATE TABLE IF NOT EXISTS ProductOptionGroups_clean (
-                        Id TEXT NOT NULL PRIMARY KEY,
-                        MenuItemId TEXT NOT NULL,
-                        Name TEXT NOT NULL,
-                        SelectionType TEXT NOT NULL,
-                        Required INTEGER NOT NULL,
-                        MinSelections INTEGER NOT NULL,
-                        MaxSelections INTEGER NOT NULL,
-                        DisplayOrder INTEGER NOT NULL,
-                        IsDeleted INTEGER NOT NULL,
-                        CreatedAt TEXT NOT NULL,
-                        UpdatedAt TEXT NULL,
-                        CreatedBy TEXT NULL,
-                        UpdatedBy TEXT NULL,
-                        DeletedDate TEXT NULL,
-                        FOREIGN KEY (MenuItemId) REFERENCES MenuItems (Id) ON DELETE CASCADE
-                    );
-                    INSERT OR IGNORE INTO ProductOptionGroups_clean 
-                    SELECT Id, MenuItemId, Name, SelectionType, Required, MinSelections, MaxSelections, DisplayOrder, IsDeleted, CreatedAt, UpdatedAt, CreatedBy, UpdatedBy, DeletedDate 
-                    FROM ProductOptionGroups;
-                    DROP TABLE ProductOptionGroups;
-                    ALTER TABLE ProductOptionGroups_clean RENAME TO ProductOptionGroups;
-                    PRAGMA foreign_keys=ON;
-                ");
+                await connection.OpenAsync();
             }
-            catch { }
-        }
-        try
-        {
-            await context.Database.ExecuteSqlRawAsync("ALTER TABLE ProductOptions DROP COLUMN PriceAdjustment;");
-            await context.Database.ExecuteSqlRawAsync("ALTER TABLE ProductOptions DROP COLUMN IsDefault;");
-            await context.Database.ExecuteSqlRawAsync("ALTER TABLE ProductOptions DROP COLUMN IsAvailable;");
+            using var command = connection.CreateCommand();
+            command.CommandText = "PRAGMA table_info('ProductOptionGroups');";
+            using (var reader = await command.ExecuteReaderAsync())
+            {
+                var columns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                while (await reader.ReadAsync())
+                {
+                    columns.Add(reader.GetString(1));
+                }
+
+                if (columns.Contains("MinSelect"))
+                {
+                    using var dropCmd = connection.CreateCommand();
+                    dropCmd.CommandText = "ALTER TABLE ProductOptionGroups DROP COLUMN MinSelect;";
+                    await dropCmd.ExecuteNonQueryAsync();
+                }
+                if (columns.Contains("MaxSelect"))
+                {
+                    using var dropCmd = connection.CreateCommand();
+                    dropCmd.CommandText = "ALTER TABLE ProductOptionGroups DROP COLUMN MaxSelect;";
+                    await dropCmd.ExecuteNonQueryAsync();
+                }
+                if (columns.Contains("IsRequired"))
+                {
+                    using var dropCmd = connection.CreateCommand();
+                    dropCmd.CommandText = "ALTER TABLE ProductOptionGroups DROP COLUMN IsRequired;";
+                    await dropCmd.ExecuteNonQueryAsync();
+                }
+            }
+
+            command.CommandText = "PRAGMA table_info('ProductOptions');";
+            using (var optReader = await command.ExecuteReaderAsync())
+            {
+                var optColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                while (await optReader.ReadAsync())
+                {
+                    optColumns.Add(optReader.GetString(1));
+                }
+
+                if (optColumns.Contains("PriceAdjustment"))
+                {
+                    using var dropCmd = connection.CreateCommand();
+                    dropCmd.CommandText = "ALTER TABLE ProductOptions DROP COLUMN PriceAdjustment;";
+                    await dropCmd.ExecuteNonQueryAsync();
+                }
+                if (optColumns.Contains("IsDefault"))
+                {
+                    using var dropCmd = connection.CreateCommand();
+                    dropCmd.CommandText = "ALTER TABLE ProductOptions DROP COLUMN IsDefault;";
+                    await dropCmd.ExecuteNonQueryAsync();
+                }
+                if (optColumns.Contains("IsAvailable"))
+                {
+                    using var dropCmd = connection.CreateCommand();
+                    dropCmd.CommandText = "ALTER TABLE ProductOptions DROP COLUMN IsAvailable;";
+                    await dropCmd.ExecuteNonQueryAsync();
+                }
+            }
         }
         catch { }
     }

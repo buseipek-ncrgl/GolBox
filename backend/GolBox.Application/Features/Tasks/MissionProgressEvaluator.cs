@@ -45,9 +45,11 @@ public static class MissionProgressEvaluator
                     ua.UserId == user.Id && ua.OrganizationId == user.OrganizationId && ua.CheckedInAt != null &&
                     ua.CheckedInAt >= task.StartDate && ua.CheckedInAt <= task.EndDate, cancellationToken);
                 break;
+            case "ORDER_COMPLETED":
+                progress = await orders.CountAsync(cancellationToken);
+                break;
             default:
-                var completedDates = await orders.Select(o => o.CompletedAt ?? o.CreatedDate).ToListAsync(cancellationToken);
-                progress = completedDates.Select(value => value.Date).Distinct().Count();
+                progress = 0;
                 break;
         }
 

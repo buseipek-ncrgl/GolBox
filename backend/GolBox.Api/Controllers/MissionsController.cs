@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using DomainTask = GolBox.Domain.Entities.Task;
+using GolBox.Api.Services;
 
 namespace GolBox.Api.Controllers;
 
@@ -14,11 +15,13 @@ public class MissionsController : BaseApiController
     private static readonly string[] MissionTypes = ["ORDER_COMPLETED", "EVENT_ATTENDED", "DISTINCT_BRANCH", "DISTINCT_CATEGORY", "FIRST_ORDER"];
     private readonly IAppDbContext _context;
     private readonly ICurrentUserService _currentUser;
+    private readonly CitizenNotificationService _notifications;
 
-    public MissionsController(IAppDbContext context, ICurrentUserService currentUser)
+    public MissionsController(IAppDbContext context, ICurrentUserService currentUser, CitizenNotificationService notifications)
     {
         _context = context;
         _currentUser = currentUser;
+        _notifications = notifications;
     }
 
     [HttpGet]
@@ -164,6 +167,9 @@ public class MissionsController : BaseApiController
         var mission = await _context.Tasks.FindAsync(new object[] { id }, cancellationToken);
         if (mission == null) return NotFound(Result<object>.Fail("Görev bulunamadı."));
         var previous = mission.Status; mission.Status = status; mission.UpdatedDate = DateTime.UtcNow; await _context.SaveChangesAsync(cancellationToken);
+        if (status == "Active" && previous != "Active")
+            await _notifications.SendToOrganizationAsync(mission.OrganizationId, "Yeni görev yayınlandı",
+                $"{mission.Title}: {mission.ShortDescription}", "MISSION_NEW", "MISSION", mission.Id.ToString(), cancellationToken);
         await AuditLogsController.LogAsync(_context, _currentUser.Email ?? "admin", _currentUser.Role ?? "Admin", status == "Active" ? "Mission_Publish" : "Mission_End", "Missions", "Task", id.ToString(), previous, status, null);
         return Ok(Result<object>.Ok(new { mission.Id, mission.Status }, message));
     }

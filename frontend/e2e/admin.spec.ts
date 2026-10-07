@@ -2,11 +2,17 @@ import { expect, test, type Page } from '@playwright/test';
 
 async function loginAs(page: Page, email: string, password: string) {
   await page.goto('/admin');
-  await page.evaluate(() => {
-    localStorage.clear();
-    sessionStorage.clear();
-  });
-  await page.goto('/admin');
+  const logoutBtn = page.getByTitle('Çıkış Yap');
+  if (await logoutBtn.isVisible().catch(() => false)) {
+    await logoutBtn.click();
+  } else {
+    await page.evaluate(() => {
+      localStorage.clear();
+      sessionStorage.clear();
+      window.dispatchEvent(new Event('auth-change'));
+    });
+  }
+  await expect(page.getByTestId('login-email')).toBeVisible();
   await page.getByTestId('login-email').fill(email);
   await page.getByTestId('login-password').fill(password);
   await page.getByTestId('login-submit').click();
@@ -18,7 +24,7 @@ test.describe.configure({ mode: 'serial' });
 test('1. yönetici girişi', async ({ page }) => {
   await page.goto('/admin');
   await expect(page.getByTestId('admin-layout')).toBeVisible();
-  await expect(page.getByTestId('admin-page-title')).toHaveText('Dashboard');
+  await expect(page.getByTestId('admin-page-title')).toHaveText(/Dashboard|Genel Bakış/);
 });
 
 test('2. rota yenileme oturumu korur', async ({ page }) => {
@@ -36,8 +42,8 @@ test('3. kenar menü gezintisi', async ({ page }) => {
   await expect(page.getByTestId('admin-page-title')).toHaveText('QR İşlemleri');
   await page.getByRole('link', { name: 'Ismarlıyor' }).click();
   await expect(page.getByTestId('admin-page-title')).toHaveText('Ismarlıyor');
-  await page.getByRole('link', { name: 'Dashboard' }).click();
-  await expect(page.getByTestId('admin-page-title')).toHaveText('Dashboard');
+  await page.getByRole('link', { name: /Dashboard|Genel Bakış/ }).click();
+  await expect(page.getByTestId('admin-page-title')).toHaveText(/Dashboard|Genel Bakış/);
 });
 
 test('4. vatandaş arama ve detay', async ({ page }) => {
@@ -73,11 +79,12 @@ test('6. bildirim önizleme', async ({ page }) => {
 test('7. sipariş durum geçişi', async ({ page }) => {
   await page.goto('/admin/ismarliyor');
   if (await page.getByTestId('order-next-action').count() === 0) {
-    await page.getByRole('button', { name: /Yeni Ismarlıyor/ }).click();
-    await page.getByLabel('Vatandaş').selectOption({ index: 1 });
-    await page.getByLabel('Kafe').selectOption({ index: 1 });
-    await page.getByLabel('Ürün').selectOption({ index: 1 });
-    await page.getByRole('dialog').getByRole('button', { name: 'Oluştur' }).click();
+    await page.getByRole('button', { name: /Yeni Sipariş/ }).click();
+    const dialogModal = page.getByRole('dialog');
+    await dialogModal.getByLabel('Vatandaş').selectOption({ index: 1 });
+    await dialogModal.getByLabel('Kafe').selectOption({ index: 1 });
+    await dialogModal.getByLabel('Ürün').selectOption({ index: 1 });
+    await dialogModal.getByRole('button', { name: 'Oluştur' }).click();
     await expect(page.getByTestId('order-next-action').first()).toBeVisible();
   }
   await page.getByTestId('order-next-action').first().click();
@@ -99,8 +106,9 @@ test('9. personel yasaklı rota', async ({ page }) => {
   await loginAs(page, 'staff@golbox.gov.tr', 'Staff123!');
   await page.goto('/admin/yetkilendirme');
   await expect(page).toHaveURL(/\/admin\/?$/);
-  await expect(page.getByTestId('admin-page-title')).toHaveText('Dashboard');
+  await expect(page.getByTestId('admin-page-title')).toHaveText(/Dashboard|Genel Bakış/);
   await expect(page.getByRole('link', { name: 'Yetkilendirme' })).toHaveCount(0);
+  await loginAs(page, 'admin@golbox.gov.tr', 'Admin123!');
 });
 
 test('10. 1024 duman testi', async ({ page }) => {
@@ -284,7 +292,7 @@ test('26. dashboard critical queue consistency', async ({ page }) => {
 
 test('27. sidebar keyboard focus', async ({ page }) => {
   await page.goto('/admin');
-  const link = page.getByTestId('admin-sidebar').getByRole('link', { name: 'Dashboard' });
+  const link = page.getByTestId('admin-sidebar').getByRole('link', { name: /Dashboard|Genel Bakış/ });
   await link.focus();
   await expect(link).toBeFocused();
   const outline = await link.evaluate((el) => getComputedStyle(el).outlineWidth);

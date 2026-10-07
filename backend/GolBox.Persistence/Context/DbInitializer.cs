@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using GolBox.Application.Common;
 using GolBox.Application.Interfaces;
 using GolBox.Application.Places;
 using GolBox.Domain.Entities;
@@ -97,6 +98,7 @@ public static class DbInitializer
 
         await EnsureMissingSettingsAsync(context, orgId);
         await TryBootstrapAdminAsync(context, passwordHasher, orgId, bootstrapAdminEmail, bootstrapAdminPassword);
+        await EnsureStaffUserAsync(context, passwordHasher, orgId);
 
         if (isDevelopment)
         {
@@ -290,11 +292,24 @@ public static class DbInitializer
                 {
                     Id = Guid.Parse("77777777-7777-7777-7777-999999999999"),
                     OrganizationId = orgId,
+                    Email = "staff@golbox.gov.tr",
+                    NormalizedEmail = "STAFF@GOLBOX.GOV.TR",
+                    PasswordHash = passwordHasher.Hash("Staff123!"),
+                    FirstName = "TEST Branch",
+                    LastName = "Staff",
+                    PointsBalance = 0,
+                    Role = "Staff"
+                };
+
+                var staffBranchUser = new User
+                {
+                    Id = Guid.Parse("77777777-7777-7777-7777-999999999998"),
+                    OrganizationId = orgId,
                     Email = "staff.branch1@golbox.gov.tr",
                     NormalizedEmail = "STAFF.BRANCH1@GOLBOX.GOV.TR",
                     PasswordHash = passwordHasher.Hash("Staff123!"),
                     FirstName = "TEST Branch",
-                    LastName = "Staff",
+                    LastName = "Staff 1",
                     PointsBalance = 0,
                     Role = "Staff"
                 };
@@ -312,7 +327,7 @@ public static class DbInitializer
                     Role = "Staff"
                 };
 
-                context.Users.AddRange(adminUser, cleanCustomer, loyaltyCustomer, legacyAhmet, lowCustomer, exactCustomer, activeOrderCustomer, eventCustomer, missionCustomer, staffUser, managerUser);
+                context.Users.AddRange(adminUser, cleanCustomer, loyaltyCustomer, legacyAhmet, lowCustomer, exactCustomer, activeOrderCustomer, eventCustomer, missionCustomer, staffUser, staffBranchUser, managerUser);
                 await context.SaveChangesAsync();
 
                 // Seed PointTransactions (Ledger) for 340 GP, 39 GP, 40 GP users
@@ -375,6 +390,8 @@ public static class DbInitializer
                     Title = "İlk Kahveni Yudumla",
                     Description = "Herhangi bir Kitap Kafemizde ilk siparişini tamamla.",
                     PointsReward = 25,
+                    MissionType = "FIRST_ORDER",
+                    TargetProgress = 1,
                     StartDate = DateTime.UtcNow.AddDays(-5),
                     EndDate = DateTime.UtcNow.AddDays(30),
                     MaxCompletions = 1,
@@ -388,9 +405,11 @@ public static class DbInitializer
                     Title = "Haftalık Kitap Okuma Görevi",
                     Description = "Kitap Kafede bir haftada 3 kez vakit geçir ve sipariş ver.",
                     PointsReward = 35,
+                    MissionType = "ORDER_COMPLETED",
+                    TargetProgress = 3,
                     StartDate = DateTime.UtcNow.AddDays(-2),
                     EndDate = DateTime.UtcNow.AddDays(15),
-                    MaxCompletions = 3,
+                    MaxCompletions = 1,
                     Status = "Active"
                 };
 
@@ -401,6 +420,8 @@ public static class DbInitializer
                     Title = "Eski Dönem Kitap Görevi",
                     Description = "Süresi dolmuş geçmiş test görevi.",
                     PointsReward = 50,
+                    MissionType = "ORDER_COMPLETED",
+                    TargetProgress = 1,
                     StartDate = DateTime.UtcNow.AddDays(-60),
                     EndDate = DateTime.UtcNow.AddDays(-5),
                     MaxCompletions = 1,
@@ -410,17 +431,45 @@ public static class DbInitializer
                 context.Tasks.AddRange(task1, task2, taskExpired);
                 await context.SaveChangesAsync();
 
-                // Seed Task progress for Customer Mission User (2/3)
-                context.UserTasks.Add(new UserTask
+            }
+
+            // Repair the legacy development fixture where the description said
+            // three orders but TargetProgress was left at its default value (1).
+            if (isDevelopment)
+            {
+                var weeklyTaskId = Guid.Parse("77777777-7777-7777-7777-888888888888");
+                var weeklyTask = await context.Tasks.FirstOrDefaultAsync(t => t.Id == weeklyTaskId);
+                if (weeklyTask != null)
                 {
-                    Id = Guid.NewGuid(),
-                    OrganizationId = orgId,
-                    UserId = Guid.Parse("55555555-5555-5555-5555-444444444444"),
-                    TaskId = task2.Id,
-                    CompletedAt = DateTime.UtcNow.AddDays(-1),
-                    PointsEarned = 0
-                });
-                await context.SaveChangesAsync();
+                    weeklyTask.MissionType = "ORDER_COMPLETED";
+                    weeklyTask.TargetProgress = 3;
+                    weeklyTask.MaxCompletions = 1;
+
+                    var prematureAwards = await context.UserTasks
+                        .Where(ut => ut.TaskId == weeklyTaskId)
+                        .ToListAsync();
+                    foreach (var award in prematureAwards)
+                    {
+                        var completedOrderCount = await context.Orders.CountAsync(o =>
+                            o.UserId == award.UserId && o.OrganizationId == orgId &&
+                            o.Status == OrderStatuses.Completed &&
+                            o.CreatedDate >= weeklyTask.StartDate && o.CreatedDate <= weeklyTask.EndDate);
+                        if (completedOrderCount >= weeklyTask.TargetProgress) continue;
+
+                        if (award.PointsEarned > 0)
+                        {
+                            var awardedUser = await context.Users.FirstOrDefaultAsync(u => u.Id == award.UserId);
+                            if (awardedUser != null)
+                                awardedUser.PointsBalance = Math.Max(0, awardedUser.PointsBalance - award.PointsEarned);
+                        }
+                        var ledgerRows = await context.PointTransactions
+                            .Where(p => p.UserId == award.UserId && p.ReferenceType == "Mission" && p.ReferenceId == weeklyTaskId)
+                            .ToListAsync();
+                        context.PointTransactions.RemoveRange(ledgerRows);
+                        context.UserTasks.Remove(award);
+                    }
+                    await context.SaveChangesAsync();
+                }
             }
 
             // 7. Seed Activities (Events)
@@ -789,6 +838,26 @@ public static class DbInitializer
             Role = "Admin"
         });
         await context.SaveChangesAsync();
+    }
+
+    private static async System.Threading.Tasks.Task EnsureStaffUserAsync(AppDbContext context, IPasswordHasher passwordHasher, Guid orgId)
+    {
+        if (!await context.Users.AnyAsync(u => u.Email == "staff@golbox.gov.tr"))
+        {
+            context.Users.Add(new User
+            {
+                Id = Guid.Parse("77777777-7777-7777-7777-000000000000"),
+                OrganizationId = orgId,
+                Email = "staff@golbox.gov.tr",
+                NormalizedEmail = "STAFF@GOLBOX.GOV.TR",
+                PasswordHash = passwordHasher.Hash("Staff123!"),
+                FirstName = "TEST Branch",
+                LastName = "Staff",
+                PointsBalance = 0,
+                Role = "Staff"
+            });
+            await context.SaveChangesAsync();
+        }
     }
 
     private static async System.Threading.Tasks.Task LinkExistingCafesToPlacesAsync(AppDbContext context)

@@ -53,16 +53,20 @@ export function ProductDetailScreen({
     : 0
 
   const toggleOption = (group: MenuOptionGroup, optionId: string) => {
-    setSelections((current) => {
-      const selected = current[group.id] ?? []
-      if (group.maxSelect === 1) return { ...current, [group.id]: [optionId] }
-      const exists = selected.includes(optionId)
-      if (!exists && selected.length >= group.maxSelect) {
-        showToast(`En fazla ${group.maxSelect} seçim yapabilirsin.`)
-        return current
-      }
-      return { ...current, [group.id]: exists ? selected.filter((id) => id !== optionId) : [...selected, optionId] }
-    })
+    const currentSelected = selections[group.id] ?? []
+    if (group.maxSelect === 1) {
+      setSelections((current) => ({ ...current, [group.id]: [optionId] }))
+      return
+    }
+    const exists = currentSelected.includes(optionId)
+    if (!exists && currentSelected.length >= group.maxSelect) {
+      showToast(`En fazla ${group.maxSelect} seçim yapabilirsin.`)
+      return
+    }
+    setSelections((current) => ({
+      ...current,
+      [group.id]: exists ? currentSelected.filter((id) => id !== optionId) : [...currentSelected, optionId],
+    }))
   }
 
   const add = () => {

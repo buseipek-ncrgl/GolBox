@@ -11,6 +11,7 @@ using Microsoft.EntityFrameworkCore;
 using GolBox.Application.Interfaces;
 using GolBox.Domain.Entities;
 using GolBox.Api.Hubs;
+using GolBox.Api.Services;
 
 namespace GolBox.Api.Controllers;
 
@@ -20,12 +21,14 @@ public class OrdersController : BaseApiController
     private readonly IAppDbContext _context;
     private readonly ICurrentUserService _currentUserService;
     private readonly IHubContext<OrderHub> _hubContext;
+    private readonly CitizenNotificationService _notifications;
 
-    public OrdersController(IAppDbContext context, ICurrentUserService currentUserService, IHubContext<OrderHub> hubContext)
+    public OrdersController(IAppDbContext context, ICurrentUserService currentUserService, IHubContext<OrderHub> hubContext, CitizenNotificationService notifications)
     {
         _context = context;
         _currentUserService = currentUserService;
         _hubContext = hubContext;
+        _notifications = notifications;
     }
 
     [HttpGet]
@@ -176,6 +179,19 @@ public class OrdersController : BaseApiController
         };
         await _hubContext.Clients.User(order.UserId.ToString()).SendAsync("OrderStatusUpdated", payload);
         await _hubContext.Clients.Group(OrderHub.StaffGroup).SendAsync("OrderStatusUpdated", payload);
+
+        var statusText = newStatus switch
+        {
+            OrderStatuses.Preparing => "hazırlanıyor",
+            OrderStatuses.Ready => "teslime hazır",
+            OrderStatuses.Completed => "teslim edildi",
+            OrderStatuses.Cancelled => "iptal edildi",
+            _ => "güncellendi"
+        };
+        await _notifications.SendToUserAsync(order.UserId, order.OrganizationId,
+            newStatus == OrderStatuses.Ready ? "Siparişiniz hazır" : "Sipariş durumu güncellendi",
+            $"{order.CollectionCode} kodlu siparişiniz {statusText}.",
+            newStatus == OrderStatuses.Ready ? "ORDER_READY" : "ORDER_STATUS", "ORDER", order.Id.ToString());
 
         await AuditLogsController.LogAsync(
             _context,
@@ -331,6 +347,10 @@ public class OrdersController : BaseApiController
         {
             return Conflict(Result<object>.Fail("Bakiye başka bir işlemle değişti. Lütfen tekrar deneyin."));
         }
+
+        await _notifications.SendToUserAsync(order.UserId, order.OrganizationId,
+            "Siparişiniz alındı", $"{order.CollectionCode} kodlu siparişiniz hazırlanmak üzere şubeye iletildi.",
+            "ORDER_CREATED", "ORDER", order.Id.ToString());
 
         return Ok(Result<object>.Ok(new
         {

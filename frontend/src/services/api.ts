@@ -372,6 +372,10 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ isActive }),
     }),
+  resolveCouponQr: (code: string) =>
+    request<any>('/qr/coupons/resolve', { method: 'POST', body: JSON.stringify({ code }) }),
+  redeemCouponQr: (claimId: string, cafeId: string) =>
+    request<any>(`/qr/coupons/${claimId}/redeem`, { method: 'POST', body: JSON.stringify({ cafeId }) }),
   updateStaffAssignment: (userId: string, data: { duty: string; branchId?: string | null; registrationNumber?: string }) =>
     request<any>(`/staff/${userId}/assignment`, {
       method: 'PUT',
@@ -379,6 +383,13 @@ export const api = {
     }),
   getCampaigns: (params?: Record<string, string | number | boolean | undefined>) =>
     request<any>(`/campaigns${toQuery({ page: 1, pageSize: 25, ...params })}`),
+  getIsmarliyorCampaigns: () =>
+    request<any[]>('/campaigns/ismarliyor'),
+  syncIsmarliyorCampaigns: (items: any[]) =>
+    request<any[]>('/campaigns/ismarliyor/sync', {
+      method: 'POST',
+      body: JSON.stringify(items),
+    }),
   createCampaign: (data: any) =>
     request<any>('/campaigns', {
       method: 'POST',

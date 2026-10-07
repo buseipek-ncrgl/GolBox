@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import type { TabId } from "@/lib/golbox-data"
 import { useGolbox } from "@/lib/golbox-context"
 import { AppHeader } from "@/components/golbox/app-header"
@@ -20,12 +20,17 @@ import { EventsScreen } from "@/components/golbox/screens/events-screen"
 import { MissionsScreen } from "@/components/golbox/screens/missions-screen"
 import { OrdersHistoryScreen } from "@/components/golbox/screens/orders-history-screen"
 import { CartScreen } from "@/components/golbox/screens/cart-screen"
-import { useEffect } from "react"
 import { InAppNotificationToast } from "@/components/golbox/notifications/in-app-notification-toast"
-import { fetchMyNotifications, type CitizenNotification } from "@/lib/city-content-api"
+import {
+  fetchMyNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+  type CitizenNotification,
+} from "@/lib/city-content-api"
+import { playNotificationSound } from "@/lib/notification-sound"
 
 export function AppShell() {
-  const { token, user, unreadCount, sessionReady, selectedBranch, refreshData } = useGolbox()
+  const { token, user, unreadCount, sessionReady, selectedBranch, refreshData, refreshUnreadCount } = useGolbox()
   const [showSplash, setShowSplash] = useState(true)
   const [tab, setTab] = useState<TabId>("home")
   const [cafeId, setCafeId] = useState<string | null>(null)
@@ -39,6 +44,74 @@ export function AppShell() {
   const [notifications, setNotifications] = useState<CitizenNotification[]>([])
   const [notificationsLoading, setNotificationsLoading] = useState(false)
   const [transientNotification, setTransientNotification] = useState<CitizenNotification | null>(null)
+  const knownNotificationIds = useRef<Set<string>>(new Set())
+  const notificationBaselineReady = useRef(false)
+
+  useEffect(() => {
+    const receive = (event: Event) => {
+      const payload = (event as CustomEvent<Partial<CitizenNotification>>).detail
+      if (!payload?.id) return
+      const item: CitizenNotification = {
+        id: String(payload.id), title: payload.title || "Yeni bildirim", body: payload.body || "",
+        type: payload.type || "General", entityType: payload.entityType || payload.targetType,
+        entityId: payload.entityId || payload.targetId, targetType: payload.targetType,
+        targetId: payload.targetId, isRead: false, createdAt: payload.createdAt || new Date().toISOString(),
+      }
+      knownNotificationIds.current.add(item.id)
+      setNotifications((current) => [item, ...current.filter((entry) => entry.id !== item.id)])
+      setTransientNotification(item)
+    }
+    window.addEventListener("golbox-notification", receive)
+    return () => window.removeEventListener("golbox-notification", receive)
+  }, [])
+
+  useEffect(() => {
+    knownNotificationIds.current = new Set()
+    notificationBaselineReady.current = false
+    if (!token) return
+
+    let cancelled = false
+    const syncNotifications = async () => {
+      try {
+        const [page] = await Promise.all([
+          fetchMyNotifications(token, 1, 25),
+          refreshUnreadCount(),
+        ])
+        if (cancelled) return
+
+        if (!notificationBaselineReady.current) {
+          knownNotificationIds.current = new Set(page.items.map((item) => item.id))
+          notificationBaselineReady.current = true
+        } else {
+          const unseen = page.items.filter((item) => !knownNotificationIds.current.has(item.id))
+          page.items.forEach((item) => knownNotificationIds.current.add(item.id))
+          const newestUnread = unseen.find((item) => !item.isRead)
+          if (newestUnread) {
+            setTransientNotification(newestUnread)
+            void playNotificationSound()
+          }
+        }
+
+        setNotifications(page.items)
+      } catch {
+        // SignalR yeniden bağlanırken periyodik senkronizasyon bir sonraki turda tekrar dener.
+      }
+    }
+
+    const handleVisible = () => {
+      if (document.visibilityState === "visible") void syncNotifications()
+    }
+    void syncNotifications()
+    const timer = window.setInterval(() => void syncNotifications(), 10_000)
+    window.addEventListener("focus", handleVisible)
+    document.addEventListener("visibilitychange", handleVisible)
+    return () => {
+      cancelled = true
+      window.clearInterval(timer)
+      window.removeEventListener("focus", handleVisible)
+      document.removeEventListener("visibilitychange", handleVisible)
+    }
+  }, [token, refreshUnreadCount])
 
   // APP RESUME FOREGROUND SYNC (PRD SECTIONS 103, 218, 294)
   useEffect(() => {
@@ -99,6 +172,12 @@ export function AppShell() {
   const handleNotificationClick = (item: CitizenNotification) => {
     setShowNotifications(false)
     setTransientNotification(null)
+    if (token && !item.isRead) {
+      void markNotificationRead(token, item.id).finally(() => void refreshUnreadCount())
+      setNotifications((current) =>
+        current.map((entry) => (entry.id === item.id ? { ...entry, isRead: true } : entry))
+      )
+    }
 
     const entityType = item.entityType || ""
     const type = item.type || ""
@@ -148,6 +227,7 @@ export function AppShell() {
             onOpenCampaigns={() => setShowCampaigns(true)}
             onOpenEvents={() => setShowEvents(true)}
             onOpenMissions={() => setShowMissions(true)}
+            onOpenCoupons={() => setShowCoupons(true)}
             hideHeader
           />
         )}
@@ -163,6 +243,8 @@ export function AppShell() {
         )}
         {tab === "profile" && (
           <ProfileScreen
+            onNavigateToMenu={() => goto("menu")}
+            onNavigateToCart={() => goto("cart")}
             onOpenEvents={() => setShowEvents(true)}
             onOpenMissions={() => setShowMissions(true)}
             onOpenOrders={() => setShowOrders(true)}
@@ -249,7 +331,20 @@ export function AppShell() {
             goto("profile")
           }}
           onOpen={(item) => handleNotificationClick(item)}
-          onMarkAllRead={() => setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })))}
+          onMarkRead={(item) => {
+            setNotifications((current) =>
+              current.map((entry) => (entry.id === item.id ? { ...entry, isRead: true } : entry))
+            )
+            if (token && !item.isRead) {
+              void markNotificationRead(token, item.id).finally(() => void refreshUnreadCount())
+            }
+          }}
+          onMarkAllRead={() => {
+            setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })))
+            if (token) {
+              void markAllNotificationsRead(token).finally(() => void refreshUnreadCount())
+            }
+          }}
         />
       )}
 

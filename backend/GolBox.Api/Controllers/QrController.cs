@@ -12,6 +12,7 @@ using GolBox.Application.Features.Tasks;
 using GolBox.Application.Features.Qr.Commands;
 using GolBox.Application.Interfaces;
 using GolBox.Domain.Entities;
+using GolBox.Api.Services;
 
 namespace GolBox.Api.Controllers;
 
@@ -22,13 +23,15 @@ public class QrController : BaseApiController
     private readonly IDynamicQrService _qrService;
     private readonly ICurrentUserService _currentUser;
     private readonly IAppDbContext _context;
+    private readonly CitizenNotificationService _notifications;
 
-    public QrController(IMediator mediator, IDynamicQrService qrService, ICurrentUserService currentUser, IAppDbContext context)
+    public QrController(IMediator mediator, IDynamicQrService qrService, ICurrentUserService currentUser, IAppDbContext context, CitizenNotificationService notifications)
     {
         _mediator = mediator;
         _qrService = qrService;
         _currentUser = currentUser;
         _context = context;
+        _notifications = notifications;
     }
 
     [HttpPost("scan")]
@@ -90,7 +93,8 @@ public class QrController : BaseApiController
                 p.Amount,
                 p.PaidWithPoints,
                 p.PointsDeducted,
-                p.Status
+                p.Status,
+                p.Token
             })
             .ToListAsync();
 
@@ -120,7 +124,7 @@ public class QrController : BaseApiController
                 p.PaidWithPoints,
                 p.PointsDeducted,
                 p.Status,
-                operation = p.PaidWithPoints ? "points-payment" : p.Amount > 0 ? "cash-earn" : "visit",
+                operation = p.Token.StartsWith("coupon:") ? "coupon-redeem" : p.PaidWithPoints ? "points-payment" : p.Amount > 0 ? "cash-earn" : "visit",
                 gp
             };
         }).ToList();
@@ -147,6 +151,8 @@ public class QrController : BaseApiController
             return NotFound(Result<object>.Fail("Bu teslim koduna ait sipariş bulunamadı."));
         var scopeError = await ValidateBranchScope(order.CafeId, request.CafeId);
         if (scopeError != null) return scopeError;
+        if (string.Equals(order.PaymentMethod, "ISMARLIYOR", StringComparison.OrdinalIgnoreCase))
+            return BadRequest(Result<object>.Fail("Ismarlıyor siparişlerinde ikinci QR okutulmaz. Teslim işlemini Sipariş Operasyonu ekranından tamamlayın."));
 
         var status = OrderStatuses.Canonicalize(order.Status);
         if (status == OrderStatuses.Completed)
@@ -157,6 +163,95 @@ public class QrController : BaseApiController
             return BadRequest(Result<object>.Fail($"Sipariş henüz teslime hazır değil. Mevcut durum: {status}"));
 
         return Ok(Result<object>.Ok(MapPickupOrder(order)));
+    }
+
+    [HttpPost("coupons/resolve")]
+    [Authorize(Policy = AuthorizationPolicies.StaffOrAdmin)]
+    [EnableRateLimiting("qr")]
+    public async Task<IActionResult> ResolveCoupon([FromBody] ResolveCouponRequest request)
+    {
+        var code = request.Code?.Trim().ToUpperInvariant();
+        if (string.IsNullOrWhiteSpace(code)) return BadRequest(Result<object>.Fail("Kupon kodu boş bırakılamaz."));
+        var claim = await _context.UserRewards.AsNoTracking().Include(x => x.User).Include(x => x.Reward)
+            .FirstOrDefaultAsync(x => x.RedeemCode == code);
+        if (claim == null) return NotFound(Result<object>.Fail("Bu koda ait ikram kuponu bulunamadı."));
+        var orderMarker = $"ismarliyor-claim:{claim.Id}";
+        if (claim.Status == UserRewardStatuses.Redeemed && await _context.Orders.AnyAsync(x => x.ImageUrl == orderMarker))
+            return Conflict(Result<object>.Fail("Bu ikram kuponu daha önce siparişe dönüştürülmüş."));
+        if (claim.Status != UserRewardStatuses.Claimed || claim.ExpiresAt < DateTime.UtcNow)
+        {
+            if (claim.Status != UserRewardStatuses.Redeemed)
+                return BadRequest(Result<object>.Fail("Bu ikram kuponu geçerli değil veya süresi dolmuş."));
+        }
+        return Ok(Result<object>.Ok(new { id = claim.Id, code = claim.RedeemCode, title = claim.Reward.Title,
+            description = claim.Reward.Description, memberName = $"{claim.User.FirstName} {claim.User.LastName}".Trim(),
+            email = claim.User.Email, expiresAt = claim.ExpiresAt, sourceType = "Ismarliyor" }));
+    }
+
+    [HttpPost("coupons/{id:guid}/redeem")]
+    [Authorize(Policy = AuthorizationPolicies.StaffOrAdmin)]
+    [EnableRateLimiting("qr")]
+    public async Task<IActionResult> RedeemCoupon(Guid id, [FromBody] RedeemCouponRequest request)
+    {
+        if (request.CafeId == Guid.Empty || !await _context.Cafes.AnyAsync(x => x.Id == request.CafeId && x.IsActive))
+            return BadRequest(Result<object>.Fail("Geçerli bir şube seçin."));
+        var claim = await _context.UserRewards.Include(x => x.Reward).FirstOrDefaultAsync(x => x.Id == id);
+        if (claim == null) return NotFound(Result<object>.Fail("İkram kuponu bulunamadı."));
+        var orderMarker = $"ismarliyor-claim:{claim.Id}";
+        if (await _context.Orders.AnyAsync(x => x.ImageUrl == orderMarker))
+            return Conflict(Result<object>.Fail("Bu ikram kuponu daha önce siparişe dönüştürülmüş."));
+        if (claim.Status != UserRewardStatuses.Claimed && claim.Status != UserRewardStatuses.Redeemed)
+            return BadRequest(Result<object>.Fail("Bu ikram kuponu geçerli değil veya süresi dolmuş."));
+        if (claim.Status == UserRewardStatuses.Claimed && claim.ExpiresAt < DateTime.UtcNow)
+            return BadRequest(Result<object>.Fail("Bu ikram kuponunun süresi dolmuş."));
+
+        var menuItem = await _context.MenuItems.FirstOrDefaultAsync(x =>
+            x.CafeId == request.CafeId && x.IsActive && x.Name == claim.Reward.Title);
+        if (menuItem == null)
+            return BadRequest(Result<object>.Fail($"'{claim.Reward.Title}' ürünü seçilen şubenin aktif menüsünde bulunamadı."));
+
+        string collectionCode;
+        do { collectionCode = $"IS-MR-{Random.Shared.Next(1000, 10000)}"; }
+        while (await _context.Orders.AnyAsync(x => x.CollectionCode == collectionCode));
+
+        var now = DateTime.UtcNow;
+        var orderId = Guid.NewGuid();
+        var order = new Order
+        {
+            Id = orderId, UserId = claim.UserId, CafeId = request.CafeId,
+            TotalAmount = 0, PaidWithPoints = false, PointsUsed = 0,
+            Status = OrderStatuses.Preparing, PaymentStatus = "PAID", PaymentMethod = "ISMARLIYOR",
+            CollectionCode = collectionCode, OrganizationId = claim.OrganizationId,
+            ImageUrl = orderMarker, ConfirmedAt = now, PreparingAt = now, CreatedDate = now,
+            OrderItems = new System.Collections.Generic.List<OrderItem>
+            {
+                new()
+                {
+                    Id = Guid.NewGuid(), OrderId = orderId, MenuItemId = menuItem.Id, Quantity = 1,
+                    UnitPrice = 0, FinalUnitPrice = 0, OptionPricesSum = 0,
+                    ProductName = menuItem.Name, SelectedOptionsJson = "[]"
+                }
+            }
+        };
+        _context.Orders.Add(order);
+        claim.Status = UserRewardStatuses.Redeemed; claim.RedeemedAt ??= now; claim.UpdatedDate = now;
+        if (!await _context.QrPayments.AnyAsync(x => x.Token == $"coupon:{claim.RedeemCode}"))
+            _context.QrPayments.Add(new QrPayment
+        {
+            Id = Guid.NewGuid(), UserId = claim.UserId, CafeId = request.CafeId,
+            Amount = 0, PaidWithPoints = false, PointsDeducted = 0, Status = "Completed",
+            Token = $"coupon:{claim.RedeemCode}", ExpiresAt = now,
+            OrganizationId = claim.OrganizationId
+        });
+        await _context.SaveChangesAsync();
+        await AuditLogsController.LogAsync(_context, _currentUser.Email ?? "staff", _currentUser.Role ?? "Staff",
+            "Coupon_Redeem", "Qr", "UserReward", claim.Id.ToString(), UserRewardStatuses.Claimed,
+            UserRewardStatuses.Redeemed, $"Cafe={request.CafeId}; code={claim.RedeemCode}");
+        await _notifications.SendToUserAsync(claim.UserId, claim.OrganizationId,
+            "İkram siparişiniz hazırlanıyor", $"{order.CollectionCode} kodlu {menuItem.Name} ikramınız şubede hazırlanmaya başladı.",
+            "ORDER_PREPARING", "ORDER", order.Id.ToString());
+        return Ok(Result<object>.Ok(new { id = claim.Id, status = claim.Status, claim.RedeemedAt,
+            orderId = order.Id, order.CollectionCode, orderStatus = order.Status }, "İkram siparişi hazırlanmak üzere oluşturuldu."));
     }
 
     [HttpPost("orders/{id:guid}/complete")]
@@ -171,6 +266,8 @@ public class QrController : BaseApiController
 
         var scopeError = await ValidateBranchScope(order.CafeId, request.CafeId);
         if (scopeError != null) return scopeError;
+        if (string.Equals(order.PaymentMethod, "ISMARLIYOR", StringComparison.OrdinalIgnoreCase))
+            return BadRequest(Result<object>.Fail("Ismarlıyor siparişlerinde teslim QR ile yapılmaz. Sipariş Operasyonu ekranındaki 'Teslim Edildi' işlemini kullanın."));
         if (OrderStatuses.Canonicalize(order.Status) == OrderStatuses.Completed)
             return Conflict(Result<object>.Fail("Bu sipariş daha önce teslim edilmiş."));
         if (OrderStatuses.Canonicalize(order.Status) != OrderStatuses.Ready)
@@ -244,3 +341,6 @@ public class CompletePickupOrderRequest
     public Guid CafeId { get; set; }
     public string? PaymentMethod { get; set; }
 }
+
+public class ResolveCouponRequest { public string Code { get; set; } = string.Empty; }
+public class RedeemCouponRequest { public Guid CafeId { get; set; } }

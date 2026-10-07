@@ -219,7 +219,11 @@ export function CafesPage() {
             }}>
               {modalTab === 'basic' && (
                 <>
-                  <Input required label="Şube adı *" value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} />
+                  <Input required label="Ad" value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} />
+                  <Select label="Bağlı Belediye Tesisi" value={editing.placeId || ''} onChange={(e) => setEditing({ ...editing, placeId: e.target.value })}>
+                    <option value="">Otomatik Tesis Kaydı / Seçilmedi</option>
+                    {places.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </Select>
                   <Input label="Şube Görsel URL" helper="Mobil uygulamadaki kafe kapak resmi bağlantısı" value={editing.imageUrl || ''} onChange={(e) => setEditing({ ...editing, imageUrl: e.target.value })} />
                   <Checkbox label="Şube Aktif Durumda" helper="Pasif şubeler Gel-Al ve Ismarlıyor siparişi kabul etmez." checked={editing.isActive !== false} onChange={(e) => setEditing({ ...editing, isActive: e.target.checked })} />
                 </>

@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useMemo } from "react"
 import { createPortal } from "react-dom"
 import {
   ArrowLeft,
@@ -139,6 +139,9 @@ export function FavoritesScreen({
     toggleFavorite,
     savedConfigurations,
     saveCustomConfiguration,
+    removeCustomConfiguration,
+    updateCustomConfiguration,
+    cafes,
     selectedBranch,
     addToFoodCart
   } = useGolbox()
@@ -157,23 +160,63 @@ export function FavoritesScreen({
   const [recipeToRename, setRecipeToRename] = useState<SavedRecipeItem | null>(null)
   const [renameInputValue, setRenameInputValue] = useState("")
 
-  // Combine global saved configurations with demo recipes
-  const allSavedRecipes: SavedRecipeItem[] = [
-    ...savedConfigurations.map((cfg) => ({
-      ...cfg,
-      baseProductName: "Kişisel Kahve Tarifi",
-      currentPrice: 195,
-      hasUnavailableOption: false,
-      unavailableReason: undefined
-    })),
-    ...DEMO_SAVED_RECIPES
-  ]
+  // Combine real cafe menu items with DEMO catalog items (deduplicated by product name)
+  const allAvailableMenuProducts = React.useMemo(() => {
+    const map = new Map<string, any>()
+    for (const c of cafes || []) {
+      for (const m of c.menuItems || []) {
+        if (!m || !m.name) continue
+        const key = m.name.toLowerCase().trim()
+        if (!map.has(key)) {
+          map.set(key, {
+            id: m.id,
+            name: m.name,
+            description: m.description,
+            price: m.price,
+            startingPrice: m.price,
+            imageUrl: m.imageUrl || "https://images.unsplash.com/photo-1517701604599-bb29b565090c?w=400&auto=format&fit=crop&q=60",
+            category: m.categoryName || "Kahveler",
+            isAvailable: m.isAvailable !== false,
+            optionGroups: m.optionGroups || []
+          })
+        }
+      }
+    }
+    for (const p of DEMO_CATALOG_PRODUCTS) {
+      const key = p.name ? p.name.toLowerCase().trim() : p.id
+      if (!map.has(key)) {
+        map.set(key, p)
+      }
+    }
+    return Array.from(map.values())
+  }, [cafes])
 
-  // Filter favorite products from catalog
-  const favoriteProductsList = DEMO_CATALOG_PRODUCTS.filter((p) => favorites.includes(p.id) || p.id === "m-4" || p.id === "m-1" || p.id === "m-7")
+  // User saved configurations for "Benim GölBOX'ım"
+  const allSavedRecipes: SavedRecipeItem[] = savedConfigurations.map((cfg) => ({
+    ...cfg,
+    baseProductName: cfg.name || "Kişisel Kahve Tarifi",
+    currentPrice: 195,
+    hasUnavailableOption: false,
+    unavailableReason: undefined
+  }))
+
+  // Filter favorite products strictly from active user favorites (deduplicated)
+  const favoriteProductsList = useMemo(() => {
+    return allAvailableMenuProducts.filter((p) => {
+      if (favorites.includes(p.id)) return true
+      for (const c of cafes || []) {
+        for (const m of c.menuItems || []) {
+          if (m && m.name && m.name.toLowerCase().trim() === p.name.toLowerCase().trim() && favorites.includes(m.id)) {
+            return true
+          }
+        }
+      }
+      return false
+    })
+  }, [allAvailableMenuProducts, favorites, cafes])
 
   // HANDLER: ADD FAVORITE PRODUCT TO CART (PRD SECTIONS 18-19)
-  const handleAddProductToCart = (product: typeof DEMO_CATALOG_PRODUCTS[0]) => {
+  const handleAddProductToCart = (product: typeof allAvailableMenuProducts[0]) => {
     if (!product.isAvailable) {
       showToast(`${product.name} şu anda seçili şubede mevcut değil.`)
       return
@@ -222,6 +265,7 @@ export function FavoritesScreen({
     showToast(`"${newRecipeName}" Benim GölBOX'ıma kaydedildi!`)
     setShowCreateRecipeModal(false)
     setNewRecipeName("")
+    setActiveTab("recipes")
   }
 
   // HANDLER: REMOVE FAVORITE PRODUCT WITH NON-MODAL UNDO TOAST (PRD SECTIONS 20-21)
@@ -349,7 +393,7 @@ export function FavoritesScreen({
                 </span>
               </div>
 
-              {favoriteProductsList.map((product) => {
+              {favoriteProductsList.map((product: any) => {
                 const isFav = favorites.includes(product.id)
                 const isUnavailable = !product.isAvailable
 
@@ -583,21 +627,124 @@ export function FavoritesScreen({
                   onChange={(e) => setNewRecipeProduct(e.target.value)}
                   className="w-full rounded-2xl border border-border bg-background px-3.5 py-2.5 text-xs font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                 >
-                  <option value="m-4">Iced Vanilla Latte</option>
-                  <option value="m-5">Flat White</option>
-                  <option value="m-1">GölBOX Özel Filtre Kahve</option>
+                  {allAvailableMenuProducts.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
                 </select>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-foreground mb-1">Reçete Özelleştirmesi</label>
-                <input
-                  type="text"
-                  value={newRecipeSummary}
-                  onChange={(e) => setNewRecipeSummary(e.target.value)}
-                  className="w-full rounded-2xl border border-border bg-background px-3.5 py-2.5 text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                />
+                <label className="block text-xs font-bold text-foreground mb-1.5">Reçete Özelleştirmesi</label>
+                <div className="space-y-3 max-h-56 overflow-y-auto pr-1 no-scrollbar border border-border/50 rounded-2xl p-3 bg-muted/20">
+                  {(() => {
+                    const selectedProductObj = allAvailableMenuProducts.find((p) => p.id === newRecipeProduct) || allAvailableMenuProducts[0]
+
+                    const fallbackGroups = [
+                      {
+                        name: "Boyut Seçimi",
+                        maxSelect: 1,
+                        options: [{ name: "Küçük Boy" }, { name: "Orta Boy" }, { name: "Büyük Boy" }]
+                      },
+                      {
+                        name: "Süt Seçimi",
+                        maxSelect: 1,
+                        options: [{ name: "Tam Yağlı Süt" }, { name: "Yulaf Sütü" }, { name: "Laktozsuz Süt" }, { name: "Badem Sütü" }]
+                      },
+                      {
+                        name: "Ekstra & Şurup",
+                        maxSelect: 4,
+                        options: [{ name: "+1 Ekstra Shot" }, { name: "Vanilya Şurubu" }, { name: "Karamel Şurubu" }, { name: "Fındık Şurubu" }]
+                      },
+                      {
+                        name: "Sıcaklık / Buz",
+                        maxSelect: 1,
+                        options: [{ name: "Sıcak" }, { name: "Normal Buzlu" }, { name: "Az Buzlu" }, { name: "Bol Buzlu" }]
+                      }
+                    ]
+
+                    const groupsToUse = (selectedProductObj?.optionGroups && selectedProductObj.optionGroups.length > 0)
+                      ? selectedProductObj.optionGroups
+                      : fallbackGroups
+
+                    return groupsToUse.map((group: any, gIdx: number) => {
+                      const isSingle = group.maxSelect === 1 ||
+                        group.name.toLowerCase().includes("boyut") ||
+                        group.name.toLowerCase().includes("süt") ||
+                        group.name.toLowerCase().includes("buz") ||
+                        group.name.toLowerCase().includes("sıcaklık")
+
+                      const groupOptionNames = group.options.map((o: any) => o.name)
+
+                      return (
+                        <div key={group.name || gIdx} className="space-y-1">
+                          <span className="text-[11px] font-extrabold text-foreground/80 block">{group.name}</span>
+                          <div className="flex flex-wrap gap-1.5">
+                            {group.options.map((opt: any) => {
+                              const chipName = opt.name
+                              const active = newRecipeSummary.includes(chipName)
+
+                              const handleToggle = () => {
+                                const currentParts = newRecipeSummary.split("·").map((s) => s.trim()).filter(Boolean)
+                                let newParts: string[] = []
+                                if (isSingle) {
+                                  const otherGroupParts = currentParts.filter((p) => !groupOptionNames.includes(p))
+                                  newParts = active ? otherGroupParts : [...otherGroupParts, chipName]
+                                } else {
+                                  newParts = active ? currentParts.filter((p) => p !== chipName) : [...currentParts, chipName]
+                                }
+                                setNewRecipeSummary(newParts.join(" · "))
+                              }
+
+                              return (
+                                <button
+                                  key={chipName}
+                                  type="button"
+                                  onClick={handleToggle}
+                                  className={`rounded-full px-2.5 py-1 text-[11px] font-bold transition-all cursor-pointer ${
+                                    active
+                                      ? "bg-emerald-700 text-white shadow-2xs"
+                                      : "bg-secondary text-muted-foreground hover:text-foreground"
+                                  }`}
+                                >
+                                  {chipName} {active ? "✓" : "+"}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )
+                    })
+                  })()}
+                </div>
+
+                <div className="mt-2.5">
+                  <label className="block text-[11px] font-bold text-muted-foreground mb-1">Seçilen Özelleştirme Özeti</label>
+                  <input
+                    type="text"
+                    value={newRecipeSummary}
+                    onChange={(e) => setNewRecipeSummary(e.target.value)}
+                    placeholder="Örn: Orta Boy · Yulaf Sütü"
+                    className="w-full rounded-2xl border border-border bg-background px-3.5 py-2 text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
               </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCreateRecipeModal(false)
+                  showToast("Menüye yönlendiriliyorsunuz. Kahvenizi özelleştirip kaydedebilirsiniz.")
+                  if (onNavigateToMenu) {
+                    onNavigateToMenu()
+                  }
+                }}
+                className="flex w-full items-center justify-center gap-1.5 rounded-2xl border border-emerald-600/30 bg-emerald-500/10 p-2.5 text-xs font-bold text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20 transition cursor-pointer"
+              >
+                <Coffee className="size-4 text-emerald-600" />
+                <span>Veya Menüden Kahve Özelleştir & Kaydet ›</span>
+              </button>
 
               <div className="flex gap-2 pt-2">
                 <button
@@ -638,6 +785,9 @@ export function FavoritesScreen({
               </button>
               <button
                 onClick={() => {
+                  if (removeCustomConfiguration) {
+                    removeCustomConfiguration(recipeToDelete.id)
+                  }
                   showToast(`"${recipeToDelete.name}" silindi.`)
                   setRecipeToDelete(null)
                 }}
@@ -671,7 +821,10 @@ export function FavoritesScreen({
               </button>
               <button
                 onClick={() => {
-                  showToast(`Tarif adı "${renameInputValue}" olarak değiştirildi.`)
+                  if (updateCustomConfiguration && renameInputValue.trim()) {
+                    updateCustomConfiguration(recipeToRename.id, renameInputValue.trim())
+                    showToast(`Tarif adı "${renameInputValue.trim()}" olarak değiştirildi.`)
+                  }
                   setRecipeToRename(null)
                 }}
                 className="flex-1 rounded-2xl bg-primary py-2.5 text-xs font-black text-primary-foreground shadow-xs"

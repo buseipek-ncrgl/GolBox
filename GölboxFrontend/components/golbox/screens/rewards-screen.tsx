@@ -35,7 +35,7 @@ export function RewardsScreen({
   initialTab?: RewardsTabProp
   onOpenMissions?: () => void
 }) {
-  const { user, token, rewards, claimedRewards, cafes, claimReward, pointTransactions, loading } = useGolbox()
+  const { user, token, orders, rewards, claimedRewards, cafes, claimReward, pointTransactions, loading } = useGolbox()
   const mappedInitial = initialTab === "coupons" || initialTab === "my-rewards" ? "my-rewards" : "discover"
   const [tab, setTab] = useState<MainTab>(mappedInitial)
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all")
@@ -143,7 +143,7 @@ export function RewardsScreen({
       </header>
 
       {/* Main 2-Tab Switcher: Keşfet | Kazandıklarım */}
-      <div className="grid grid-cols-3 gap-1 rounded-2xl bg-secondary p-1 shadow-2xs" role="tablist" aria-label="GölPuan bölümleri">
+      <div className="grid grid-cols-3 gap-1 rounded-2xl bg-muted/70 p-1 border border-border/50 shadow-2xs" role="tablist" aria-label="GölPuan bölümleri">
         <button
           type="button"
           onClick={() => setTab("discover")}
@@ -175,7 +175,7 @@ export function RewardsScreen({
       {tab === "discover" && (
         <div className="space-y-4">
           {/* GölPuan Balance Card */}
-          <div className="relative overflow-hidden rounded-[22px] bg-primary px-5 py-4 text-primary-foreground shadow-md">
+          <div className="relative overflow-hidden rounded-[22px] bg-gradient-to-br from-[#005c40] via-[#007A55] to-[#004d35] px-5 py-4.5 text-white shadow-md">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-[11px] font-bold uppercase tracking-wider text-primary-foreground/75">
@@ -195,28 +195,28 @@ export function RewardsScreen({
           {/* AKTİF GÖREVİN KOMPAKT KARTI (PRD SECTION 103-104) */}
           <div
             onClick={onOpenMissions}
-            className="cursor-pointer rounded-2xl border border-amber-400/40 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent p-3.5 shadow-2xs hover:border-amber-400 transition flex items-center justify-between group"
+            className="cursor-pointer rounded-2xl border border-emerald-600/20 bg-card p-3.5 shadow-2xs hover:border-emerald-600/40 transition flex items-center justify-between group"
           >
             <div className="flex items-center gap-3">
-              <div className="flex size-10 items-center justify-center rounded-xl bg-amber-400 text-amber-950 font-black shrink-0">
+              <div className="flex size-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold shrink-0">
                 <Award className="size-5" />
               </div>
               <div>
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-400">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
                     Aktif Görevin
                   </span>
-                  <span className="rounded-full bg-amber-400/20 px-1.5 py-0.5 text-[9px] font-black text-amber-700 dark:text-amber-300">
+                  <span className="rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-bold text-amber-700 dark:text-amber-300">
                     +150 GP
                   </span>
                 </div>
-                <h4 className="text-xs font-black text-foreground group-hover:text-primary transition-colors mt-0.5">
-                  Haftalık Kahve Molası (2 / 3)
+                <h4 className="text-xs font-bold text-foreground group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors mt-0.5">
+                  Haftalık Kahve Molası ({Math.min(3, (orders || []).filter(o => o.status === "Completed" || o.status === "COMPLETED").length)} / 3)
                 </h4>
               </div>
             </div>
             {onOpenMissions && (
-              <span className="text-xs font-black text-primary flex items-center gap-0.5 shrink-0">
+              <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-0.5 shrink-0">
                 <span>Görevi Gör</span>
                 <ChevronRight className="size-4" />
               </span>
@@ -255,7 +255,7 @@ export function RewardsScreen({
                   <div className="min-w-0 flex-1">
                     <h3 className="truncate font-bold text-sm text-foreground">{reward.title}</h3>
                     <p className="line-clamp-1 text-xs text-muted-foreground">{reward.description}</p>
-                    <span className="mt-1 inline-block rounded-md bg-[color:var(--color-gold)]/15 px-2 py-0.5 text-[11px] font-bold text-[color:var(--color-gold)]">
+                    <span className="mt-1 inline-block rounded-md bg-amber-500/15 px-2 py-0.5 text-[11px] font-bold text-amber-700 dark:text-amber-400">
                       {reward.requiredPoints.toLocaleString("tr-TR")} GP
                     </span>
                     {reward.remainingStock != null && <span className="ml-1.5 text-[10px] font-semibold text-muted-foreground">{reward.remainingStock > 0 ? `Son ${reward.remainingStock} adet` : "Tükendi"}</span>}
@@ -265,7 +265,11 @@ export function RewardsScreen({
                     type="button"
                     onClick={() => void handleClaimWithPoints(reward.id, reward.requiredPoints)}
                     disabled={loading || claimingId === reward.id || points < reward.requiredPoints || reward.isEligible === false || reward.remainingStock === 0}
-                    className="min-h-11 shrink-0 rounded-xl bg-primary px-3.5 py-2 text-xs font-bold text-primary-foreground shadow-2xs hover:bg-primary/90 transition-all active:scale-95 focus-visible:ring-2 focus-visible:ring-primary/40"
+                    className={`min-h-11 shrink-0 rounded-xl px-3.5 py-2 text-xs font-bold transition-all active:scale-95 focus-visible:ring-2 focus-visible:ring-emerald-600/40 ${
+                      points < reward.requiredPoints || reward.remainingStock === 0
+                        ? "bg-muted text-muted-foreground font-semibold cursor-not-allowed"
+                        : "bg-emerald-700 text-white hover:bg-emerald-800 shadow-2xs"
+                    }`}
                   >
                     {claimingId === reward.id ? "Alınıyor..." : reward.isEligible === false ? "Uygun değil" : reward.remainingStock === 0 ? "Tükendi" : points < reward.requiredPoints ? "Puan yetersiz" : "GölPuan ile Al"}
                   </button>

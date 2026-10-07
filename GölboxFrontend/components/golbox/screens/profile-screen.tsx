@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { Screen } from "@/components/golbox/screen"
 import { Gift, Heart, LogIn, LogOut, Ticket, Award, ChevronRight, Bell, Eye, EyeOff } from "lucide-react"
-import { useGolbox } from "@/lib/golbox-context"
+import { useGolbox, type MenuItem } from "@/lib/golbox-context"
 import { LoginScreen } from "@/components/golbox/screens/login-screen"
 import { AuthGate } from "@/components/golbox/auth-gate"
 import { RewardsScreen } from "@/components/golbox/screens/rewards-screen"
@@ -195,7 +195,7 @@ export function ProfileScreen({
   onOpenMissions?: () => void
   onOpenOrders?: () => void
 }) {
-  const { user, token, myCaptures, pointTransactions, claimedRewards, orders, logout, loadMyCaptures, favorites, toggleFavorite } = useGolbox()
+  const { user, token, myCaptures, pointTransactions, claimedRewards, orders, logout, loadMyCaptures, favorites, toggleFavorite, cafes } = useGolbox()
   const showToast = useGolToast()
   const [showLogin, setShowLogin] = useState(false)
   const [showRewards, setShowRewards] = useState(false)
@@ -226,7 +226,10 @@ export function ProfileScreen({
     return (
       <FavoritesScreen
         onBack={() => setShowFavorites(false)}
-        onNavigateToMenu={onNavigateToMenu || (() => {})}
+        onNavigateToMenu={() => {
+          setShowFavorites(false)
+          if (onNavigateToMenu) onNavigateToMenu()
+        }}
         onNavigateToCart={onNavigateToCart}
         initialTab={favoritesTab}
       />
@@ -382,45 +385,56 @@ export function ProfileScreen({
           >
             Favorilerini görmek için giriş yapın.
           </button>
-        ) : favorites.length === 0 ? (
-          <div className="gol-card flex flex-col items-center gap-2 border-dashed px-4 py-6 text-center">
-            <Heart className="size-8 text-muted-foreground/40" />
-            <p className="text-xs font-bold text-foreground">Henüz favori ürününüz yok.</p>
-            <p className="text-[11px] text-muted-foreground">Menü ekranından kalp ikonuna dokunarak lezzetleri favorilerinize ekleyebilirsiniz.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-2.5">
-            {[
-              { id: "m-1", name: "GölBOX Özel Filtre Kahve", price: 35, imageUrl: "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=400&auto=format&fit=crop&q=60" },
-              { id: "m-2", name: "Karamel Macchiato", price: 65, imageUrl: "https://images.unsplash.com/photo-1485808191679-5f86510681a2?w=400&auto=format&fit=crop&q=60" },
-              { id: "m-3", name: "Caffè Latte", price: 55, imageUrl: "https://images.unsplash.com/photo-1534778101976-62847782c213?w=400&auto=format&fit=crop&q=60" },
-              { id: "m-4", name: "Iced Vanilla Latte", price: 70, imageUrl: "https://images.unsplash.com/photo-1517701604599-bb29b565090c?w=400&auto=format&fit=crop&q=60" },
-              { id: "m-5", name: "GölBOX Iced Cold Brew", price: 60, imageUrl: "https://images.unsplash.com/photo-1461023058943-07fcbe16d735?w=400&auto=format&fit=crop&q=60" },
-              { id: "m-6", name: "Bergamotlu Siyah Çay", price: 25, imageUrl: "https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=400&auto=format&fit=crop&q=60" },
-              { id: "m-7", name: "Belçika Çikolatalı Cheesecake", price: 85, imageUrl: "https://images.unsplash.com/photo-1533134242443-d4fd215305ad?w=400&auto=format&fit=crop&q=60" }
-            ].filter(item => favorites.includes(item.id)).map((item) => (
-              <div key={item.id} className="flex items-center justify-between rounded-2xl border border-border bg-card p-2.5 shadow-2xs">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="relative size-12 shrink-0 overflow-hidden rounded-xl bg-muted">
-                    <img src={item.imageUrl} alt={item.name} className="size-full object-cover" />
-                  </div>
-                  <div className="min-w-0">
-                    <h4 className="truncate text-xs font-bold text-foreground">{item.name}</h4>
-                    <p className="text-xs font-extrabold text-primary mt-0.5">₺{item.price}</p>
-                  </div>
+        ) : (() => {
+            const userFavItems = (() => {
+              const map = new Map<string, MenuItem>()
+              for (const c of cafes || []) {
+                for (const item of c.menuItems || []) {
+                  if (item && item.id && favorites.includes(item.id)) {
+                    const key = item.name ? item.name.toLowerCase().trim() : item.id
+                    if (!map.has(key)) {
+                      map.set(key, item)
+                    }
+                  }
+                }
+              }
+              return Array.from(map.values())
+            })()
+            if (userFavItems.length === 0) {
+              return (
+                <div className="gol-card flex flex-col items-center gap-2 border-dashed px-4 py-6 text-center">
+                  <Heart className="size-8 text-muted-foreground/40" />
+                  <p className="text-xs font-bold text-foreground">Henüz favori ürününüz yok.</p>
+                  <p className="text-[11px] text-muted-foreground">Menü ekranından kalp ikonuna dokunarak lezzetleri favorilerinize ekleyebilirsiniz.</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => toggleFavorite(item.id)}
-                  className="flex size-7 shrink-0 items-center justify-center rounded-full bg-rose-50 dark:bg-rose-950/60 text-rose-500 hover:bg-rose-100 transition"
-                  title="Favorilerden Çıkar"
-                >
-                  <Heart className="size-4 fill-rose-500 text-rose-500" />
-                </button>
+              )
+            }
+            return (
+              <div className="grid grid-cols-2 gap-2.5">
+                {userFavItems.map((item) => (
+                  <div key={item.id} className="flex items-center justify-between rounded-2xl border border-border bg-card p-2.5 shadow-2xs">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="relative size-12 shrink-0 overflow-hidden rounded-xl bg-muted">
+                        <img src={item.imageUrl || "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=400&auto=format&fit=crop&q=60"} alt={item.name} className="size-full object-cover" />
+                      </div>
+                      <div className="min-w-0">
+                        <h4 className="truncate text-xs font-bold text-foreground">{item.name}</h4>
+                        <p className="text-xs font-extrabold text-primary mt-0.5">₺{item.price}</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => toggleFavorite(item.id)}
+                      className="flex size-7 shrink-0 items-center justify-center rounded-full bg-rose-50 dark:bg-rose-950/60 text-rose-500 hover:bg-rose-100 transition"
+                      title="Favorilerden Çıkar"
+                    >
+                      <Heart className="size-4 fill-rose-500 text-rose-500" />
+                    </button>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        )}
+            )
+          })()}
       </section>
 
       <section className="space-y-3">

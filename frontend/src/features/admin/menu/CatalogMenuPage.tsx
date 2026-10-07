@@ -272,7 +272,7 @@ export function CatalogMenuPage() {
             <List size={15} /> Liste
           </button>
         </div>
-        <Button onClick={() => open(newProduct(cafes[0]?.id))}>
+        <Button data-testid="menu-create" onClick={() => open(newProduct(cafes[0]?.id))}>
           <Plus size={17} /> Yeni ürün
         </Button>
       </div>
@@ -463,6 +463,7 @@ export function CatalogMenuPage() {
                         <Button
                           size="sm"
                           variant="ghost"
+                          data-testid="menu-edit"
                           aria-label={`${item.name} ürününü düzenle`}
                           onClick={() => open(item)}
                         >

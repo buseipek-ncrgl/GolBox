@@ -151,6 +151,7 @@ export function CampaignsPage() {
               <option value="HighSchool">Lise</option>
               <option value="University">Üniversite</option>
             </Select>
+            <Input label="Yönlendirme" helper="Tıklandığında açılacak sayfa veya URL" value={form.actionUrl || ''} onChange={(e) => setForm({ ...form, actionUrl: e.target.value })} />
             <Input label="Görsel" helper="Opsiyonel görsel URL" value={form.imageUrl || ''} onChange={(e) => setForm({ ...form, imageUrl: e.target.value })} />
           </form>
         )}

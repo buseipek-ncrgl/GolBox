@@ -7,6 +7,7 @@ export type AdminMenuId =
   | 'points'
   | 'qr'
   | 'rewards'
+  | 'fielddrops'
   | 'campaigns'
   | 'events'
   | 'eventCheckin'
@@ -19,6 +20,7 @@ export type AdminMenuId =
   | 'settings';
 
 export const STAFF_MENU_IDS: AdminMenuId[] = [
+  'overview',
   'orders',
   'ismarliyor',
   'qr',
@@ -42,8 +44,8 @@ export const ADMIN_PATHS: { id: AdminMenuId; path: string; label: string; sectio
 
   // OPERASYON (STAFF & ADMIN)
   { id: 'orders', path: '/admin/siparisler', label: 'Sipariş Operasyonu', section: 'Operasyon', description: 'Canlı sipariş kuyruğu: Kabul, Hazırlanıyor, Hazır ve Teslim.' },
-  { id: 'ismarliyor', path: '/admin/ismarliyor', label: 'Ismarlıyor (İkram Yönetimi)', section: 'Operasyon', description: 'Sponsorlu ikram kampanyaları, stok kontenjanı ve sipariş takibi.' },
-  { id: 'qr', path: '/admin/qr', label: 'QR İle Kasa Doğrulama', section: 'Operasyon', description: 'Kasada müşteri QR tarama, sipariş doğrulama ve puan kullanımı.' },
+  { id: 'ismarliyor', path: '/admin/ismarliyor', label: 'Ismarlıyor', section: 'Operasyon', description: 'Sponsorlu ikram kampanyaları, stok kontenjanı ve sipariş takibi.' },
+  { id: 'qr', path: '/admin/qr', label: 'QR İşlemleri', section: 'Operasyon', description: 'Kasada müşteri QR tarama, sipariş doğrulama ve puan kullanımı.' },
   { id: 'eventCheckin', path: '/admin/etkinlik-checkin', label: 'Etkinlik Check-in', section: 'Operasyon', description: 'Etkinlik günü katılımcı QR kodlarını tarama ve doğrulanmış katılım.' },
   { id: 'cafes', path: '/admin/gol-kafeler', label: 'Şubeler & Gel-Al Durumu', section: 'Operasyon', description: 'Şube bilgileri ve Gel-Al geçici duraklatma/açma yönetimi.' },
 
@@ -53,6 +55,7 @@ export const ADMIN_PATHS: { id: AdminMenuId; path: string; label: string; sectio
   // SADAKAT
   { id: 'points', path: '/admin/golpuan', label: 'GölPuan Defteri', section: 'Sadakat', description: 'Kazanç, harcama ve yetkili manuel puan düzeltmeleri.' },
   { id: 'rewards', path: '/admin/oduller', label: 'Ödül Kataloğu', section: 'Sadakat', description: 'GölPuan ile alınabilen katalog ödülleri ve kuponlar.' },
+  // { id: 'fielddrops', path: '/admin/saha-hediyeleri', label: 'Saha Hediyeleri', section: 'Sadakat', description: 'Konum bazlı hediye ve GölBox saha tanımları.' },
 
   // İÇERİK
   { id: 'campaigns', path: '/admin/kampanyalar', label: 'Kampanyalar', section: 'İçerik', description: 'Öne çıkan kampanya ve fırsat duyuruları.' },
@@ -62,7 +65,7 @@ export const ADMIN_PATHS: { id: AdminMenuId; path: string; label: string; sectio
 
   // YÖNETİM
   { id: 'reports', path: '/admin/raporlar', label: 'Operasyon Raporları', section: 'Yönetim', description: 'Satış, şube performansı, puan ve vatandaş kullanım analizleri.' },
-  { id: 'users', path: '/admin/vatandaslar', label: 'Vatandaşlar', section: 'Yönetim', description: 'Kayıtlı vatandaşlar, profil bilgileri ve durumları.' },
+  { id: 'users', path: '/admin/vatandaslar', label: 'Vatandaş Hesabı Arama', section: 'Yönetim', description: 'Kayıtlı vatandaşlar, profil bilgileri ve durumları.' },
   { id: 'roles', path: '/admin/yetkilendirme', label: 'Sistem Yetkileri', section: 'Yönetim', description: 'Rol matrisi ve personel yetki sınırları.' },
   { id: 'audit', path: '/admin/denetim', label: 'Denetim İzi (Audit Log)', section: 'Yönetim', description: 'Kritik sistem eylemleri ve yetkili müdahale kayıtları.' },
   { id: 'settings', path: '/admin/ayarlar', label: 'Sistem Ayarları', section: 'Yönetim', description: 'GölPuan parametreleri, süreler ve genel yapılandırma.' },
